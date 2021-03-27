@@ -15,12 +15,7 @@ lazy val commonSettings = Seq(
     "-feature",
     "-unchecked",
     "-Xsource:2.11"
-  ),
-  resolvers ++= Seq(
-    Resolver.sonatypeRepo("snapshots"),
-    Resolver.sonatypeRepo("releases"),
-    Resolver.mavenLocal
-  ),
+  )
 )
 
 lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
@@ -28,8 +23,3 @@ lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
 lazy val startship_soc = (project in file("."))
   .dependsOn(rocket_chip)
   .settings(commonSettings: _*)
-  .settings( 
-    semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision,
-    scalacOptions += "-Ywarn-unused-import"
-  )
