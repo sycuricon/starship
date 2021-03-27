@@ -1,7 +1,11 @@
 # IDE
 .vscode/
-
+.bsp/
+.metals/
 
 
 # Build
-build/
+/build/
+/target/
+/project/target
+/project/project

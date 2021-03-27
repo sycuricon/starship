@@ -3,9 +3,10 @@
 # This file is under MIT License, see https://www.phvntom.tech/LICENSE.txt
 
 TOP	:= $(CURDIR)
-BUILD	:= $(TOP)/build
 SRC	:= $(TOP)/repo
+BUILD	:= $(TOP)/build
 CONFIG	:= $(TOP)/conf
+SBT_BUILD := $(TOP)/target $(TOP)/project/target $(TOP)/project/project
 
 ifndef RISCV
 $(error RISCV is undefined)
@@ -13,6 +14,11 @@ endif
 
 all: rocket
 
+#######################################
+#                                      
+#        RocketChip Generator          
+#                                      
+#######################################
 
 ROCKET_SRC	:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
@@ -25,30 +31,37 @@ ROCKET_OUTPUT	:= starship
 ROCKET_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
 
-#######################################
-#
-#	RocketChip Generator
-#
-#######################################
-
 $(ROCKET_FIRRTL): 
 	mkdir -p $(ROCKET_BUILD)
-	cd $(ROCKET_SRC) && $(ROCKET_JAVA) 		\
-		"runMain $(ROCKET_PROJECT).Generator	\
-	       	-td $(ROCKET_BUILD) 			\
-		-T $(ROCKET_PROJECT).$(ROCKET_TOP)	\
-	       	-C $(ROCKET_PROJECT).$(ROCKET_CONFIG)	\
-		-n $(ROCKET_OUTPUT)"
+	$(ROCKET_JAVA) "runMain $(ROCKET_PROJECT).Generator	\
+					-td $(ROCKET_BUILD) -T $(ROCKET_PROJECT).$(ROCKET_TOP)	\
+					-C $(ROCKET_PROJECT).$(ROCKET_CONFIG) -n $(ROCKET_OUTPUT)"
 
 $(ROCKET_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
-	cd $(ROCKET_SRC) && $(ROCKET_JAVA)              \
-		"runMain firrtl.stage.FirrtlMain	\
-		-i $< -o $@ -X verilog"
+	$(ROCKET_JAVA) "runMain firrtl.stage.FirrtlMain	\
+					-i $< -o $@ -X verilog"
 
 rocket: $(ROCKET_VERILOG)
 
 
-clean:
-	rm -rf $(BUILD)
+#######################################
+#
+#            StarShip Soc
+#
+#######################################
 
+
+
+#######################################
+#
+#            Bitstream
+#
+#######################################
+
+
+
+
+
+clean:
+	rm -rf $(BUILD) $(SBT_BUILD)
