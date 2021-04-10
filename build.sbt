@@ -15,11 +15,22 @@ lazy val commonSettings = Seq(
     "-feature",
     "-unchecked",
     "-Xsource:2.11"
+  ),
+  libraryDependencies ++= Seq(
+    "com.github.scopt" %% "scopt" % "3.7.1"
   )
 )
 
 lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
 
 lazy val startship_soc = (project in file("."))
+  .dependsOn(rocket_chip, sifive_blocks, fpga_shells)
+  .settings(commonSettings: _*)
+
+lazy val sifive_blocks = (project in file("repo/sifive-blocks"))
   .dependsOn(rocket_chip)
+  .settings(commonSettings: _*)
+
+lazy val fpga_shells = (project in file("repo/fpga-shells"))
+  .dependsOn(rocket_chip, sifive_blocks)
   .settings(commonSettings: _*)

@@ -1,3 +1,9 @@
 [submodule "repo/rocket-chip"]
 	path = repo/rocket-chip
 	url = https://github.com/chipsalliance/rocket-chip.git
+[submodule "repo/sifive-blocks"]
+	path = repo/sifive-blocks
+	url = https://github.com/sifive/sifive-blocks.git
+[submodule "repo/fpga-shells"]
+	path = repo/fpga-shells
+	url = https://github.com/sifive/fpga-shells.git

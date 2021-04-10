@@ -3,7 +3,6 @@
 .bsp/
 .metals/
 
-
 # Build
 /build/
 /target/
