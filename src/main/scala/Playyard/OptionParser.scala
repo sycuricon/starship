@@ -1,4 +1,4 @@
-package Testyard
+package starship.playyard.option
 
 import java.io.File
 
@@ -10,7 +10,7 @@ case class StarShipConfig(
 )
 
 
-object Test extends App {
+object optionTest extends App {
     val parser = new scopt.OptionParser[StarShipConfig]("scopt") {
     head("scopt", "3.x")
 

@@ -2,7 +2,17 @@
 .vscode/
 .bsp/
 .metals/
+.bloop/
+.idea/
 
-# Build
-/build/
-/target/
+# sbt Build
+/build
+/target
+
+# Ignore files generated under build
+build/.../*.v
+build/.../*.fir
+build/.../*.json
+
+# Log
+log*

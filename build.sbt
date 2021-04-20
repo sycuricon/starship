@@ -14,7 +14,8 @@ lazy val commonSettings = Seq(
     "-deprecation",
     "-feature",
     "-unchecked",
-    "-Xsource:2.11"
+    "-Xsource:2.11",
+    "-language:reflectiveCalls"
   ),
   libraryDependencies ++= Seq(
     "com.github.scopt" %% "scopt" % "3.7.1"
