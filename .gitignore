@@ -16,3 +16,5 @@ build/.../*.json
 
 # Log
 log*
+*.jou
+*.log

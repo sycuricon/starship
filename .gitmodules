@@ -6,4 +6,4 @@
 	url = https://github.com/sifive/sifive-blocks.git
 [submodule "repo/fpga-shells"]
 	path = repo/fpga-shells
-	url = https://github.com/sifive/fpga-shells.git
+	url = https://github.com/Phantom1003/fpga-shells.git

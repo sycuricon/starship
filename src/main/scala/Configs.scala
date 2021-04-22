@@ -33,7 +33,7 @@ class WithFrequency(MHz: Double) extends Config((site, here, up) => {
 })
 
 class StarshipBaseConfig extends Config(
-  new WithBootROMFile("bootrom/bootrom.img") ++
+  new WithBootROMFile("repo/rocket-chip/bootrom/bootrom.img") ++
   new WithExtMemSize(0x40000000L) ++
   new WithNExtTopInterrupts(0) ++
   new WithDTS("zjv,starship", Nil) ++
@@ -42,7 +42,7 @@ class StarshipBaseConfig extends Config(
   new WithoutTLMonitors ++
   new BaseConfig)
 
-class StarshipDefaultConfig extends Config(
+class StarshipFPGAConfig extends Config(
   new WithPeripherals ++
   new WithFrequency(50) ++
   new WithNBigCores(1)    ++
@@ -51,5 +51,6 @@ class StarshipDefaultConfig extends Config(
     case MemoryXilinxDDRKey => XilinxVC707MIGParams(address = Seq(AddressSet(0x80000000L,0x40000000L-1))) //1GB
     case DTSTimebase => BigInt(1000000)
     case DebugModuleKey => None
+
   })
 )
