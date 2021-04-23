@@ -27,7 +27,7 @@ ROCKET_JVM_MEM	?= 2G
 ROCKET_JAVA		:= java -Xmx$(ROCKET_JVM_MEM) -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
 ROCKET_TOP_PROJ	?= starship.fpga
 ROCKET_TOP		?= TestHarness
-ROCKET_CON_PROJ	?= starship
+ROCKET_CON_PROJ	?= starship.fpga
 ROCKET_CONFIG	?= StarshipFPGAConfig
 ROCKET_OUTPUT	:= $(ROCKET_TOP_PROJ).$(ROCKET_TOP).$(ROCKET_CONFIG)
 ROCKET_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v
@@ -57,7 +57,8 @@ verilog: $(ROCKET_VERILOG)
 #######################################
 
 BOARD				:= vc707
-VIVADO_SRC			:= $(SRC)/fpga-shells/xilinx
+SCRIPT_SRC			:= $(SRC)/fpga-shells
+VIVADO_SRC			:= $(SCRIPT_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
 VERILOG_SRAM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.v
@@ -66,7 +67,8 @@ VERILOG_SRC			:= $(VERILOG_SRAM) \
 					   $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v \
 					   $(ROCKET_BUILD)/plusarg_reader.v \
 					   $(VIVADO_SRC)/$(BOARD)/vsrc/sdio.v \
-					   $(VIVADO_SRC)/$(BOARD)/vsrc/vc707reset.v
+					   $(VIVADO_SRC)/$(BOARD)/vsrc/vc707reset.v \
+					   $(SCRIPT_SRC)/testbench/SimTestHarness.v
 $(VERILOG_INCLUDE):
 	mkdir -p $(VIVADO_BUILD)
 	echo $(VERILOG_SRC) > $@

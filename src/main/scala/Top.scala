@@ -16,8 +16,6 @@ import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
 import sifive.blocks.devices.spi._
 import sifive.blocks.devices.uart._
 
-case object BuildTop extends Field[Parameters => LazyModule]((p: Parameters) => new StarshipTop()(p))
-
 class StarshipSystem(implicit p: Parameters) extends RocketSubsystem
   with HasAsyncExtInterrupts
 {
@@ -30,19 +28,4 @@ class StarshipSystem(implicit p: Parameters) extends RocketSubsystem
 class StarshipSystemModuleImp[+L <: StarshipSystem](_outer: L) extends RocketSubsystemModuleImp(_outer)
   with HasRTCModuleImp
   with HasExtInterruptsModuleImp
-  with DontTouch
-
-
-class StarshipTop(implicit p: Parameters) extends StarshipSystem
-  with HasPeripheryUART
-  with HasPeripherySPI
-  with HasMemoryXilinxVC707MIG
-{
-  override lazy val module = new StarshipTopModuleImp(this)
-}
-
-class StarshipTopModuleImp[+L <: StarshipTop](_outer: L) extends StarshipSystemModuleImp(_outer)
-  with HasPeripheryUARTModuleImp
-  with HasPeripherySPIModuleImp
-  with HasMemoryXilinxVC707MIGModuleImp
   with DontTouch
