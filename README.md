@@ -17,7 +17,7 @@ This project will provide great convenience for the following people who:
 This project will follow the lastest rocket-chip, the functions of each folder in the project are as follows:
 |       Folder        |      Description       | 
 | :-----------------: | :--------------------: | 
-|      firmware       | Zero&First Stage Bootloader |
+|      firmware       | Zero & First Stage Bootloader |
 |   repo/rocket-chip  | An in-order RISC-V core | 
 |   repo/fpga-shell   |      FPGA Wrapper      | 
 |   repo/sifive-block | Peripheral Components  | 
@@ -26,11 +26,11 @@ This project will follow the lastest rocket-chip, the functions of each folder i
 
 
 ## Quickstart
-> I only promise to you this project will work fine on ubuntu 20, vivado 2020.2.
+> I only promise that this project will work fine on ubuntu 20, vivado 2020.2.
 
 Before you start compiling, you should already have sbt, vivado and a RISC-V toolchian.
 ```bash
-$ git clone https://github.com/Phantom1003/riscv-starship.git
+$ git clone https://github.com/riscv-zju/riscv-starship.git
 $ git submodule update --init --recursive --progress
 
 # set $RISCV to your toolchain path, not inclued bin
@@ -38,7 +38,7 @@ $ make bitstream
 ```
 After these, you will find your ditstream under `build/vivado/obj`, named `TestHarness.bit`.
 
-You can open `build/vivado/TestHarness.xpr` to download your bitsream. But before you download the bitstream to the board, you should prepare the test program on a SD/TF card.
+You can open `build/vivado/TestHarness.xpr` to download your bitsream. But before you download the bitstream to the board, you should prepare the test program on a SD/TF card. Note that the program should place on the 2048th selector of the SD card without filesystem.
 ```bash
 # Get your card number, replace x with your number
 $ dmesg | tail
@@ -49,6 +49,130 @@ $ sudo sgdisk --clear \
 sudo dd if=<program> of=/dev/sdx1 bs=4096
 sudo mke2fs -t ext3 /dev/sdx2
 ```
+The default device tree is following:
+```dts
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "zjv,starship-dev";
+	model = "zjv,starship";
+	L18: aliases {
+		serial0 = &L10;
+	};
+	L13: chosen {
+		bootargs = "nokaslr";
+	};
+	L17: cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <1000000>;
+		L4: cpu@0 {
+			clock-frequency = <100000000>;
+			compatible = "sifive,rocket0", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <32>;
+			device_type = "cpu";
+			hardware-exec-breakpoint-count = <1>;
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&L12>;
+			reg = <0x0>;
+			riscv,isa = "rv64imafdc";
+			riscv,pmpgranularity = <4>;
+			riscv,pmpregions = <8>;
+			status = "okay";
+			timebase-frequency = <1000000>;
+			tlb-split;
+			L2: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+	L12: memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+	L16: soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "zjv,starship-soc", "simple-bus";
+		ranges;
+		L6: clint@2000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&L2 3 &L2 7>;
+			reg = <0x2000000 0x10000>;
+			reg-names = "control";
+		};
+		L1: error-device@3000 {
+			compatible = "sifive,error0";
+			reg = <0x3000 0x1000>;
+		};
+		L5: interrupt-controller@c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&L2 11 &L2 9>;
+			reg = <0xc000000 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <3>;
+			riscv,ndev = <2>;
+		};
+		L8: rom@10000 {
+			compatible = "sifive,rom0";
+			reg = <0x10000 0x10000>;
+			reg-names = "mem";
+		};
+		L9: rom@20000 {
+			compatible = "sifive,maskrom0";
+			reg = <0x20000 0x2000>;
+			reg-names = "mem";
+		};
+		L10: serial@64000000 {
+			clocks = <&L0>;
+			compatible = "sifive,uart0";
+			interrupt-parent = <&L5>;
+			interrupts = <1>;
+			reg = <0x64000000 0x1000>;
+			reg-names = "control";
+		};
+		L11: spi@64001000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&L0>;
+			compatible = "sifive,spi0";
+			interrupt-parent = <&L5>;
+			interrupts = <2>;
+			reg = <0x64001000 0x1000>;
+			reg-names = "control";
+			L14: mmc@0 {
+				compatible = "mmc-spi-slot";
+				disable-wp;
+				reg = <0x0>;
+				spi-max-frequency = <20000000>;
+				voltage-ranges = <3300 3300>;
+			};
+		};
+		L0: subsystem_pbus_clock {
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			clock-output-names = "subsystem_pbus_clock";
+			compatible = "fixed-clock";
+		};
+	};
+};
+```
+
 Now, start a terminal to catch the output from UART.
 ```
 $ sudo screen -S FPGA /dev/ttyUSB0 115200
