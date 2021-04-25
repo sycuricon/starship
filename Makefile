@@ -45,7 +45,7 @@ $(ROCKET_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain firrtl.stage.FirrtlMain	\
 					-td $(ROCKET_BUILD) --infer-rw $(ROCKET_TOP) \
-					--repl-seq-mem -c:$(ROCKET_TOP):-o:$(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf \
+					--repl-seq-mem -c:$(ROCKET_TOP):-o:$(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.conf \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
 					-fct firrtl.passes.InlineInstances \
 					-i $< -o $@ -X verilog"
@@ -58,14 +58,23 @@ verilog: $(ROCKET_VERILOG)
 #
 #######################################
 
+FIRMWARE_SRC	:= $(TOP)/firmware
+FIRMWARE_BUILD	:= $(BUILD)/firmware
+FSBL_SRC		:= $(FIRMWARE_SRC)/fsbl
+FSBL_BUILD		:= $(FIRMWARE_BUILD)/fsbl
+STARSHIP_ROM_HEX := $(FSBL_BUILD)/sdboot.hex
+
 BOARD				:= vc707
 SCRIPT_SRC			:= $(SRC)/fpga-shells
 VIVADO_SRC			:= $(SCRIPT_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
 VERILOG_SRAM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.v
+VERILOG_ROM			:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.v
 VERILOG_INCLUDE 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).vsrc.f
 VERILOG_SRC			:= $(VERILOG_SRAM) \
+					   $(VERILOG_ROM) \
+					   $(STARSHIP_ROM_HEX) \
 					   $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v \
 					   $(ROCKET_BUILD)/plusarg_reader.v \
 					   $(VIVADO_SRC)/$(BOARD)/vsrc/sdio.v \
@@ -76,9 +85,15 @@ $(VERILOG_INCLUDE):
 	echo $(VERILOG_SRC) > $@
 
 $(VERILOG_SRAM):
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf >> $@
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.conf >> $@
 
-$(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(VERILOG_INCLUDE) $(VERILOG_SRAM)
+$(STARSHIP_ROM_HEX):
+	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(ROCKET_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
+
+$(VERILOG_ROM): $(STARSHIP_ROM_HEX)
+	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf $< > $@
+
+$(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(VERILOG_INCLUDE) $(VERILOG_SRAM) $(VERILOG_ROM)
 	mkdir -p $(VIVADO_BUILD)
 	cd $(VIVADO_BUILD); vivado -mode batch -nojournal \
 		-source $(VIVADO_SRC)/common/tcl/vivado.tcl \

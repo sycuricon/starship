@@ -30,6 +30,9 @@ class WithPeripherals extends Config((site, here, up) => {
     UARTParams(address = BigInt(0x64000000L)))
   case PeripherySPIKey => List(
     SPIParams(rAddress = BigInt(0x64001000L)))
+  case MaskROMLocated(x) => List(
+    MaskROMParams(BigInt(0x20000L), "StarshipROM")
+  )
 })
 
 class WithFrequency(MHz: Double) extends Config((site, here, up) => {
@@ -47,7 +50,6 @@ class StarshipFPGAConfig extends Config(
   new StarshipBaseConfig().alter((site,here,up) => {
     case DebugModuleKey => None
 
-    /* clock-frequency = 50MHz */
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FPGAFrequencyKey).toInt * 1000000))
 
     /* timebase-frequency = 1 MHz */
@@ -59,13 +61,13 @@ class StarshipFPGAConfig extends Config(
       x.copy(master = x.master.copy(size = site(VCU707DDRSizeKey))))
 
     case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
-      // invoke makefile for sdboot
+      // invoke makefile for zero stage boot
       val freqMHz = site(FPGAFrequencyKey).toInt * 1000000
       val path = System.getProperty("user.dir")
-      val make = s"make -C fsbl/sdboot PBUS_CLK=${freqMHz} ROOT_DIR=${path} bin"
+      val make = s"make -C firmware/zsbl ROOT_DIR=${path} img"
       println("[Leaving Starship] " + make)
       require (make.! == 0, "Failed to build bootrom")
-      p.copy(hang = 0x10000, contentFileName = s"build/fsbl/sdboot.bin")
+      p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
     }
   })
 )

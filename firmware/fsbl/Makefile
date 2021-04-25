@@ -1,6 +1,6 @@
 # RISCV environment variable must be set
 ROOT_DIR	?=	$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR	:=	$(ROOT_DIR)/build/fsbl
+BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/fsbl
 
 CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
 OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
@@ -14,12 +14,15 @@ PBUS_CLK ?= 1000000 # default to 1MHz but really should be overridden
 
 default: elf bin dump
 
-dtb	:= $(BUILD_DIR)/rocketchip.dtb
-dts	:= rocketchip.dts
+dtb		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dtb
+dts		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dts
+dts_org	:= $(ROOT_DIR)/build/rocket-chip/$(ROCKET_OUTPUT).dts
 
-$(dtb): $(dts)
+$(dtb): $(dts_org)
 	mkdir -p $(BUILD_DIR)
-	dtc -I dts -O dtb -o $@ $<
+	cp $< $(dts)
+	sed -i "s/clock-frequency = <0>/clock-frequency = <$(PBUS_CLK)>/g" $(dts)
+	dtc -I dts -O dtb -o $@ $(dts)
 
 elf := $(BUILD_DIR)/sdboot.elf
 $(elf): head.S kprintf.c sd.c $(dtb)
@@ -43,6 +46,13 @@ $(dump): $(elf)
 
 .PHONY: dump
 dump: $(dump)
+
+hex := $(BUILD_DIR)/sdboot.hex
+$(hex): $(bin)
+	od -t x4 -An -w4 -v $< > $@
+
+.PHONY: hex
+hex: $(hex)
 
 .PHONY: clean
 clean::
