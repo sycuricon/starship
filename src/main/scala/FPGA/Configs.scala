@@ -23,7 +23,7 @@ import sifive.blocks.devices.uart._
 import sys.process._
 
 case object VCU707DDRSizeKey extends Field[BigInt](0x40000000L) // 1 GB
-case object FPGAFrequencyKey extends Field[BigInt](50000000L)   // 50 MHz
+case object FPGAFrequencyKey extends Field[Double](50)   // 50 MHz
 
 class WithPeripherals extends Config((site, here, up) => {
   case PeripheryUARTKey => List(
@@ -32,9 +32,14 @@ class WithPeripherals extends Config((site, here, up) => {
     SPIParams(rAddress = BigInt(0x64001000L)))
 })
 
-class WithFrequency(MHz: BigInt) extends Config((site, here, up) => {
+class WithFrequency(MHz: Double) extends Config((site, here, up) => {
   case FPGAFrequencyKey => MHz
 })
+
+class With25MHz  extends WithFrequency(25)
+class With50MHz  extends WithFrequency(50)
+class With100MHz extends WithFrequency(100)
+class With150MHz extends WithFrequency(150)
 
 class StarshipFPGAConfig extends Config(
   new WithPeripherals ++
@@ -43,7 +48,7 @@ class StarshipFPGAConfig extends Config(
     case DebugModuleKey => None
 
     /* clock-frequency = 50MHz */
-    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FPGAFrequencyKey)))
+    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FPGAFrequencyKey).toInt * 1000000))
 
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
@@ -55,10 +60,10 @@ class StarshipFPGAConfig extends Config(
 
     case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
       // invoke makefile for sdboot
-      val freqMHz = site(FPGAFrequencyKey).toInt
+      val freqMHz = site(FPGAFrequencyKey).toInt * 1000000
       val path = System.getProperty("user.dir")
       val make = s"make -C fsbl/sdboot PBUS_CLK=${freqMHz} ROOT_DIR=${path} bin"
-      print(make)
+      println("[Leaving Starship] " + make)
       require (make.! == 0, "Failed to build bootrom")
       p.copy(hang = 0x10000, contentFileName = s"build/fsbl/sdboot.bin")
     }
