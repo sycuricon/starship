@@ -1,8 +1,9 @@
 ROOT_DIR	?=	$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/zsbl
 
-GCC		=	riscv64-unknown-elf-gcc
-OBJCOPY	=	riscv64-unknown-elf-objcopy
+CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
+OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
+OBJDUMP		=	$(RISCV)/bin/riscv64-unknown-elf-objdump
 
 elf	:= $(BUILD_DIR)/bootrom.elf
 bin	:= $(BUILD_DIR)/bootrom.bin
@@ -13,7 +14,7 @@ all: $(img)
 elf: $(elf)
 $(elf): bootrom.S linker.ld
 	mkdir -p $(BUILD_DIR)
-	$(GCC) -Tlinker.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
+	$(CC) -Tlinker.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
 
 bin:$(bin)
 $(bin): $(elf)
