@@ -7,18 +7,49 @@ The `starship` is short for "**STA**rt **R**i**S**c-v on c**HIP**", hope this pr
 Current support boards:
 - Xilinx Virtex-7 VC707
 
+This project is simple enough compared to *chipyard*. We will only focus on how to run the rocket processor cores on FPGAs and does not provide any simulation environment.
+
+This project will provide great convenience for the following people who:
+- ~~have Xilinx Virtex-7 VC707...~~ (I will try to support more boards!)
+- want to test design on FPGA with modified rocket-chip
+- want to have a overview about FPGA development
+
+This project will follow the lastest rocket-chip, the functions of each folder in the project are as follows:
+|       Folder        |      Description       | 
+| :-----------------: | :--------------------: | 
+|      firmware       | Zero&First Stage Bootloader |
+|   repo/rocket-chip  | An in-order RISC-V core | 
+|   repo/fpga-shell   |      FPGA Wrapper      | 
+|   repo/sifive-block | Peripheral Components  | 
+|    src/main/scala   | Top Module & Configuration |  
+
+
+
 ## Quickstart
-You should install sbt, vivado, and set $RISCV to your toolchain before following steps:
+> I only promise to you this project will work fine on ubuntu 20, vivado 2020.2.
+
+Before you start compiling, you should already have sbt, vivado and a RISC-V toolchian.
 ```bash
-git clone https://github.com/Phantom1003/riscv-starship.git
-git submodule update --init --recursive --progress
+$ git clone https://github.com/Phantom1003/riscv-starship.git
+$ git submodule update --init --recursive --progress
 
-make bitstream
+# set $RISCV to your toolchain path, not inclued bin
+$ make bitstream
 ```
-Download the bitstream `build/vivado/obj/TestHarness.bit` on your board and prepare your test program on the 2048th selector of your SD card without filesystem.
+After these, you will find your ditstream under `build/vivado/obj`, named `TestHarness.bit`.
 
-
-## Run with Freedom-U-SDK v1.0
+You can open `build/vivado/TestHarness.xpr` to download your bitsream. But before you download the bitstream to the board, you should prepare the test program on a SD/TF card.
+```bash
+# Get your card number, replace x with your number
+$ dmesg | tail
+$ sudo sgdisk --clear \
+      --new=1:2048:67583  --change-name=1:bootloader --typecode=1:2E54B353-1271-4842-806F-E436D6AF6985 \
+      --new=2:264192:     --change-name=2:root       --typecode=2:0FC63DAF-8483-4772-8E79-3D69D8477DE4 \
+      /dev/sdx
+sudo dd if=<program> of=/dev/sdx1 bs=4096
+sudo mke2fs -t ext3 /dev/sdx2
+```
+Now, start a terminal to catch the output from UART.
 ```
 $ sudo screen -S FPGA /dev/ttyUSB0 115200
 [FSBL] Starship SoC under 0000000002faf080 Hz
@@ -164,3 +195,5 @@ Requesting system poweroff
 [ 1230.263390] reboot: Power down
 Power off
 ```
+
+Finally, if you have any suggestions for this project, please *push* it !
