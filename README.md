@@ -36,9 +36,10 @@ $ git submodule update --init --recursive --progress
 # set $RISCV to your toolchain path, not inclued bin
 $ make bitstream
 ```
-After these, you will find your ditstream under `build/vivado/obj`, named `TestHarness.bit`.
+After these, you will find your bitstream under `build/vivado/obj`, named `TestHarness.bit`.
 
-You can open `build/vivado/TestHarness.xpr` to download your bitsream. But before you download the bitstream to the board, you should prepare the test program on a SD/TF card. Note that the program should place on the 2048th selector of the SD card without filesystem.
+You can open `build/vivado/TestHarness.xpr` to program your FPGA device. But before loading the bitstream into the board, you should prepare the test image on a SD/TF card. 
+> Note that the image should place on the 2048th selector of the SD card without filesystem.
 ```bash
 # Get your card number, replace x with your number
 $ dmesg | tail
