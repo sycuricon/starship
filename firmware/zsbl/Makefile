@@ -1,5 +1,6 @@
+TARGET_FPGA ?= a7
 ROOT_DIR	?=	$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/zsbl
+BUILD_DIR	:=	$(ROOT_DIR)/build/$(TARGET_FPGA)/firmware/zsbl
 
 CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
 OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy

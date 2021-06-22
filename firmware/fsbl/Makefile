@@ -1,6 +1,7 @@
 # RISCV environment variable must be set
+TARGET_FPGA ?= a7
 ROOT_DIR	?=	$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/fsbl
+BUILD_DIR	:=	$(ROOT_DIR)/build/$(TARGET_FPGA)/firmware/fsbl
 
 CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
 OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
@@ -12,11 +13,16 @@ LFLAGS		=	-static -nostdlib -L ./linker -T sdboot.elf.lds
 
 PBUS_CLK ?= 1000000 # default to 1MHz but really should be overridden
 
+mem_sz_a7  := 0x8000000
+mem_oft_a7 := 0x7fff000
+mem_sz_vc707  := 0x40000000
+mem_oft_vc707 := 0xffff000
+
 default: elf bin dump
 
 dtb		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dtb
 dts		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dts
-dts_org	:= $(ROOT_DIR)/build/rocket-chip/$(ROCKET_OUTPUT).dts
+dts_org	:= $(ROOT_DIR)/build/$(TARGET_FPGA)/rocket-chip/$(ROCKET_OUTPUT).dts
 
 $(dtb): $(dts_org)
 	mkdir -p $(BUILD_DIR)
@@ -27,7 +33,8 @@ $(dtb): $(dts_org)
 elf := $(BUILD_DIR)/sdboot.elf
 $(elf): head.S kprintf.c sd.c $(dtb)
 	mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -DTL_CLK="$(PBUS_CLK)UL" -DDEVICE_TREE='"$(dtb)"' $(LFLAGS) -o $@ head.S sd.c kprintf.c
+	$(shell echo DDR_LENGTH = $(mem_sz_$(TARGET_FPGA))\; > linker/board.lds)
+	$(CC) $(CFLAGS) -DBOARD_SPECIFIC_OFFSET="$(mem_oft_$(TARGET_FPGA))" -DTL_CLK="$(PBUS_CLK)UL" -DDEVICE_TREE='"$(dtb)"' $(LFLAGS) -o $@ head.S sd.c kprintf.c
 
 .PHONY: elf
 elf: $(elf)

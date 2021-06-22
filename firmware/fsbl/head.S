@@ -8,7 +8,7 @@
   .globl _prog_start
 _prog_start:
   smp_pause(s1, s2)
-  li sp, (PAYLOAD_DEST + 0xffff000)
+  li sp, (PAYLOAD_DEST + BOARD_SPECIFIC_OFFSET)
   call main
   smp_resume(s1, s2)
   csrr a0, mhartid // hartid for next level bootloader
