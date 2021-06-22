@@ -18,14 +18,14 @@ import sifive.fpgashells.clocks._
 import sifive.blocks.devices.spi._
 import sifive.blocks.devices.uart._
 import sifive.fpgashells.ip.xilinx._
-import sifive.fpgashells.shell.xilinx.vc707shell._
-import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
+import sifive.fpgashells.shell.xilinx.nexysa7shell._
+import sifive.fpgashells.devices.xilinx.digilentnexysa7mig._
 import sifive.blocks.devices.uart._
 
-class StarshipFPGATopVC707(implicit p: Parameters) extends StarshipSystem
+class StarshipFPGATopA7(implicit p: Parameters) extends StarshipSystem
   with HasPeripheryUART
   with HasPeripherySPI
-  with HasMemoryXilinxVC707MIG
+  with HasMemoryDigilentNexysA7MIG
 {
 
   val chosen = new DeviceSnippet {
@@ -39,28 +39,28 @@ class StarshipFPGATopVC707(implicit p: Parameters) extends StarshipSystem
     Resource(mmc, "reg").bind(ResourceAddress(0))
   }
 
-  override lazy val module = new StarshipFPGATopModuleImpVC707(this)
+  override lazy val module = new StarshipFPGATopModuleImpA7(this)
 }
 
-class StarshipFPGATopModuleImpVC707[+L <: StarshipFPGATopVC707](_outer: L) extends StarshipSystemModuleImp(_outer)
+class StarshipFPGATopModuleImpA7[+L <: StarshipFPGATopA7](_outer: L) extends StarshipSystemModuleImp(_outer)
   with HasPeripheryUARTModuleImp
   with HasPeripherySPIModuleImp
-  with HasMemoryXilinxVC707MIGModuleImp
+  with HasMemoryDigilentNexysA7MIGModuleImp
   with DontTouch
 
-class TestHarnessVC707(override implicit val p: Parameters) extends VC707Shell
-    with HasDDR3 {
+// VC707 shell has SPI to SDIO
+// Arty A7 100T has different memory interface with VC707
+class TestHarnessA7(override implicit val p: Parameters) extends NexysA7Shell
+    with HasDDR2 {
 
 
   dut_clock := (p(FPGAFrequencyKey) match {
-    case 25 => clk25
-    case 50 => clk50
-    case 100 => clk100
-    case 150 => clk150
+    case 50   => clk50
+    case 200  => clk200
   })
 
   withClockAndReset(dut_clock, dut_reset) {
-    val dut = Module(LazyModule(new StarshipFPGATopVC707).module)
+    val dut = Module(LazyModule(new StarshipFPGATopA7).module)
     
     connectSPI      (dut)
     connectUART     (dut)

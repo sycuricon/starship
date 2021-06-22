@@ -6,11 +6,12 @@ The `starship` is short for "**STA**rt **R**i**S**c-v on c**HIP**", hope this pr
 
 Current support boards:
 - Xilinx Virtex-7 VC707
+- Digilent Nexys A7 100T
 
 This project is simple enough compared to *chipyard*. We will only focus on how to run the rocket processor cores on FPGAs and does not provide any simulation environment.
 
 This project will provide great convenience for the following people who:
-- ~~have Xilinx Virtex-7 VC707...~~ (I will try to support more boards!)
+- ~~have Xilinx Virtex-7 VC707 or Digilent Nexys A7 100T...~~ (I will try to support more boards!)
 - want to test design on FPGA with modified rocket-chip
 - want to have a overview about FPGA development
 

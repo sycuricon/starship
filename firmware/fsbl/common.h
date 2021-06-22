@@ -6,5 +6,8 @@
   #define PAYLOAD_DEST MEMORY_MEM_ADDR
 #endif
 
+#ifndef BOARD_SPECIFIC_OFFSET
+  #define BOARD_SPECIFIC_OFFSET 0xffff000
+#endif
 
 #endif
