@@ -67,6 +67,7 @@ class StarshipFPGAConfig extends Config(
       val make = s"make -C firmware/zsbl ROOT_DIR=${path} img"
       println("[Leaving Starship] " + make)
       require (make.! == 0, "Failed to build bootrom")
+      println("[Starship Continue]")
       p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
     }
   })

@@ -30,13 +30,18 @@ This project will follow the lastest rocket-chip, the functions of each folder i
 
 Before you start compiling, you should already have sbt, vivado and a RISC-V toolchian.
 ```bash
+# sbt install: https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
+# vivado install: https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/2020-2.html
+# RISC-V toolchain: https://github.com/riscv-zju/riscv-rss-sdk
+
 $ git clone https://github.com/riscv-zju/riscv-starship.git
 $ git submodule update --init --recursive --progress
 
 # set $RISCV to your toolchain path, not inclued bin
 $ make bitstream
 ```
-After these, you will find your bitstream under `build/vivado/obj`, named `TestHarness.bit`.
+To use Intellij IDEA as your IDE, please install scala plugin and use [JDK 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) as your project SDK (at File - Project Structure).
+After compiling, you will find your bitstream under `build/vivado/obj`, named `TestHarness.bit`.
 
 You can open `build/vivado/TestHarness.xpr` to program your FPGA device. But before loading the bitstream into the board, you should prepare the test image on a SD/TF card. 
 > Note that the image should place on the 2048th selector of the SD card without filesystem.
