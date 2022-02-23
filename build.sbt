@@ -17,8 +17,13 @@ lazy val commonSettings = Seq(
     "-Xsource:2.11",
     "-language:reflectiveCalls"
   ),
+  addCompilerPlugin(
+    "edu.berkeley.cs" % "chisel3-plugin" % "3.5.0" cross CrossVersion.full
+  ),
   libraryDependencies ++= Seq(
-    "com.github.scopt" %% "scopt" % "3.7.1"
+    "com.github.scopt" %% "scopt" % "3.7.1",
+    // "edu.berkeley.cs" %% "chisel3" % "3.5.0",
+    // "edu.berkeley.cs" %% "chiseltest" % "0.5.0" % "test"
   )
 )
 

@@ -71,18 +71,17 @@ VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
 VERILOG_SRAM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.v
 VERILOG_ROM			:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.v
-VERILOG_INCLUDE 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).vsrc.f
+# VERILOG_INCLUDE 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).vsrc.f
+VERILOG_INCLUDE 	:= $(ROCKET_BUILD)/firrtl_black_box_resource_files.f
 VERILOG_SRC			:= $(VERILOG_SRAM) \
 					   $(VERILOG_ROM) \
 					   $(STARSHIP_ROM_HEX) \
 					   $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v \
-					   $(ROCKET_BUILD)/plusarg_reader.v \
-					   $(VIVADO_SRC)/$(BOARD)/vsrc/sdio.v \
-					   $(VIVADO_SRC)/$(BOARD)/vsrc/vc707reset.v \
 					   $(SCRIPT_SRC)/testbench/SimTestHarness.v
-$(VERILOG_INCLUDE):
-	mkdir -p $(VIVADO_BUILD)
-	echo $(VERILOG_SRC) > $@
+
+# $(VERILOG_INCLUDE):
+# 	mkdir -p $(VIVADO_BUILD)
+# 	echo $(VERILOG_SRC) >> $@
 
 $(VERILOG_SRAM):
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.conf >> $@
@@ -95,6 +94,7 @@ $(VERILOG_ROM): $(STARSHIP_ROM_HEX)
 
 $(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(VERILOG_INCLUDE) $(VERILOG_SRAM) $(VERILOG_ROM)
 	mkdir -p $(VIVADO_BUILD)
+	echo $(VERILOG_SRC) >> $(VERILOG_INCLUDE)
 	cd $(VIVADO_BUILD); vivado -mode batch -nojournal \
 		-source $(VIVADO_SRC)/common/tcl/vivado.tcl \
 		-tclargs -F "$(VERILOG_INCLUDE)" \

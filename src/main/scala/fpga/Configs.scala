@@ -65,9 +65,9 @@ class StarshipFPGAConfig extends Config(
       val freqMHz = site(FPGAFrequencyKey).toInt * 1000000
       val path = System.getProperty("user.dir")
       val make = s"make -C firmware/zsbl ROOT_DIR=${path} img"
-      println("[Leaving Starship] " + make)
+      println("[Leaving rocketchip] " + make)
       require (make.! == 0, "Failed to build bootrom")
-      println("[Starship Continue]")
+      println("[rocketchip Continue]")
       p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
     }
   })
