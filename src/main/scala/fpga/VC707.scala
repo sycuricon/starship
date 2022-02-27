@@ -20,7 +20,7 @@ import sifive.blocks.devices.uart._
 import sifive.fpgashells.ip.xilinx._
 import sifive.fpgashells.shell.xilinx.vc707shell._
 import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
-import sifive.blocks.devices.uart._
+
 
 class StarshipFPGATop(implicit p: Parameters) extends StarshipSystem
   with HasPeripheryUART

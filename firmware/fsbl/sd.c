@@ -1,17 +1,16 @@
 // See LICENSE.Sifive for license details.
 #include <stdint.h>
-
 #include <platform.h>
-
 #include "common.h"
-
 #define DEBUG
 #include "kprintf.h"
+
+#include "dts.h"
 
 #define MAX_CORES 8
 
 // A sector is 512 bytes, so ((1 << 11) * 512) = 1 MiB
-#define PAYLOAD_SIZE	(16 << 11)
+#define PAYLOAD_SIZE	(24 << 11)
 
 // The sector at which the BBL partition starts
 #define BBL_PARTITION_START_SECTOR 2048
@@ -214,11 +213,12 @@ static int copy(void)
 
 int main(void)
 {
+#ifdef UART
 	REG32(uart, UART_REG_TXCTRL) = UART_TXEN;
-
 	kprintf("[FSBL] Starship SoC under %lx Hz\r\n", F_CLK);
-
 	kputs("INIT");
+
+#ifdef SD_SPI
 	sd_poweron();
 	if (sd_cmd0() ||
 	    sd_cmd8() ||
@@ -229,10 +229,11 @@ int main(void)
 		kputs("ERROR");
 		return 1;
 	}
+#endif
 
 	kputs("BOOT");
+#endif
 
 	__asm__ __volatile__ ("fence.i" : : : "memory");
-
 	return 0;
 }

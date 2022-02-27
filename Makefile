@@ -21,40 +21,62 @@ all: bitstream
 #                                      
 #######################################
 
+STARSHIP_PKG	?= starship.fpga
+# starship.asic
+STARSHIP_TOP	?= StarshipFPGATop
+# StarshipASICTop
+STARSHIP_TH 	?= TestHarness
+STARSHIP_FREQ	?= 100
+STARSHIP_CONFIG	?= StarshipFPGAConfig
+# StarshipSimConfig
+EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
+DEBUG_OPTION	?= # -ll info
+
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
 ROCKET_JVM_MEM	?= 2G
 ROCKET_JAVA		:= java -Xmx$(ROCKET_JVM_MEM) -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
-ROCKET_TOP_PROJ	?= starship.fpga
-ROCKET_TOP		?= TestHarness
-ROCKET_CON_PROJ	?= starship.fpga
-ROCKET_CONFIG	?= StarshipFPGAConfig
-ROCKET_FREQ		?= 100
-ROCKET_OUTPUT	:= $(ROCKET_TOP_PROJ).$(ROCKET_TOP).$(ROCKET_CONFIG)
-ROCKET_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v
+ROCKET_OUTPUT	:= $(STARSHIP_PKG).$(STARSHIP_TOP).$(STARSHIP_CONFIG)
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
+ROCKET_TOP_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.v
+ROCKET_TH_VERILOG 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.v
+ROCKET_TOP_INCLUDE	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.f
+ROCKET_TH_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.f
+ROCKET_TOP_MEMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.top.conf
+ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
 $(ROCKET_FIRRTL): 
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
-					-td $(ROCKET_BUILD) -T $(ROCKET_TOP_PROJ).$(ROCKET_TOP)	\
-					-C $(ROCKET_CON_PROJ).$(ROCKET_CONFIG),$(ROCKET_CON_PROJ).With$(ROCKET_FREQ)MHz \
+					-td $(ROCKET_BUILD) -T $(STARSHIP_PKG).$(STARSHIP_TH)	\
+					-C $(STARSHIP_PKG).$(STARSHIP_CONFIG),$(EXTRA_CONFIG) \
 					-n $(ROCKET_OUTPUT)"
 
-$(ROCKET_VERILOG): $(ROCKET_FIRRTL)
+$(ROCKET_TOP_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_JAVA) "runMain firrtl.stage.FirrtlMain	\
-					-td $(ROCKET_BUILD) --infer-rw $(ROCKET_TOP) \
-					--repl-seq-mem -c:$(ROCKET_TOP):-o:$(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.conf \
+	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
+					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TOP) \
+				  	-T $(STARSHIP_TOP) -oinc $(ROCKET_TOP_INCLUDE) \
+					--repl-seq-mem -c:$(STARSHIP_TOP):-o:$(ROCKET_TOP_MEMCONF) \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances \
-					-i $< -o $@ -X verilog"
+					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(DEBUG_OPTION)"
 
-verilog: $(ROCKET_VERILOG)
+$(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
+	mkdir -p $(ROCKET_BUILD)
+	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
+					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TH) \
+					-T $(STARSHIP_TOP) -TH $(STARSHIP_TH) -oinc $(ROCKET_TH_INCLUDE) \
+					--repl-seq-mem -c:$(STARSHIP_TH):-o:$(ROCKET_TH_MEMCONF) \
+					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
+					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(DEBUG_OPTION)"
+
+verilog: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+
+
 
 #######################################
 #
-#         Bitstream Generator
+#         SRAM Generator
 #
 #######################################
 
@@ -62,47 +84,65 @@ FIRMWARE_SRC	:= $(TOP)/firmware
 FIRMWARE_BUILD	:= $(BUILD)/firmware
 FSBL_SRC		:= $(FIRMWARE_SRC)/fsbl
 FSBL_BUILD		:= $(FIRMWARE_BUILD)/fsbl
-STARSHIP_ROM_HEX := $(FSBL_BUILD)/sdboot.hex
+
+ROCKET_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).f
+ROCKET_ROM_HEX 	:= $(FSBL_BUILD)/sdboot.hex
+ROCKET_ROM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.v
+ROCKET_TOP_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.top.v
+ROCKET_TH_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.testharness.v
+
+VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
+				   $(ROCKET_ROM) $(ROCKET_ROM_HEX) \
+				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
+
+$(ROCKET_INCLUDE): $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+	mkdir -p $(ROCKET_BUILD)
+	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u >> $@
+	echo $(VERILOG_SRC) >> $@
+
+$(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
+	mkdir -p $(ROCKET_BUILD)
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TOP_MEMCONF) >> $(ROCKET_TOP_SRAM)
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) >> $(ROCKET_TH_SRAM)
+
+$(ROCKET_ROM_HEX):
+	mkdir -p $(FSBL_BUILD)
+	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
+
+$(ROCKET_ROM): $(ROCKET_ROM_HEX)
+	mkdir -p $(ROCKET_BUILD)
+	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf $< > $@
+
+sram: $(VERILOG_SRC)
+
+
+
+
+#######################################
+#
+#         Bitstream Generator
+#
+#######################################
 
 BOARD				:= vc707
 SCRIPT_SRC			:= $(SRC)/fpga-shells
 VIVADO_SRC			:= $(SCRIPT_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
-VERILOG_SRAM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.v
-VERILOG_ROM			:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.v
-# VERILOG_INCLUDE 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).vsrc.f
-VERILOG_INCLUDE 	:= $(ROCKET_BUILD)/firrtl_black_box_resource_files.f
-VERILOG_SRC			:= $(VERILOG_SRAM) \
-					   $(VERILOG_ROM) \
-					   $(STARSHIP_ROM_HEX) \
-					   $(ROCKET_BUILD)/$(ROCKET_OUTPUT).v \
-					   $(SCRIPT_SRC)/testbench/SimTestHarness.v
 
-# $(VERILOG_INCLUDE):
-# 	mkdir -p $(VIVADO_BUILD)
-# 	echo $(VERILOG_SRC) >> $@
-
-$(VERILOG_SRAM):
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.conf >> $@
-
-$(STARSHIP_ROM_HEX):
-	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(ROCKET_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
-
-$(VERILOG_ROM): $(STARSHIP_ROM_HEX)
-	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf $< > $@
-
-$(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(VERILOG_INCLUDE) $(VERILOG_SRAM) $(VERILOG_ROM)
+$(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) $(ROCKET_ROM)
 	mkdir -p $(VIVADO_BUILD)
-	echo $(VERILOG_SRC) >> $(VERILOG_INCLUDE)
 	cd $(VIVADO_BUILD); vivado -mode batch -nojournal \
 		-source $(VIVADO_SRC)/common/tcl/vivado.tcl \
-		-tclargs -F "$(VERILOG_INCLUDE)" \
-		-top-module "$(ROCKET_TOP)" \
+		-tclargs -F "$(ROCKET_INCLUDE)" \
+		-top-module "$(STARSHIP_TH)" \
 		-ip-vivado-tcls "$(shell find '$(ROCKET_BUILD)' -name '*.vivado.tcl')" \
 		-board "$(BOARD)"
 
 bitstream: $(VIVADO_BITSTREAM)
+
+
+
 
 #######################################
 #

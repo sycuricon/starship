@@ -1,4 +1,4 @@
-package starship.fpga
+package starship.asic
 
 import starship._
 
@@ -11,30 +11,18 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
 
-import sifive.fpgashells.shell._
-import sifive.fpgashells.clocks._
-import sifive.fpgashells.ip.xilinx._
-import sifive.fpgashells.shell.xilinx._
-import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
-
-import sifive.blocks.devices.spi._
 import sifive.blocks.devices.uart._
 
-
-case object VCU707DDRSizeKey extends Field[BigInt](0x40000000L) // 1 GB
 
 class WithPeripherals extends Config((site, here, up) => {
   case PeripheryUARTKey => List(
     UARTParams(address = BigInt(0x64000000L)))
-  case PeripherySPIKey => List(
-    SPIParams(rAddress = BigInt(0x64001000L)))
   case MaskROMLocated(x) => List(
     MaskROMParams(BigInt(0x20000L), "StarshipROM")
   )
 })
 
-
-class StarshipFPGAConfig extends Config(
+class StarshipSimConfig extends Config(
   new WithPeripherals ++
   new WithNBigCores(1) ++
   new StarshipBaseConfig().alter((site,here,up) => {
@@ -44,10 +32,5 @@ class StarshipFPGAConfig extends Config(
 
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
-
-    /* memory-size = 1 GB */
-    case MemoryXilinxDDRKey => XilinxVC707MIGParams(address = Seq(AddressSet(0x80000000L,site(VCU707DDRSizeKey)-1)))
-    case ExtMem => up(ExtMem, site).map(x => 
-      x.copy(master = x.master.copy(size = site(VCU707DDRSizeKey))))
   })
 )
