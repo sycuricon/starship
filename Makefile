@@ -22,13 +22,10 @@ all: bitstream
 #######################################
 
 STARSHIP_PKG	?= starship.fpga
-# starship.asic
 STARSHIP_TOP	?= StarshipFPGATop
-# StarshipASICTop
 STARSHIP_TH 	?= TestHarness
 STARSHIP_FREQ	?= 100
 STARSHIP_CONFIG	?= StarshipFPGAConfig
-# StarshipSimConfig
 EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
 DEBUG_OPTION	?= # -ll info
 
@@ -70,7 +67,7 @@ $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
 					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(DEBUG_OPTION)"
 
-verilog: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 
 
 
@@ -113,7 +110,7 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf $< > $@
 
-sram: $(VERILOG_SRC)
+verilog: $(VERILOG_SRC)
 
 
 
