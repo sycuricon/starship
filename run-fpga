@@ -1,3 +1,3 @@
 #!/bin/sh
 
-make verilog STARSHIP_PKG=starship.fpga STARSHIP_TOP=StarshipFPGATop STARSHIP_CONFIG=StarshipFPGAConfig
+make bitstream STARSHIP_PKG=starship.fpga STARSHIP_TOP=StarshipFPGATop STARSHIP_CONFIG=StarshipFPGAConfig

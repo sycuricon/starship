@@ -26,8 +26,8 @@ $(dts): $(dts_org)
 
 $(dts_h): $(dts)
 	mkdir -p $(BUILD_DIR)
-	grep -q "sifive,uart" $(dts) && echo "#define UART" >> $(dts_h)
-	grep -q "sifive,spi" $(dts)  && echo "#define SD_SPI" >> $(dts_h)
+	grep -q "sifive,uart" $(dts) && echo "#define UART" >> $(dts_h) || true
+	grep -q "sifive,spi" $(dts)  && echo "#define SD_SPI" >> $(dts_h) || true
 
 $(dtb): $(dts) $(dts_h)
 	mkdir -p $(BUILD_DIR)

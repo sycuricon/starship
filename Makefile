@@ -8,6 +8,7 @@ SRC			:= $(TOP)/repo
 BUILD		:= $(TOP)/build
 CONFIG		:= $(TOP)/conf
 SBT_BUILD 	:= $(TOP)/target $(TOP)/project/target $(TOP)/project/project
+ASIC		:= $(TOP)/asic
 
 ifndef RISCV
 $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
@@ -15,24 +16,37 @@ endif
 
 all: bitstream
 
+
+#######################################
+#                                      
+#         Starship Configuration
+#                                      
+#######################################
+
+# STARSHIP_FREQ	?= 100
+# STARSHIP_TH 	?= TestHarness
+# STARSHIP_TOP	?= StarshipFPGATop
+# STARSHIP_PKG	?= starship.fpga
+# STARSHIP_CONFIG	?= StarshipFPGAConfig
+# EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
+
+STARSHIP_FREQ	?= 100
+STARSHIP_TH 	?= TestHarness
+STARSHIP_TOP	?= StarshipASICTop
+STARSHIP_PKG	?= starship.asic
+STARSHIP_CONFIG	?= StarshipSimConfig
+EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
+
+
 #######################################
 #                                      
 #         Verilog Generator
 #                                      
 #######################################
 
-STARSHIP_PKG	?= starship.fpga
-STARSHIP_TOP	?= StarshipFPGATop
-STARSHIP_TH 	?= TestHarness
-STARSHIP_FREQ	?= 100
-STARSHIP_CONFIG	?= StarshipFPGAConfig
-EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
-DEBUG_OPTION	?= # -ll info
-
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
-ROCKET_JVM_MEM	?= 2G
-ROCKET_JAVA		:= java -Xmx$(ROCKET_JVM_MEM) -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
+ROCKET_JAVA		:= java -Xmx2G -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
 ROCKET_OUTPUT	:= $(STARSHIP_PKG).$(STARSHIP_TOP).$(STARSHIP_CONFIG)
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
 ROCKET_TOP_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.v
@@ -41,6 +55,7 @@ ROCKET_TOP_INCLUDE	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.f
 ROCKET_TH_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.f
 ROCKET_TOP_MEMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.top.conf
 ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
+FIRRTL_DEBUG_OPTION	?= # -ll info
 
 $(ROCKET_FIRRTL): 
 	mkdir -p $(ROCKET_BUILD)
@@ -56,7 +71,7 @@ $(ROCKET_TOP_VERILOG): $(ROCKET_FIRRTL)
 				  	-T $(STARSHIP_TOP) -oinc $(ROCKET_TOP_INCLUDE) \
 					--repl-seq-mem -c:$(STARSHIP_TOP):-o:$(ROCKET_TOP_MEMCONF) \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(DEBUG_OPTION)"
+					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(FIRRTL_DEBUG_OPTION)"
 
 $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
@@ -65,7 +80,7 @@ $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 					-T $(STARSHIP_TOP) -TH $(STARSHIP_TH) -oinc $(ROCKET_TH_INCLUDE) \
 					--repl-seq-mem -c:$(STARSHIP_TH):-o:$(ROCKET_TH_MEMCONF) \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(DEBUG_OPTION)"
+					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(FIRRTL_DEBUG_OPTION)"
 
 rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 
@@ -89,18 +104,21 @@ ROCKET_TOP_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.top.v
 ROCKET_TH_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.testharness.v
 
 VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
-				   $(ROCKET_ROM) $(ROCKET_ROM_HEX) \
+				   $(ROCKET_ROM) \
 				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
 
 $(ROCKET_INCLUDE): $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 	mkdir -p $(ROCKET_BUILD)
-	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u >> $@
+	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) >> $@
 
-$(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
+$(ROCKET_TOP_SRAM): $(ROCKET_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TOP_MEMCONF) >> $(ROCKET_TOP_SRAM)
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) >> $(ROCKET_TH_SRAM)
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TOP_MEMCONF) > $(ROCKET_TOP_SRAM)
+
+$(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
+	mkdir -p $(ROCKET_BUILD)
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
 
 $(ROCKET_ROM_HEX):
 	mkdir -p $(FSBL_BUILD)
@@ -137,6 +155,80 @@ $(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(RO
 		-board "$(BOARD)"
 
 bitstream: $(VIVADO_BITSTREAM)
+
+
+
+
+#######################################
+#
+#         VCS Simulation
+#
+#######################################
+
+VCS_OUTPUT	:= $(BUILD)/vcs
+VCS_BUILD	:= $(VCS_OUTPUT)/build
+VCS_LOG		:= $(VCS_OUTPUT)/log
+VCS_WAVE	:= $(VCS_OUTPUT)/wave
+
+VCS_TB		?= Testbench
+VCS_TB_VLOG ?= $(ASIC)/tb/$(VCS_TB).v
+VCS_SIMV	:= $(VCS_BUILD)/simv
+
+
+TB_DEFINE	:= +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
+			   +define+INITIALIZE_MEMORY
+			   
+CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
+			   	 +define+STOP_COND=!$(VCS_TB).reset			\
+				 +define+RANDOMIZE_MEM_INIT					\
+				 +define+RANDOMIZE_REG_INIT					\
+				 +define+RANDOMIZE_GARBAGE_ASSIGN			\
+				 +define+RANDOMIZE_INVALID_ASSIGN			\
+				 +define+RANDOMIZE_DELAY=0.1				\
+				 +define+CLOCK_PERIOD=1.0
+
+NOVAS       := /eda/tools/snps/verdi/R-2020.12/share/PLI/VCS/LINUX64
+VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck		\
+			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 	\
+			   +v2k -debug_acc+all	-timescale=1ns/10ps +incdir+$(ROCKET_BUILD) \
+			   $(CHISEL_DEFINE) $(TB_DEFINE)
+VCS_OPTION += +define+DEBUG
+
+$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_TB_VLOG)
+	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
+	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) -o $@ $(VCS_TB_VLOG)
+
+vcs: $(VCS_SIMV)
+	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
+	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log \
+								 +uart_tx=1 +testcase=dummy $(VCS_EXTRA_OPT)
+
+verdi:
+	cd $(VCS_BUILD); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
+						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VCS_WAVE)/starship.rc \
+						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_TB_VLOG) &
+
+
+
+#######################################
+#
+#         DC Sythesis
+#
+#######################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
