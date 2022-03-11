@@ -213,12 +213,11 @@ static int copy(void)
 
 int main(void)
 {
-#ifdef UART
+#if defined UART && defined SD_SPI
 	REG32(uart, UART_REG_TXCTRL) = UART_TXEN;
 	kprintf("[FSBL] Starship SoC under %lx Hz\r\n", F_CLK);
 	kputs("INIT");
 
-#ifdef SD_SPI
 	sd_poweron();
 	if (sd_cmd0() ||
 	    sd_cmd8() ||
@@ -229,7 +228,6 @@ int main(void)
 		kputs("ERROR");
 		return 1;
 	}
-#endif
 
 	kputs("BOOT");
 #endif

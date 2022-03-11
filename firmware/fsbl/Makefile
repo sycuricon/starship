@@ -26,8 +26,11 @@ $(dts): $(dts_org)
 
 $(dts_h): $(dts)
 	mkdir -p $(BUILD_DIR)
+	echo "#ifndef _STARSHIP_FSBL_H" > $(dts_h)
+	echo "#define _STARSHIP_FSBL_H" >> $(dts_h)
 	grep -q "sifive,uart" $(dts) && echo "#define UART" >> $(dts_h) || true
 	grep -q "sifive,spi" $(dts)  && echo "#define SD_SPI" >> $(dts_h) || true
+	echo "#endif" >> $(dts_h)
 
 $(dtb): $(dts) $(dts_h)
 	mkdir -p $(BUILD_DIR)
