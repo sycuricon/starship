@@ -2,7 +2,7 @@
 `timescale 1ns / 10ps
 
 `ifndef RESET_DELAY
- `define RESET_DELAY 777.7
+ `define RESET_DELAY 7.7
 `endif
 
 `ifndef MODEL
@@ -11,8 +11,10 @@
 
 `define SOC_TOP  testHarness.ldut
 `define CPU_TOP  `SOC_TOP.tile_prci_domain.tile_reset_domain_tile
+`define PIPELINE `CPU_TOP.core
 `define MEM_TOP  testHarness.mem.srams.mem
 `define MEM_RPL  `MEM_TOP.mem_ext
+
 
 module Testbench;
 
@@ -36,7 +38,6 @@ module Testbench;
   reg [2047:0] vcdfile = 0;
 
   wire finish;
-  wire [7:0] ret_value;
   wire printf_cond = verbose && !reset;
   wire uart_rx, uart_tx;
 
@@ -81,11 +82,9 @@ module Testbench;
     // Memory Initialize
     #(`RESET_DELAY/2.0) 
     if ($value$plusargs("testcase=%s", testcase)) begin
-        $display("Load testcase: %s", {`TOP_DIR, "/hex/", testcase, ".hex"});
-        $readmemh({`TOP_DIR, "/hex/", testcase, ".hex"}, `MEM_RPL.ram);
+        $display("Load testcase: %s", testcase);
+        $readmemh(testcase, `MEM_RPL.ram);
     end
-    $timeformat(-6, 2, " us", 10);
-    $display("Start time: %t", $realtime);
   end
 
   always @(posedge clock) begin
@@ -111,10 +110,7 @@ module Testbench;
       end
 
       if (finish) begin
-        if (ret_value == 0)
-          $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
-        else
-          $fdisplay(32'h80000002, "*** FAILED *** with %d after %d simulation cycles", ret_value, trace_count);
+        $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
         `WAVE_CLOSE
         $display("Finish time: %t", $realtime);
         $finish;
@@ -129,6 +125,16 @@ module Testbench;
     .io_uart_rx(uart_rx)
   );
 
+  RTLFUZZ_dromajo dromajo (
+    .clock(clock),
+    .reset(reset),
+    .valid(`PIPELINE.csr_io_trace_0_valid),
+    .hartid(`PIPELINE.io_hartid),
+    .pc(`PIPELINE.csr_io_trace_0_iaddr),
+    .inst(`PIPELINE.csr_io_trace_0_insn),
+    .wdata(`PIPELINE.rf_wdata[63:0]),
+    .mstatus(),
+    .finish(finish));
 
   tty #(115200, 0) u0_tty(
    .STX(uart_rx),
