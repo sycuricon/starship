@@ -1,5 +1,5 @@
 # Starship Project
-# Copyright (C) 2021 by phantom
+# Copyright (C) 2020-2022 by phantom
 # Email: phantom@zju.edu.cn
 # This file is under MIT License, see https://www.phvntom.tech/LICENSE.txt
 
@@ -15,6 +15,8 @@ $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
 endif
 
 all: bitstream
+
+
 
 
 #######################################
@@ -36,6 +38,8 @@ STARSHIP_TOP	?= StarshipASICTop
 STARSHIP_PKG	?= starship.asic
 STARSHIP_CONFIG	?= StarshipSimConfig
 EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
+
+
 
 
 #######################################
@@ -83,6 +87,7 @@ $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(FIRRTL_DEBUG_OPTION)"
 
 rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+
 
 
 
@@ -165,48 +170,76 @@ bitstream: $(VIVADO_BITSTREAM)
 #
 #######################################
 
+TB_SCR		:= $(ASIC)/tb
 VCS_OUTPUT	:= $(BUILD)/vcs
+VERDI_OUTPUT:= $(BUILD)/verdi
 VCS_BUILD	:= $(VCS_OUTPUT)/build
 VCS_LOG		:= $(VCS_OUTPUT)/log
 VCS_WAVE	:= $(VCS_OUTPUT)/wave
 
+DROMAJO_SCR		:= $(SRC)/dromajo
+DROMAJO_BUILD	:= $(BUILD)/dromajo
+DROMAJO_LIB		:= $(DROMAJO_BUILD)/libdromajo_cosim.a
+DROMAJO_WRAP	:= $(TB_SCR)/dromajo_difftest.v $(TB_SCR)/dromajo_difftest.cc
+
 VCS_TB		?= Testbench
-VCS_TB_VLOG ?= $(ASIC)/tb/$(VCS_TB).v
+VCS_TB_VLOG ?= $(TB_SCR)/$(VCS_TB).v
 VCS_SIMV	:= $(VCS_BUILD)/simv
+VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_SCR)
+VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_SCR)/include
 
+TB_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
+			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
+			   +define+INITIALIZE_MEMORY					\
+			   +define+CLOCK_PERIOD=1.0	   
 
-TB_DEFINE	:= +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
-			   +define+INITIALIZE_MEMORY
-			   
 CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 			   	 +define+STOP_COND=!$(VCS_TB).reset			\
 				 +define+RANDOMIZE_MEM_INIT					\
 				 +define+RANDOMIZE_REG_INIT					\
 				 +define+RANDOMIZE_GARBAGE_ASSIGN			\
 				 +define+RANDOMIZE_INVALID_ASSIGN			\
-				 +define+RANDOMIZE_DELAY=0.1				\
-				 +define+CLOCK_PERIOD=1.0
+				 +define+RANDOMIZE_DELAY=0.1
 
-NOVAS       := /eda/tools/snps/verdi/R-2020.12/share/PLI/VCS/LINUX64
+
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck		\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 	\
-			   +v2k -debug_acc+all	-timescale=1ns/10ps +incdir+$(ROCKET_BUILD) \
-			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VCS_OPTION += +define+DEBUG
+			   +v2k -debug_acc+all	-timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
+			   -CFLAGS "$(VCS_CFLAGS)" $(CHISEL_DEFINE) $(TB_DEFINE)
+VCS_OPTION	+= +define+DEBUG
 
-$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_TB_VLOG)
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
+TESTCASE		:= rv64ui-p-addi
+TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
+TESTCASE_BIN	:= $(shell mktemp)
+TESTCASE_HEX	:= $(TESTCASE_ROOT)/$(TESTCASE).hex
+
+$(DROMAJO_LIB):
+	mkdir -p $(DROMAJO_BUILD)
+	cd $(DROMAJO_BUILD); cmake $(DROMAJO_SCR)
+	cd $(DROMAJO_BUILD); make dromajo_cosim
+
+$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_TB_VLOG) $(DROMAJO_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) -o $@ $(VCS_TB_VLOG)
+	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
+	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) -o $@ $(VCS_TB_VLOG) $(DROMAJO_WRAP) $(DROMAJO_LIB)
 
-vcs: $(VCS_SIMV)
+$(TESTCASE_HEX): $(TESTCASE_ELF)
+	riscv64-unknown-elf-objcopy --gap-fill 0 --set-section-flags .bss=alloc,load,contents --set-section-flags .sbss=alloc,load,contents -O binary $< $(TESTCASE_BIN)
+	od -v -An -tx8 $(TESTCASE_BIN) > $@
+	rm $(TESTCASE_BIN)
+
+vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log \
-								 +uart_tx=1 +testcase=dummy $(VCS_EXTRA_OPT)
+								 +dromajo_config=$(CONFIG)/dromajo.json +verbose \
+								 +uart_tx=1 +testcase=$(TESTCASE_HEX) $(VCS_EXTRA_OPT) 2>&1 | tee $(VCS_LOG)/rocket.log
 
-verdi:
+verdi: $(VCS_WAVE)/*.fsdb
 	cd $(VCS_BUILD); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
-						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VCS_WAVE)/starship.rc \
+						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/starship.rc \
 						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_TB_VLOG) &
+
 
 
 
@@ -216,19 +249,13 @@ verdi:
 #
 #######################################
 
+DC_SRC		:= $(ASIC)/scripts/syn
+DC_OUTPUT	:= $(BUILD)/syn
+DC_BUILD	:= $(DC_OUTPUT)/build
+DC_LOG		:= $(DC_OUTPUT)/log
+DC_NETLIST	:= $(DC_OUTPUT)/netlist
 
-
-
-
-
-
-
-
-
-
-
-
-
+DC_TOP		:= $(STARSHIP_TOP)
 
 
 

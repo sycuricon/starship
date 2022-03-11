@@ -7,3 +7,6 @@
 [submodule "repo/fpga-shells"]
 	path = repo/fpga-shells
 	url = https://github.com/Phantom1003/fpga-shells.git
+[submodule "repo/dromajo"]
+	path = repo/dromajo
+	url = https://github.com/chipsalliance/dromajo.git
