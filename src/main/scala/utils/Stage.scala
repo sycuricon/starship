@@ -200,7 +200,8 @@ class StarshipStage extends Stage {
       logger.info(s"Generate Top         ${thName}  ${topName}")
       Seq(
         RunFirrtlTransformAnnotation(Dependency[ExtractTop]),
-        BlackBoxResourceFileNameAnno(incOutFile.get)
+        BlackBoxResourceFileNameAnno(incOutFile.get),
+        RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
       )
     } else { // (topName.isDefined && thName.isDefined)
       logger.info(s"Generate TestHarness  ${thName}  ${topName}")
@@ -208,7 +209,8 @@ class StarshipStage extends Stage {
         RunFirrtlTransformAnnotation(Dependency[ExtractTestHarness]),
         BlackBoxResourceFileNameAnno(incOutFile.get),
         AddModuleSuffixAnnotation("_tb"),
-        RunFirrtlTransformAnnotation(Dependency[AddModuleSuffix])
+        RunFirrtlTransformAnnotation(Dependency[AddModuleSuffix]),
+        RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
       )
     } 
 
