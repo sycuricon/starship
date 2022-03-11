@@ -236,6 +236,7 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 								 +uart_tx=1 +testcase=$(TESTCASE_HEX) $(VCS_EXTRA_OPT) 2>&1 | tee $(VCS_LOG)/rocket.log
 
 verdi: $(VCS_WAVE)/*.fsdb
+	mkdir -p $(VERDI_OUTPUT)
 	cd $(VCS_BUILD); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
 						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/starship.rc \
 						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_TB_VLOG) &
