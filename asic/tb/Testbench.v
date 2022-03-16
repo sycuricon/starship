@@ -85,6 +85,8 @@ module Testbench;
         $display("Load testcase: %s", testcase);
         $readmemh(testcase, `MEM_RPL.ram);
     end
+    $system("date +%s%N");
+
   end
 
   always @(posedge clock) begin
@@ -113,6 +115,7 @@ module Testbench;
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
         `WAVE_CLOSE
         $display("Finish time: %t", $realtime);
+        $system("date +%s%N");
         $finish;
       end
     end

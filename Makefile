@@ -229,6 +229,17 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
 
+reglist-convert:
+	mkdir -p $(VERDI_OUTPUT) $(ROCKET_BUILD) 
+	# $(CONFIG)/reglist_convert.sh -p "Testbench.testHarness" -s "," \
+	# 	-h "module global();\nwire test={" -t "};\nendmodule" \
+	# 	-o $(ROCKET_BUILD)/testharness_reglist.vh $(ROCKET_BUILD)/TestHarness.reglist
+	$(CONFIG)/reglist_convert.sh -p "addSignal \/Testbench\/testHarness" -P "\/" \
+		-o $(VERDI_OUTPUT)/testharness.rc $(ROCKET_BUILD)/TestHarness.reglist
+	$(CONFIG)/reglist_convert.sh -p "addSignal \/Testbench\/testHarness\/ldut" -P "\/" \
+		-o $(VERDI_OUTPUT)/top.rc $(ROCKET_BUILD)/StarshipASICTop.reglist
+
+
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log \
@@ -237,8 +248,9 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 
 verdi: $(VCS_WAVE)/*.fsdb
 	mkdir -p $(VERDI_OUTPUT)
+	touch $(VERDI_OUTPUT)/signal.rc
 	cd $(VCS_BUILD); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
-						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/starship.rc \
+						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
 						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_TB_VLOG) &
 
 
@@ -266,6 +278,9 @@ DC_TOP		:= $(STARSHIP_TOP)
 #               Utils
 #
 #######################################
+
+clean-all:
+	rm -rf $(BUILD)
 
 clean:
 	rm -rf $(BUILD) $(SBT_BUILD)
