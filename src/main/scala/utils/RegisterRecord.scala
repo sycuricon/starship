@@ -19,7 +19,7 @@ class RegisterRecord extends Transform with DependencyAPIMigration {
 
   override def prerequisites:          Seq[TransformDependency] = Seq(Dependency[firrtl.transforms.VerilogRename])
   override def optionalPrerequisites:  Seq[TransformDependency] = Seq.empty
-  override def optionalPrerequisiteOf: Seq[TransformDependency] = Seq(Dependency(firrtl.passes.VerilogPrep))
+  override def optionalPrerequisiteOf: Seq[TransformDependency] = Forms.LowEmitters ++ Seq(Dependency(firrtl.passes.VerilogPrep))
   override def invalidates(a: Transform): Boolean = false
 
 
@@ -63,9 +63,9 @@ class RegisterRecord extends Transform with DependencyAPIMigration {
 
           val width = regORmem(0) - 1
           val depth = regORmem.applyOrElse(1, Seq.fill(2)(BigInt(0))) - 1
-          val suffix_depth = if (depth >= 0) s"[0:${depth.toString}]" else ""
-          val suffix_width = if (width >= 1) s"[${width.toString}:0]" else ""
-          path + "." + regPair._1 + suffix_depth + suffix_width
+          val suffix_depth = if (depth == -1) "0:-1" else s"0:${depth.toString}"
+          val suffix_width = s"${width.toString}:0"
+          path + "." + regPair._1 + "@" + suffix_depth + "@" + suffix_width
         }))).toSeq.mkString("\n")
 
     val outputListFile = new java.io.PrintWriter(output_dir + "/" + state.circuit.main + ".reglist")

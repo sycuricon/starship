@@ -231,13 +231,14 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 
 reglist-convert:
 	mkdir -p $(VERDI_OUTPUT) $(ROCKET_BUILD) 
-	# $(CONFIG)/reglist_convert.sh -p "Testbench.testHarness" -s "," \
-	# 	-h "module global();\nwire test={" -t "};\nendmodule" \
-	# 	-o $(ROCKET_BUILD)/testharness_reglist.vh $(ROCKET_BUILD)/TestHarness.reglist
-	$(CONFIG)/reglist_convert.sh -p "addSignal \/Testbench\/testHarness" -P "\/" \
-		-o $(VERDI_OUTPUT)/testharness.rc $(ROCKET_BUILD)/TestHarness.reglist
-	$(CONFIG)/reglist_convert.sh -p "addSignal \/Testbench\/testHarness\/ldut" -P "\/" \
-		-o $(VERDI_OUTPUT)/top.rc $(ROCKET_BUILD)/StarshipASICTop.reglist
+	$(CONFIG)/reglist_convert.py -f signal -p "Testbench.testHarness" -n Probe_TestHarness \
+	-o $(ROCKET_BUILD)/TestHarness.vh /eda/project/riscv-starship/build/rocket-chip/TestHarness.reglist
+	$(CONFIG)/reglist_convert.py -f signal -p "Testbench.testHarness.ldut" -n Probe_StarshipASICTop \
+	-o $(ROCKET_BUILD)/StarshipASICTop.vh /eda/project/riscv-starship/build/rocket-chip/StarshipASICTop.reglist
+	$(CONFIG)/reglist_convert.py -f wave -p "addSignal /Testbench/testHarness" \
+	-o $(VERDI_OUTPUT)/TestHarness.rc  $(ROCKET_BUILD)/TestHarness.reglist
+	$(CONFIG)/reglist_convert.py -f wave -p "addSignal /Testbench/testHarness/ldut" \
+	-o $(VERDI_OUTPUT)/StarshipASICTop.rc  $(ROCKET_BUILD)/StarshipASICTop.reglist
 
 
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
