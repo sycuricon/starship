@@ -8,11 +8,9 @@ from optparse import OptionParser
 def gen_header(first):
     statement = []
     if options.mode_vlog:
-        try:
-            length = int("".join(filter(str.isdigit, first)))
-        except ValueError:
-            raise Exception("Invalid input reglist file!")
-        statement.append("wire [%d:0] %s = {" % (length - 1 if length else 0, options.name))
+        length = int("".join(filter(str.isdigit, first)))
+        # statement.append("wire [%d:0] %s;\nassign %s = {" % (length - 1 if length else 0, options.name, options.name))
+        statement.append("%s #(%d) %s (.clock(clock), .reset(reset), .finish(finish), \n.state({" % (options.name, length, options.name))
     elif options.mode_rc:
         pass
     elif options.mode_snap:
@@ -24,11 +22,13 @@ def gen_header(first):
 def gen_tailer():
     statement = []
     if options.mode_vlog:
-        statement.append("};")
+        # statement.append("};")
+        statement.append("}));")
     elif options.mode_rc:
         pass
     elif options.mode_snap:
         pass
+
     return "%s\n" % "\n".join(statement)
 
 
@@ -39,8 +39,8 @@ def main():
             output.write(head)
 
             lines = input.readlines()
+            statement = []
             for line in lines:
-                # Add path prefix
                 line = re.sub("^[a-zA-Z0-9]+", options.prefix, line.replace("\n", ""))
 
                 (regPath, regDepthStr, regWidthStr) = line.split("@")
@@ -50,26 +50,24 @@ def main():
                 regDepth = regDepthHigh - regDepthLow + 1
                 suffixWidth = "[" + regWidthStr + "]" if not regWidth == 1 else ""
 
-                statement = []
                 if options.mode_vlog:
                     if regDepth >= 1:
                         for i in range(regDepth):
                             suffixDepth = "[" + str(i) + "]"
-                            statement.append(regPath + suffixDepth + suffixWidth + ",")
+                            statement.append(regPath + suffixDepth + suffixWidth)
                     else:
-                        statement.append(regPath + suffixWidth + ",")
+                        statement.append(regPath + suffixWidth)
                 elif options.mode_rc:
                     suffixDepth = "[" + regDepthStr + "]" if regDepth else ""
                     statement.append(regPath.replace(".", "/") + suffixDepth + suffixWidth)
-                    pass
                 elif options.mode_snap:
-                    statement.append(line[:-1])
-                output.write("%s\n" % "\n".join(statement))
+                    pass
+            output.write("%s\n" % ",\n".join(statement))
 
         tail = gen_tailer()
         output.write(tail)
 
-    print("[Starship] register list convert done")
+    print("\033[1;32m[Starship] register list convert to \033[1;36m" + options.mode + "\033[1;32m done\033[0m")
 
 
 if __name__ == '__main__':
@@ -78,10 +76,8 @@ if __name__ == '__main__':
     parser.add_option("-f", "--format", dest="mode",   type="string", help="target output format")
     parser.add_option("-p", "--prefix", dest="prefix", type="string", help="prefix of module path")
     parser.add_option("-n", "--name",   dest="name",   type="string", help="extra name information")
-
     (options, args) = parser.parse_args()
 
-    # input and output file is needed
     if len(args) != 1:
         parser.error("Input register list file is required!")
     elif not options.output:
@@ -104,7 +100,6 @@ if __name__ == '__main__':
 
         if (options.mode_vlog and not options.name) or (options.mode_snap and not options.name):
             parser.error("Extra information is required!")
-
 
     # print(options)
     main()

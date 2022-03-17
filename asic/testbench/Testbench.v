@@ -15,9 +15,11 @@
 `define MEM_TOP  testHarness.mem.srams.mem
 `define MEM_RPL  `MEM_TOP.mem_ext
 
+import "DPI-C" function void timer_start();
+import "DPI-C" function longint timer_stop();
 
 module Testbench;
-
+  
   reg clock = 1'b0;
   reg reset = 1'b1;
 
@@ -26,10 +28,12 @@ module Testbench;
 
   int unsigned rand_value;
   string testcase;
+  longint timer_result;
   
   reg [255:0] reason = "";
   reg failure = 1'b0;
   reg verbose = 1'b0;
+  reg dump_wave = 1'b0;
   reg [63:0] max_cycles = 0;
   reg [63:0] dump_start = 0;
   reg [63:0] trace_count = 0;
@@ -45,6 +49,7 @@ module Testbench;
     void'($value$plusargs("max-cycles=%d", max_cycles));
     void'($value$plusargs("dump-start=%d", dump_start));
     verbose = $test$plusargs("verbose");
+    dump_wave = $test$plusargs("dump");
 
     // do not delete the lines below.
     // $random function needs to be called with the seed once to affect all
@@ -58,46 +63,46 @@ module Testbench;
       $fdisplay(32'h80000002, "testing $random %0x seed %d", rand_value, unsigned'($get_initial_random_seed));
     end
 
-`ifdef DEBUG
-    `define WAVE_ON     $fsdbDumpon;
-    `define WAVE_CLOSE  $fsdbDumpoff;
-    $fsdbDumpfile({`TOP_DIR, "/wave/starship.fsdb"});
-    $fsdbDumpvars(0, "+all");
-`elsif DEBUG_VCD
-    `define WAVE_ON     $dumpon;
-    `define WAVE_CLOSE  $dumpoff;
-    $dumpfile({`TOP_DIR, "/wave/starship.vcd"});
-    $dumpvars(0, testHarness);
-`else
-    `define WAVE_ON     ;
-    `define WAVE_CLOSE  ;
-`endif
-
+    if (dump_wave) begin
+      `ifdef DEBUG_FSDB
+        `define WAVE_ON     $fsdbDumpon;
+        `define WAVE_CLOSE  $fsdbDumpoff;
+        $fsdbDumpfile({`TOP_DIR, "/wave/starship.fsdb"});
+        $fsdbDumpvars(0, "+all");
+      `elsif DEBUG_VCD
+        `define WAVE_ON     $dumpon;
+        `define WAVE_CLOSE  $dumpoff;
+        $dumpfile({`TOP_DIR, "/wave/starship.vcd"});
+        $dumpvars(0, testHarness);
+      `else
+        `define WAVE_ON     ;
+        `define WAVE_CLOSE  ;
+      `endif
+    end
 
     if (dump_start == 0) begin
       // Start dumping before first clock edge to capture reset sequence in waveform
-      `WAVE_ON
+      if (dump_wave) begin
+        `WAVE_ON
+      end
     end
 
     // Memory Initialize
-    #(`RESET_DELAY/2.0) 
+    #(`RESET_DELAY/2.0)
     if ($value$plusargs("testcase=%s", testcase)) begin
         $display("Load testcase: %s", testcase);
         $readmemh(testcase, `MEM_RPL.ram);
     end
-    $system("date +%s%N");
-
+    timer_start();
   end
 
   always @(posedge clock) begin
-
     trace_count = trace_count + 1;
-
-
     if (trace_count == dump_start) begin
-    `WAVE_ON
+      if (dump_wave) begin
+        `WAVE_ON
+      end
     end
-
 
     if (!reset) begin
       if (max_cycles > 0 && trace_count > max_cycles) begin
@@ -107,15 +112,18 @@ module Testbench;
 
       if (failure) begin
         $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
-        `WAVE_CLOSE
+        if (dump_wave) begin
+          `WAVE_CLOSE
+        end
         $fatal;
       end
-
       if (finish) begin
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
-        `WAVE_CLOSE
-        $display("Finish time: %t", $realtime);
-        $system("date +%s%N");
+        if (dump_wave) begin
+          `WAVE_CLOSE
+        end
+        timer_result = timer_stop();
+        $display("Finish time: %d ns", timer_result);
         $finish;
       end
     end
@@ -145,67 +153,7 @@ module Testbench;
    .reset(reset)
   );
 
-endmodule
+  // `include "StarshipASICTop.vh"
+  // `include "TestHarness.vh"
 
-
-//  Copyright (c) by Ando Ki.
-module tty #(parameter BAUD_RATE  = 115200, LOOPBACK=1)
-(
-   output  reg   STX,
-   input   wire  SRX,
-   input   wire  reset
-);
-   integer uart_file_desc;
-   reg tick = 0;
-
-   initial begin
-     uart_file_desc = $fopen({`TOP_DIR, "/log/tty.log"}, "w");
-   end
-
-   localparam INTERVAL = (100000000/BAUD_RATE); // nsec
-
-   reg [7:0] data  = 0;
-   initial begin STX = 1'b1; end
-
-   always @ (negedge SRX) begin
-      if (!reset) begin
-        tick = 1;
-        #(100) tick = 0;
-        receive(data);
-        $write("%c", data); 
-        $fflush();
-        $fdisplay(uart_file_desc, "%c", data) ;
-        $fflush();
-        if (LOOPBACK) send(data);
-      end
-   end
-
-   task receive;
-        output [7:0] value;
-        integer      x;
-   begin
-          #(INTERVAL*1.5 - 100);
-          for (x=0; x<8; x=x+1) begin // LSB comes first
-                  tick = 1;
-                  #(100) tick = 0;
-                  value[x] = SRX;
-                  #(INTERVAL-100);
-          end
-   end
-   endtask
-
-   task send;
-        input [7:0] value;
-        integer     y;
-   begin
-        STX = 1'b0;
-        #(INTERVAL);
-        for (y=0; y<8; y=y+1) begin // LSB goes first
-           STX = value[y];
-           #(INTERVAL);
-        end
-        STX = 1'b1;
-        #(INTERVAL);
-   end
-   endtask
 endmodule

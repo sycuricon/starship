@@ -10,8 +10,7 @@ dromajo_cosim_state_t* simulator = NULL;
 
 extern "C" int dromajo_init (char* config_file) {
   char *argv[] = {
-      "zjv_rtlfuzz", 
-      "--trace", "0",
+      "zjv_rtlfuzz",
       config_file};
   simulator = dromajo_cosim_init(sizeof(argv)/sizeof(char*), argv);
   if (simulator) {
