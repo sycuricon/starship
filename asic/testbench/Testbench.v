@@ -124,6 +124,7 @@ module Testbench;
         end
         timer_result = timer_stop();
         $display("Finish time: %d ns", timer_result);
+        // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);
         $finish;
       end
     end
@@ -136,6 +137,9 @@ module Testbench;
     .io_uart_rx(uart_rx)
   );
 
+  wire [63:0] wdata;
+  assign wdata = `PIPELINE.wb_ctrl_wxd ? `PIPELINE.rf_wdata[63:0] : `CPU_TOP.fpuOpt._T_42[63:0];
+
   RTLFUZZ_dromajo dromajo (
     .clock(clock),
     .reset(reset),
@@ -143,7 +147,7 @@ module Testbench;
     .hartid(`PIPELINE.io_hartid),
     .pc(`PIPELINE.csr_io_trace_0_iaddr),
     .inst(`PIPELINE.csr_io_trace_0_insn),
-    .wdata(`PIPELINE.rf_wdata[63:0]),
+    .wdata(wdata),
     .mstatus(),
     .finish(finish));
 

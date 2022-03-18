@@ -193,8 +193,10 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_DIR)/include
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
-TESTCASE		:= rv64ui-p-addi
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/benchmarks
+# /eda/project/riscv-tests/build/isa
+TESTCASE		:= dhrystone.riscv
+# rv64ui-p-addi
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
 TESTCASE_HEX	:= $(TESTCASE_ROOT)/$(TESTCASE).hex
@@ -230,7 +232,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck		\
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" \
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= +uart_tx=1 +dromajo_config=$(DROMAJO_CONFIG) +testcase=$(TESTCASE_HEX)
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +dromajo_config=$(DROMAJO_CONFIG) +testcase=$(TESTCASE_HEX)
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 vcs-debug: DROMAJO_CONFIG_OPT += --verbose
@@ -242,7 +244,8 @@ $(DROMAJO_LIB): $(DROMAJO_SRC)
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(DROMAJO_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) -o $@ $(VCS_SRC_V) $(VCS_SRC_C)
+	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
+						 -f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
 	riscv64-unknown-elf-objcopy --gap-fill 0 --set-section-flags .bss=alloc,load,contents --set-section-flags .sbss=alloc,load,contents -O binary $< $(TESTCASE_BIN)
@@ -265,7 +268,7 @@ reglist-convert:
 
 vcs: $(VCS_SIMV) $(TESTCASE_HEX) dromajo-config
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log $(VCS_PARAL_RUN) \
+	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 								  $(VSIM_OPTION) 2>&1 | tee $(VCS_LOG)/rocket.log
 
 vcs-debug: vcs

@@ -1,9 +1,0 @@
-{
-    "version":1,
-    "machine":"riscv64",
-    "memory_size":2048,
-    "trace": true,
-    "bios":"/eda/project/riscv-tests/build/isa/rv64ui-p-addi",
-    "memory_base_addr":0x80000000,
-    "htif_base_addr": 0x80001000
-}
