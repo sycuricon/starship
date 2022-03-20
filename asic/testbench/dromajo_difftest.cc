@@ -5,7 +5,6 @@
 #include "dromajo_cosim.h"
 #include "riscv_cpu.h"
 
-
 dromajo_cosim_state_t* simulator = NULL;
 
 extern "C" int dromajo_init (char* config_file) {
@@ -38,4 +37,8 @@ extern "C" long long dromajo_finish() {
         }
     }
     return tohost;
+}
+
+extern "C" int dromajo_check_sboard(int hartid, int dut_waddr, long long dut_wdata) {
+    return dromajo_cosim_check_sboard(simulator, hartid, dut_waddr, dut_wdata);
 }

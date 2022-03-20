@@ -138,7 +138,7 @@ module Testbench;
   );
 
   wire [63:0] wdata;
-  assign wdata = `PIPELINE.wb_ctrl_wxd ? `PIPELINE.rf_wdata[63:0] : `CPU_TOP.fpuOpt._T_42[63:0];
+  assign wdata = `PIPELINE.wb_ctrl_wfd ? `CPU_TOP.fpuOpt._T_42[63:0] : `PIPELINE.rf_wdata[63:0];
 
   RTLFUZZ_dromajo dromajo (
     .clock(clock),
@@ -148,7 +148,7 @@ module Testbench;
     .pc(`PIPELINE.csr_io_trace_0_iaddr),
     .inst(`PIPELINE.csr_io_trace_0_insn),
     .wdata(wdata),
-    .mstatus(),
+    .mstatus({`PIPELINE.ll_waddr[4:0], `PIPELINE.ll_wen,!`PIPELINE.has_data}),
     .finish(finish));
 
   tty #(115200, 0) u0_tty(

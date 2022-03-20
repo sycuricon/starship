@@ -113,7 +113,7 @@ VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
 				   $(ROCKET_ROM) \
 				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
 
-$(ROCKET_INCLUDE): $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+$(ROCKET_INCLUDE): | $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 	mkdir -p $(ROCKET_BUILD)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) >> $@
@@ -138,6 +138,7 @@ verilog: $(VERILOG_SRC)
 verilog-debug: verilog
 verilog-patch: $(VERILOG_SRC)
 	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 
 
 
@@ -225,7 +226,7 @@ CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 				 +define+RANDOMIZE_DELAY=0.1
 
 VCS_PARAL_COM	:= -j$(shell nproc) -fgp
-VCS_PARAL_RUN	:= -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30,multisocket
+VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
 
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck		\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 	\
@@ -248,7 +249,11 @@ $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(DROMAJ
 						 -f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
-	riscv64-unknown-elf-objcopy --gap-fill 0 --set-section-flags .bss=alloc,load,contents --set-section-flags .sbss=alloc,load,contents -O binary $< $(TESTCASE_BIN)
+	riscv64-unknown-elf-objcopy --gap-fill 0			\
+		--set-section-flags .bss=alloc,load,contents	\
+		--set-section-flags .sbss=alloc,load,contents	\
+		--set-section-flags .tbss=alloc,load,contents	\
+		-O binary $< $(TESTCASE_BIN)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
 

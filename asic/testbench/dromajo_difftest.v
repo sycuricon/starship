@@ -18,6 +18,12 @@ import "DPI-C" function void dromajo_raise_trap(
 
 import "DPI-C" function longint dromajo_finish();
 
+import "DPI-C" function int dromajo_check_sboard(
+    input int     hartid,
+    input int     dut_waddr,
+    input longint dut_wdata
+);
+
 module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID_LEN=1) (
     input clock,
     input reset,
@@ -35,7 +41,7 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
     output          finish
 );
     string config_file;
-    int step_result;
+    int step_result, ll_check_result;
     reg [63:0] tohost;
 
     initial begin
@@ -63,7 +69,16 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
                         check[i]);
                     if (step_result != 0) begin
                         $display("FAIL: Dromajo Simulation Failed with exit code: %d", step_result);
-                        $fatal;
+                        #10 $fatal;
+                    end
+                end
+                
+                if (mstatus[1 + i*XLEN]) begin
+                    ll_check_result = dromajo_check_sboard(hartid, 
+                        mstatus[6 + i*XLEN -: 5], wdata[((i+1)*XLEN - 1)-:XLEN]);
+                    if (ll_check_result != 0) begin
+                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", ll_check_result);
+                        #10 $fatal;
                     end
                 end
             end
