@@ -143,9 +143,9 @@ module Testbench;
   RTLFUZZ_dromajo dromajo (
     .clock(clock),
     .reset(reset),
-    .valid(`PIPELINE.csr_io_trace_0_valid),
+    .valid(`PIPELINE.wb_valid ),
     .hartid(`PIPELINE.io_hartid),
-    .pc(`PIPELINE.csr_io_trace_0_iaddr),
+    .pc($signed(`PIPELINE.csr_io_trace_0_iaddr)),
     .inst(`PIPELINE.csr_io_trace_0_insn),
     .wdata(wdata),
     .mstatus({`PIPELINE.ll_waddr[4:0], `PIPELINE.ll_wen,!`PIPELINE.has_data}),

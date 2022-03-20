@@ -78,7 +78,7 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
                         mstatus[6 + i*XLEN -: 5], wdata[((i+1)*XLEN - 1)-:XLEN]);
                     if (ll_check_result != 0) begin
                         $display("FAIL: Dromajo Simulation Failed with exit code: %d", ll_check_result);
-                        #10 $fatal;
+                        #100 $fatal;
                     end
                 end
             end

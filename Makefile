@@ -194,7 +194,7 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_DIR)/include
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/benchmarks
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa
 TESTCASE		:= dhrystone.riscv
 # rv64ui-p-addi
@@ -274,7 +274,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX) dromajo-config
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION) 2>&1 | tee $(VCS_LOG)/rocket.log
+								  $(VSIM_OPTION) 2>&1 | tee $(VCS_LOG)/$(TESTCASE).log
 
 vcs-debug: vcs
 
