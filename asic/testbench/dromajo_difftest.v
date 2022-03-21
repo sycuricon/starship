@@ -24,6 +24,18 @@ import "DPI-C" function int dromajo_check_sboard(
     input longint dut_wdata
 );
 
+import "DPI-C" function int dromajo_check_fsboard(
+    input int     hartid,
+    input int     dut_waddr,
+    input longint dut_wdata
+);
+
+`define SOC_TOP  Testbench.testHarness.ldut
+`define CPU_TOP  `SOC_TOP.tile_prci_domain.tile_reset_domain_tile
+`define PIPELINE `CPU_TOP.core
+`define MEM_TOP  testHarness.mem.srams.mem
+`define MEM_RPL  `MEM_TOP.mem_ext
+
 module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID_LEN=1) (
     input clock,
     input reset,
@@ -41,7 +53,7 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
     output          finish
 );
     string config_file;
-    int step_result, ll_check_result;
+    int step_result, ll_check_result, f_check_result;
     reg [63:0] tohost;
 
     initial begin
@@ -78,6 +90,28 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
                         mstatus[6 + i*XLEN -: 5], wdata[((i+1)*XLEN - 1)-:XLEN]);
                     if (ll_check_result != 0) begin
                         $display("FAIL: Dromajo Simulation Failed with exit code: %d", ll_check_result);
+                        #100 $fatal;
+                    end
+                end
+
+                if (`CPU_TOP.fpuOpt._T_36 & `CPU_TOP.fpuOpt._T_2) begin
+                    f_check_result = dromajo_check_fsboard(
+                        hartid, 
+                        `CPU_TOP.fpuOpt.waddr, 
+                        `CPU_TOP.fpuOpt._T_48[63:0]);
+                    if (f_check_result != 0) begin
+                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", f_check_result);
+                        #100 $fatal;
+                    end
+                end
+
+                if (`CPU_TOP.fpuOpt.load_wb & `CPU_TOP.fpuOpt._T_2) begin
+                    f_check_result = dromajo_check_fsboard(
+                        hartid, 
+                        `CPU_TOP.fpuOpt.load_wb_tag, 
+                        `CPU_TOP.fpuOpt._T_11);
+                    if (f_check_result != 0) begin
+                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", f_check_result);
                         #100 $fatal;
                     end
                 end

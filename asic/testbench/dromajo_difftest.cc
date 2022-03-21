@@ -42,3 +42,7 @@ extern "C" long long dromajo_finish() {
 extern "C" int dromajo_check_sboard(int hartid, int dut_waddr, long long dut_wdata) {
     return dromajo_cosim_check_sboard(simulator, hartid, dut_waddr, dut_wdata);
 }
+
+extern "C" int dromajo_check_fsboard(int hartid, int dut_waddr, long long dut_wdata) {
+    return dromajo_cosim_check_fsboard(simulator, hartid, dut_waddr, dut_wdata);
+}

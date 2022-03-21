@@ -137,18 +137,18 @@ module Testbench;
     .io_uart_rx(uart_rx)
   );
 
-  wire [63:0] wdata;
-  assign wdata = `PIPELINE.wb_ctrl_wfd ? `CPU_TOP.fpuOpt._T_42[63:0] : `PIPELINE.rf_wdata[63:0];
 
   RTLFUZZ_dromajo dromajo (
     .clock(clock),
     .reset(reset),
-    .valid(`PIPELINE.wb_valid ),
+    .valid(`PIPELINE.wb_valid),
     .hartid(`PIPELINE.io_hartid),
     .pc($signed(`PIPELINE.csr_io_trace_0_iaddr)),
     .inst(`PIPELINE.csr_io_trace_0_insn),
-    .wdata(wdata),
+    .wdata(`PIPELINE.rf_wdata[63:0]),
     .mstatus({`PIPELINE.ll_waddr[4:0], `PIPELINE.ll_wen,!`PIPELINE.has_data}),
+    .int_xcpt(`PIPELINE.csr.io_trace_0_interrupt),
+    .cause(`PIPELINE.csr.io_trace_0_cause[63:0]),
     .finish(finish));
 
   tty #(115200, 0) u0_tty(
