@@ -194,7 +194,7 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_DIR)/include
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/benchmarks
 # /eda/project/riscv-tests/build/isa
 TESTCASE		:= dhrystone.riscv
 # rv64ui-p-addi
@@ -225,10 +225,10 @@ CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 				 +define+RANDOMIZE_INVALID_ASSIGN			\
 				 +define+RANDOMIZE_DELAY=0.1
 
-VCS_PARAL_COM	:= -j$(shell nproc) -fgp
+VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
 VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
 
-VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck		\
+VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck	-deraceclockdata 	\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 	\
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" \
@@ -274,7 +274,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX) dromajo-config
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION) 2>&1 | tee $(VCS_LOG)/$(TESTCASE).log
+								  $(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log
 
 vcs-debug: vcs
 

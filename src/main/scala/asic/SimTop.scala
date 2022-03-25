@@ -17,6 +17,7 @@ import sifive.blocks.devices.uart._
 class StarshipASICTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveMasterAXI4MemPort
     with CanHaveSlaveAXI4Port
+    with HasAsyncExtInterrupts
     with HasPeripheryUART
 {
   val chosen = new DeviceSnippet {

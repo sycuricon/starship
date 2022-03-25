@@ -89,18 +89,18 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
                     ll_check_result = dromajo_check_sboard(hartid, 
                         mstatus[6 + i*XLEN -: 5], wdata[((i+1)*XLEN - 1)-:XLEN]);
                     if (ll_check_result != 0) begin
-                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", ll_check_result);
+                        $display("FAIL: [ll] Dromajo Simulation Failed with exit code: %d", ll_check_result);
                         #100 $fatal;
                     end
                 end
 
-                if (`CPU_TOP.fpuOpt._T_36 & `CPU_TOP.fpuOpt._T_2) begin
+                if (`CPU_TOP.fpuOpt.rtlFuzz_fregWriteEnable & `CPU_TOP.fpuOpt._T_2) begin
                     f_check_result = dromajo_check_fsboard(
                         hartid, 
                         `CPU_TOP.fpuOpt.waddr, 
-                        `CPU_TOP.fpuOpt._T_48[63:0]);
+                        `CPU_TOP.fpuOpt.rtlFuzz_fregWriteData);
                     if (f_check_result != 0) begin
-                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", f_check_result);
+                        $display("FAIL: [fopt] Dromajo Simulation Failed with exit code: %d", f_check_result);
                         #100 $fatal;
                     end
                 end
@@ -109,9 +109,9 @@ module RTLFUZZ_dromajo #(parameter COMMIT_WIDTH=1, XLEN=64, INST_BITS=32, HARTID
                     f_check_result = dromajo_check_fsboard(
                         hartid, 
                         `CPU_TOP.fpuOpt.load_wb_tag, 
-                        `CPU_TOP.fpuOpt._T_11);
+                        `CPU_TOP.fpuOpt.rtlFuzz_fregLoadData);
                     if (f_check_result != 0) begin
-                        $display("FAIL: Dromajo Simulation Failed with exit code: %d", f_check_result);
+                        $display("FAIL: [fopt] Dromajo Simulation Failed with exit code: %d", f_check_result);
                         #100 $fatal;
                     end
                 end

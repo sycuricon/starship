@@ -26,6 +26,23 @@ module Testbench;
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
+  
+  initial begin 
+    #(`RESET_DELAY * 2)
+    forever @(posedge clock) begin
+      force `PIPELINE.io_interrupts_mtip = 1'b0;
+      force `PIPELINE.io_interrupts_msip = 1'b0;
+      force `PIPELINE.io_interrupts_meip = 1'b0;
+      force `PIPELINE.io_interrupts_seip = 1'b0;
+      #200 force `PIPELINE.io_interrupts_mtip = 1'b1;
+      #200 force `PIPELINE.io_interrupts_msip = 1'b1;
+      #200 force `PIPELINE.io_interrupts_meip = 1'b1;
+      #200 force `PIPELINE.io_interrupts_seip = 1'b1;
+      #1000;
+    end
+  end 
+
+
   int unsigned rand_value;
   string testcase;
   longint timer_result;
@@ -130,13 +147,15 @@ module Testbench;
     end
   end
 
+    // .io_uart_tx(uart_tx),
+    // .io_uart_rx(uart_rx),
+
   `MODEL testHarness(
     .clock(clock),
     .reset(reset),
-    .io_uart_tx(uart_tx),
-    .io_uart_rx(uart_rx)
+    .io_uart_tx(1'b0),
+    .io_uart_rx(1'b0)
   );
-
 
   RTLFUZZ_dromajo dromajo (
     .clock(clock),
