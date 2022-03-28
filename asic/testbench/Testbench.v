@@ -26,22 +26,23 @@ module Testbench;
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
-  
-  initial begin 
-    #(`RESET_DELAY * 2)
-    forever @(posedge clock) begin
-      force `PIPELINE.io_interrupts_mtip = 1'b0;
-      force `PIPELINE.io_interrupts_msip = 1'b0;
-      force `PIPELINE.io_interrupts_meip = 1'b0;
-      force `PIPELINE.io_interrupts_seip = 1'b0;
-      #200 force `PIPELINE.io_interrupts_mtip = 1'b1;
-      #200 force `PIPELINE.io_interrupts_msip = 1'b1;
-      #200 force `PIPELINE.io_interrupts_meip = 1'b1;
-      #200 force `PIPELINE.io_interrupts_seip = 1'b1;
-      #1000;
-    end
+  initial begin
+    if ($test$plusargs("interrupt")) begin
+      #(`RESET_DELAY * 2)
+      forever @(posedge clock) begin
+        force `PIPELINE.io_interrupts_mtip = 1'b0;
+        force `PIPELINE.io_interrupts_msip = 1'b0;
+        force `PIPELINE.io_interrupts_meip = 1'b0;
+        force `PIPELINE.io_interrupts_seip = 1'b0;
+        #200;
+        force `PIPELINE.io_interrupts_mtip = 1'b1;
+        force `PIPELINE.io_interrupts_msip = 1'b1;
+        force `PIPELINE.io_interrupts_meip = 1'b1;
+        force `PIPELINE.io_interrupts_seip = 1'b1;
+        #1000;
+      end
+    end  
   end 
-
 
   int unsigned rand_value;
   string testcase;
@@ -107,8 +108,8 @@ module Testbench;
     // Memory Initialize
     #(`RESET_DELAY/2.0)
     if ($value$plusargs("testcase=%s", testcase)) begin
-        $display("Load testcase: %s", testcase);
-        $readmemh(testcase, `MEM_RPL.ram);
+      $display("Load testcase: %s", testcase);
+      $readmemh(testcase, `MEM_RPL.ram);
     end
     timer_start();
   end
@@ -176,7 +177,7 @@ module Testbench;
    .reset(reset)
   );
 
-  // `include "StarshipASICTop.vh"
+  `include "StarshipASICTop.vh"
   // `include "TestHarness.vh"
 
 endmodule

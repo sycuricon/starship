@@ -6,29 +6,27 @@ module Probe_StarshipASICTop #(parameter WIDTH)
   input [WIDTH - 1:0] state
 );
 
-  // always @(posedge clock) begin
-  //   if (!reset) begin
-  //     if (max_cycles > 0 && trace_count > max_cycles) begin
-  //       reason = " (timeout)";
-  //       failure = 1'b1;
-  //     end
+  reg [WIDTH - 1:0] prev_state;
+  integer i, ones;
+  int map[longint];
+  wire [WIDTH - 1:0] toggle = prev_state ^ state;
 
-  //     if (failure) begin
-  //       $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
-  //       `WAVE_CLOSE
-  //       $fatal;
-  //     end
+  integer heatMapFile;
+  initial begin
+    heatMapFile = $fopen("./heat.map", "w");
+  end
 
-  //     if (finish) begin
-  //       $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
-  //       `WAVE_CLOSE
-  //       $display("Finish time: %t", $realtime);
-  //       $system("date +%s%N");
-  //       $finish;
-  //     end
-  //   end
-  // end
+  always @(posedge clock) begin
+    if (reset) begin
+      prev_state <= 0;
+    end else begin
+      prev_state <= state;
+      ones = $countones(toggle);
+      $fdisplay(heatMapFile, "%b", toggle) ;
+    end
+    // $display("result is %x", toggle);
 
+  end
 endmodule
 
 module Probe_TestHarness #(parameter WIDTH)

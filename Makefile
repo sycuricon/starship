@@ -194,9 +194,9 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_DIR)/include
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/benchmarks
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa
-TESTCASE		:= dhrystone.riscv
+TESTCASE		:= rv64uf-v-fdiv
 # rv64ui-p-addi
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
@@ -274,7 +274,13 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX) dromajo-config
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log
+								  $(VSIM_OPTION) 2>&1 # | tee /tmp/rocket.log
+
+vcs-coverage:
+	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \
+								 -o $(VCS_WAVE)/StarshipASICTop.label $(ROCKET_BUILD)/StarshipASICTop.reglist
+	$(CONFIG)/heatmap.py -o $(VCS_WAVE) -n $(TESTCASE) -l $(VCS_WAVE)/StarshipASICTop.label $(VCS_BUILD)/heat.map
+
 
 vcs-debug: vcs
 
