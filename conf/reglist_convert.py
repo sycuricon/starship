@@ -15,7 +15,8 @@ def gen_header(first):
     elif options.mode_snap:
         pass
     elif options.mode_label:
-        statement.append("{")
+        # statement.append("{")
+        pass
     else:
         exit(1)
 
@@ -31,7 +32,8 @@ def gen_tailer():
     elif options.mode_snap:
         pass
     elif options.mode_label:
-        statement.append("}")
+        # statement.append("}")
+        pass
     else:
         exit(1)
 

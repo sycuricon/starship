@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 
+import os
 import pickle
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 from matplotlib.colors import ListedColormap
 from matplotlib.pyplot import MultipleLocator
 import numpy as np
+import tkinter as tk
 
-def save_session(name, plot):
+def adjust_total(raw):
+    remap = list(map(lambda vec: list(map(lambda sum: sum+32 if sum >= 1 else 1, vec)), raw))
+    return np.log(remap)
+
+def save_session(name, array):
     print("Save " + options.output + "/" + name + ".png")
     plt.savefig(options.output + "/" + name + ".png", dpi=1200, bbox_inches='tight')
-    print("Save " + options.output + "/" + name + ".plot")
-    pickle.dump(plot, open(options.output + "/" + name + '.plot', 'wb+'))
+    print("Save " + options.output + "/" + name + ".array")
+    pickle.dump(array, open(options.output + "/" + name + '.array', 'wb+'))
 
 def main(options):
     if not options.reload:
@@ -36,21 +42,27 @@ def main(options):
                 #     plt.show()
 
             # print(total_toggle[-1])
-            total_toggle = list(map(lambda vec: list(map(lambda sum: sum+32 if sum >= 1 else 1, vec)), total_toggle))
-            total_toggle = np.log(total_toggle)
+            total_toggle_log = adjust_total(total_toggle)
             # https://matplotlib.org/3.5.1/tutorials/colors/colormap-manipulation.html
             fig_step, ax_step = plt.subplots()
             cmp = ListedColormap(["black", "yellow"])
             ax_step.imshow(heat_data, cmap=cmp, interpolation='None')
-            save_session(options.name + "_step", fig_step)
+            save_session(options.name + "_step", heat_data)
 
             fig_total, ax_total = plt.subplots()
-            ax_total.imshow(total_toggle, cmap='hot', interpolation='None')
-            save_session(options.name + "_total", fig_total)
-
+            ax_total.imshow(total_toggle_log, cmap='hot', interpolation='None')
+            save_session(options.name + "_total", total_toggle)
 
     else:
-        fig = pickle.load(open(options.input, "rb"))
+        print("Load " + options.input)
+        array = pickle.load(open(options.input, "rb"))
+        path = os.path.split(options.input)
+        if "_total" in path[-1]:
+            draw_array = adjust_total(array)
+        else:
+            draw_array = array
+        _, ax = plt.subplots()
+        ax.imshow(draw_array, cmap='hot', interpolation='None')
         plt.show()
 
 if __name__ == '__main__':
