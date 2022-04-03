@@ -14,6 +14,11 @@ ifndef RISCV
 $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
 endif
 
+GCC_VERSION	:= $(word 1, $(subst ., ,$(shell gcc -dumpversion)))
+ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
+SCL_PREFIX := source scl_source enable devtoolset-9 &&
+endif
+
 all: bitstream
 
 
@@ -181,33 +186,35 @@ VCS_BUILD	:= $(VCS_OUTPUT)/build
 VCS_LOG		:= $(VCS_OUTPUT)/log
 VCS_WAVE	:= $(VCS_OUTPUT)/wave
 
-DROMAJO_DIR		:= $(SRC)/dromajo
-DROMAJO_SRC		:= $(shell find $(DROMAJO_DIR) -name "*.cpp" -o -name "*.h")
-DROMAJO_BUILD	:= $(BUILD)/dromajo
-DROMAJO_LIB		:= $(DROMAJO_BUILD)/libdromajo_cosim.a
-DROMAJO_CONFIG  := $(DROMAJO_BUILD)/dromajo.json
-DROMAJO_CONFIG_OPT = --testcase $(TESTCASE_ELF)
+SPIKE_DIR		:= $(SRC)/riscv-isa-sim
+SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.c")
+SPIKE_BUILD		:= $(BUILD)/spike
+SPIKE_LIB		:= $(SPIKE_BUILD)/libcosim.a
+SPIKE_INCLUDE	:= $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
+			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
+SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
+SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
 
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
 VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
-VCS_CFLAGS	:= -std=c++11 -I$(DROMAJO_DIR)/include
+VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE))
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
-# /eda/project/riscv-tests/build/isa
-TESTCASE		:= rv64uf-v-fdiv
-# rv64ui-p-addi
+# /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
+TESTCASE		:= rv64mi-p-breakpoint
+# rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
 TESTCASE_HEX	:= $(TESTCASE_ROOT)/$(TESTCASE).hex
 
-VCS_SRC_C	:= $(TB_DIR)/dromajo_difftest.cc \
-			   $(DROMAJO_LIB) \
-			   $(TB_DIR)/timer.cc
+VCS_SRC_C	:= $(TB_DIR)/spike_difftest.cc $(SPIKE_LIB) \
+			   $(addprefix $(SPIKE_BUILD)/,libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a) \
+			   $(TB_DIR)/timer.cc  
 
 VCS_SRC_V	:= $(VCS_TB_VLOG) \
-			   $(TB_DIR)/dromajo_difftest.v \
+			   $(TB_DIR)/spike_difftest.v \
 			   $(TB_DIR)/tty.v \
 			   $(TB_DIR)/coverage.v
 
@@ -233,19 +240,20 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck	-derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" \
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +dromajo_config=$(DROMAJO_CONFIG) +testcase=$(TESTCASE_HEX)
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) # +interrupt
 
 vcs-debug: VSIM_OPTION += +verbose +dump
-vcs-debug: DROMAJO_CONFIG_OPT += --verbose
 
-$(DROMAJO_LIB): $(DROMAJO_SRC)
-	mkdir -p $(DROMAJO_BUILD)
-	cd $(DROMAJO_BUILD); cmake $(DROMAJO_DIR)
-	cd $(DROMAJO_BUILD); make dromajo_cosim
+$(SPIKE_BUILD)/Makefile:
+	mkdir -p $(SPIKE_BUILD)
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
 
-$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(DROMAJO_LIB)
+$(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) libcosim.a
+
+$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
+	cd $(VCS_BUILD); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
 						 -f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
@@ -257,8 +265,8 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
 
-dromajo-config:
-	$(CONFIG)/dromajo_config.py $(DROMAJO_CONFIG_OPT) > $(DROMAJO_CONFIG)
+# dromajo-config:
+# 	$(CONFIG)/dromajo_config.py $(DROMAJO_CONFIG_OPT) > $(DROMAJO_CONFIG)
 
 reglist-convert:
 	mkdir -p $(VERDI_OUTPUT) $(ROCKET_BUILD) 
@@ -271,7 +279,7 @@ reglist-convert:
 	$(CONFIG)/reglist_convert.py -f wave -p "addSignal /Testbench/testHarness/ldut" \
 								 -o $(VERDI_OUTPUT)/StarshipASICTop.rc $(ROCKET_BUILD)/StarshipASICTop.reglist
 
-vcs: $(VCS_SIMV) $(TESTCASE_HEX) dromajo-config
+vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 								  $(VSIM_OPTION) 2>&1 # | tee /tmp/rocket.log

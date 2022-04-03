@@ -10,3 +10,6 @@
 [submodule "repo/dromajo"]
 	path = repo/dromajo
 	url = https://github.com/chipsalliance/dromajo.git
+[submodule "repo/riscv-isa-sim"]
+	path = repo/riscv-isa-sim
+	url = https://github.com/riscv-software-src/riscv-isa-sim
