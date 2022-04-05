@@ -25,19 +25,19 @@ all: bitstream
 #                                      
 #######################################
 
-# STARSHIP_FREQ	?= 100
-# STARSHIP_TH 	?= TestHarness
-# STARSHIP_TOP	?= StarshipFPGATop
-# STARSHIP_PKG	?= starship.fpga
-# STARSHIP_CONFIG	?= StarshipFPGAConfig
-# EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
-
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= TestHarness
-STARSHIP_TOP	?= StarshipASICTop
-STARSHIP_PKG	?= starship.asic
-STARSHIP_CONFIG	?= StarshipSimConfig
+STARSHIP_TOP	?= StarshipFPGATop
+STARSHIP_PKG	?= starship.fpga
+STARSHIP_CONFIG	?= StarshipFPGAConfig
 EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
+
+# STARSHIP_FREQ	?= 100
+# STARSHIP_TH 	?= TestHarness
+# STARSHIP_TOP	?= StarshipASICTop
+# STARSHIP_PKG	?= starship.asic
+# STARSHIP_CONFIG	?= StarshipSimConfig
+# EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
 
 
 
