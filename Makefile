@@ -190,7 +190,7 @@ SPIKE_DIR		:= $(SRC)/riscv-isa-sim
 SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.c")
 SPIKE_BUILD		:= $(BUILD)/spike
 SPIKE_LIB		:= $(SPIKE_BUILD)/libcosim.a
-SPIKE_INCLUDE	:= $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
+SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
 			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
 SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
 SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
@@ -295,7 +295,7 @@ vcs-debug: vcs
 verdi: $(VCS_WAVE)/*.fsdb
 	mkdir -p $(VERDI_OUTPUT)
 	touch $(VERDI_OUTPUT)/signal.rc
-	cd $(VCS_BUILD); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
+	cd $(VERDI_OUTPUT); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
 						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
 						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_SRC_V) &
 
@@ -325,8 +325,8 @@ DC_TOP		:= $(STARSHIP_TOP)
 #
 #######################################
 
-clean-all:
+clean:
 	rm -rf $(BUILD)
 
-clean:
+clean-all:
 	rm -rf $(BUILD) $(SBT_BUILD)

@@ -48,35 +48,35 @@ module CJ #(parameter harts=1) (
             if (`PIPELINE.wb_valid) begin
                 if (cosim_commit(0, $signed(`PIPELINE.csr_io_trace_0_iaddr), `PIPELINE.csr_io_trace_0_insn) != 0) begin
                     $display("[CJ] Commit Failed");
-                    #100 $fatal;
+                    #10 $fatal;
                 end
             end
             
             if (`PIPELINE.wb_wen && !`PIPELINE.wb_set_sboard) begin
                 if (cosim_judge(0, "int", `PIPELINE.rf_waddr, `PIPELINE.rf_wdata) != 0) begin
                     $display("[CJ] integer register Judge Failed");
-                    #100 $fatal;
+                    #10 $fatal;
                 end
             end
 
             if (`PIPELINE.ll_wen) begin
                 if (cosim_judge(0, "int", `PIPELINE.rf_waddr, `PIPELINE.rf_wdata) != 0) begin
                     $display("[CJ] integer register Judge Failed");
-                    #100 $fatal;
+                    #10 $fatal;
                 end
             end
 
             if (`CPU_TOP.fpuOpt.rtlFuzz_fregWriteEnable & `CPU_TOP.fpuOpt._T_2) begin
                 if (cosim_judge(0, "float", `CPU_TOP.fpuOpt.waddr, `CPU_TOP.fpuOpt.rtlFuzz_fregWriteData) != 0) begin
                     $display("[CJ] float register write Judge Failed");
-                    #100 $fatal;
+                    #10 $fatal;
                 end
             end
 
             if (`CPU_TOP.fpuOpt.load_wb & `CPU_TOP.fpuOpt._T_2) begin
                 if (cosim_judge(0, "float", `CPU_TOP.fpuOpt.load_wb_tag, `CPU_TOP.fpuOpt.rtlFuzz_fregLoadData) != 0) begin
                     $display("[CJ] float register load Judge Failed");
-                    #100 $fatal;
+                    #10 $fatal;
                 end
             end
 
