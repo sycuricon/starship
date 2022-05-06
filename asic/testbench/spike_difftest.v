@@ -66,14 +66,14 @@ module CJ #(parameter harts=1) (
                 end
             end
 
-            if (`CPU_TOP.fpuOpt.rtlFuzz_fregWriteEnable & `CPU_TOP.fpuOpt._T_2) begin
+            if (`CPU_TOP.fpuOpt.rtlFuzz_fregWriteEnable & ~reset) begin
                 if (cosim_judge(0, "float", `CPU_TOP.fpuOpt.waddr, `CPU_TOP.fpuOpt.rtlFuzz_fregWriteData) != 0) begin
                     $display("[CJ] float register write Judge Failed");
                     #10 $fatal;
                 end
             end
 
-            if (`CPU_TOP.fpuOpt.load_wb & `CPU_TOP.fpuOpt._T_2) begin
+            if (`CPU_TOP.fpuOpt.load_wb & ~reset) begin
                 if (cosim_judge(0, "float", `CPU_TOP.fpuOpt.load_wb_tag, `CPU_TOP.fpuOpt.rtlFuzz_fregLoadData) != 0) begin
                     $display("[CJ] float register load Judge Failed");
                     #10 $fatal;
