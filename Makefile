@@ -98,6 +98,8 @@ rocket-patch:
 	cd $(ROCKET_SRC); git checkout -- src/main/scala/rocket/RocketCore.scala src/main/scala/tile/Core.scala src/main/scala/tile/FPU.scala
 	sed -i "s/import chisel3.withClock/import chisel3.{withClock,dontTouch}/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/nBreakpoints: Int = 1/nBreakpoints: Int = 3/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
+	sed -i "s/useHypervisor: Boolean = false/useHypervisor: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
+	# sed -i "s/useRVE: Boolean = false/useRVE: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "/val csr =/adontTouch(csr.io)" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/val enableCommitLog = false/val enableCommitLog = true/g" $(ROCKET_SRC)/src/main/scala/tile/Core.scala
 	sed -i "s/, ieee(wdata)/, ieee(wdata).suggestName(\"rtlFuzz_fregWriteData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
@@ -154,7 +156,7 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX)
 verilog: $(VERILOG_SRC)
 verilog-debug: verilog
 verilog-patch: rocket-patch $(VERILOG_SRC)
-	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 
 
@@ -207,6 +209,8 @@ SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/f
 SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
 SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
 
+export LD_LIBRARY_PATH=$(SPIKE_BUILD)
+
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
 VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
@@ -215,7 +219,7 @@ VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64mi-p-breakpoint
+TESTCASE		:= rv64mi-p-csr
 # rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
@@ -294,7 +298,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log
+								  $(VSIM_OPTION) # 2>&1 | tee /tmp/rocket.log
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \

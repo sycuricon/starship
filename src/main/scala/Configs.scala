@@ -34,6 +34,7 @@ class With100MHz extends WithFrequency(100)
 class With150MHz extends WithFrequency(150)
 
 class StarshipBaseConfig extends Config(
+  new WithRoccExample ++
   new WithExtMemSize(0x80000000L) ++
   new WithNExtTopInterrupts(0) ++
   new WithDTS("zjv,starship", Nil) ++

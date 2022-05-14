@@ -9,7 +9,7 @@ cosim_cj_t* simulator = NULL;
 extern "C" void cosim_init (const char *testcase, unsigned char verbose) {
   config_t cfg;
   cfg.elffile = testcase;
-  cfg.isa = "rv64gc_xdummy";
+  cfg.isa = "rv64gch_xdummy";
   if (verbose)
     cfg.verbose = true;
   simulator = new cosim_cj_t(cfg);
