@@ -136,6 +136,7 @@ $(ROCKET_INCLUDE): | $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 	mkdir -p $(ROCKET_BUILD)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) >> $@
+	sed -i "s/.*\.f$$/-f &/g" $@
 
 $(ROCKET_TOP_SRAM): $(ROCKET_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
@@ -157,6 +158,7 @@ verilog: $(VERILOG_SRC)
 verilog-debug: verilog
 verilog-patch: rocket-patch $(VERILOG_SRC)
 	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 
 
@@ -210,6 +212,7 @@ SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
 SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
 
 export LD_LIBRARY_PATH=$(SPIKE_BUILD)
+export CVA6_REPO_DIR=/eda/project/dut/cva6
 
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
@@ -219,7 +222,7 @@ VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64mi-p-csr
+TESTCASE		:= rv64mi-p-access
 # rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
@@ -252,7 +255,7 @@ VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
 VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
 
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 	\
-			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ \
+			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext \
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" \
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
