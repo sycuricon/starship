@@ -159,6 +159,7 @@ verilog-debug: verilog
 verilog-patch: rocket-patch $(VERILOG_SRC)
 	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 
 
@@ -222,7 +223,7 @@ VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64mi-p-access
+TESTCASE		:= rv64ssvnapot-p-napot
 # rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)

@@ -23,11 +23,6 @@ import "DPI-C" function void cosim_init(
 import "DPI-C" function longint cosim_finish();
 
 
-`define CVA6_CPU_TOP  `SOC_TOP.tile_prci_domain.tile_reset_domain_cva6_tile
-`define CVA6_PIPELINE `CVA6_CPU_TOP.core.i_ariane.i_cva6
-
-
-
 module CJ #(parameter harts=1, commits=2) (
     input clock,
     input reset,
@@ -52,7 +47,8 @@ module CJ #(parameter harts=1, commits=2) (
         if (!reset) begin
 
             // `include "spike_difftest.rocket.v"
-            `include "spike_difftest.cva6.v"
+            // `include "spike_difftest.cva6.v"
+            `include "spike_difftest.boom.v"
 
             tohost = cosim_finish();
         end

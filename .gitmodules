@@ -13,3 +13,9 @@
 [submodule "repo/riscv-isa-sim"]
 	path = repo/riscv-isa-sim
 	url = https://github.com/riscv-software-src/riscv-isa-sim
+[submodule "repo/riscv-boom"]
+	path = repo/riscv-boom
+	url = https://github.com/riscv-boom/riscv-boom.git
+[submodule "repo/testchipip"]
+	path = repo/testchipip
+	url = https://github.com/ucb-bar/testchipip.git

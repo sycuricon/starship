@@ -34,7 +34,7 @@ lazy val commonSettings = Seq(
 lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
 
 lazy val startship_soc = (project in file("."))
-  .dependsOn(rocket_chip, sifive_blocks, fpga_shells)
+  .dependsOn(rocket_chip, sifive_blocks, fpga_shells, testchipip, boom)
   .settings(commonSettings: _*)
 
 lazy val sifive_blocks = (project in file("repo/sifive-blocks"))
@@ -43,4 +43,12 @@ lazy val sifive_blocks = (project in file("repo/sifive-blocks"))
 
 lazy val fpga_shells = (project in file("repo/fpga-shells"))
   .dependsOn(rocket_chip, sifive_blocks)
+  .settings(commonSettings: _*)
+
+lazy val testchipip = (project in file("repo/testchipip"))
+  .dependsOn(rocket_chip, sifive_blocks)
+  .settings(commonSettings: _*)
+
+lazy val boom = (project in file("repo/riscv-boom"))
+  .dependsOn(rocket_chip, testchipip)
   .settings(commonSettings: _*)

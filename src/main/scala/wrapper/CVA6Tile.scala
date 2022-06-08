@@ -36,7 +36,7 @@ case class CVA6CoreParams(
   rasEntries: Int = 4,
   btbEntries: Int = 16,
   bhtEntries: Int = 16,
-  pmpEntries: Int = 4,
+  pmpEntries: Int = 16,
   enableToFromHostCaching: Boolean = true,
 ) extends CoreParams {
   /* DO NOT CHANGE BELOW THIS */

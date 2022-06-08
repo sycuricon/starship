@@ -25,7 +25,8 @@ class WithPeripherals extends Config((site, here, up) => {
 class StarshipSimConfig extends Config(
   new WithPeripherals ++
   // new WithNBigCores(1) ++
-  new starship.cva6.WithNCVA6Cores(1) ++
+  // new starship.cva6.WithNCVA6Cores(1) ++
+  new boom.common.WithNLargeBooms(1) ++
   new StarshipBaseConfig().alter((site,here,up) => {
     case DebugModuleKey => None
 
