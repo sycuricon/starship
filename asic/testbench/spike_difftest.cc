@@ -31,9 +31,14 @@ extern "C" void cosim_raise_trap (int hartid, reg_t cause) {
     simulator->cosim_raise_trap(hartid, cause);
 }
 extern "C" reg_t cosim_finish () {
-    return simulator->get_tohost();
+    return simulator->get_finish();
 }
-
+extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsigned long int pc) {
+    if (simulator)
+      return simulator->cosim_randomizer_insn(in, pc);
+    else
+      return in;
+}
 
 
 

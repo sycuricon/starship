@@ -46,14 +46,38 @@ module CJ #(parameter harts=1, commits=2) (
     always @(posedge clock) begin
         if (!reset) begin
 
-            // `include "spike_difftest.rocket.v"
+            `include "spike_difftest.rocket.v"
             // `include "spike_difftest.cva6.v"
-            `include "spike_difftest.boom.v"
+            // `include "spike_difftest.boom.v"
 
             tohost = cosim_finish();
         end
     end
 
     assign finish = tohost & 1'b1;
+
+endmodule
+
+
+
+import "DPI-C" function longint unsigned cosim_randomizer_insn (
+    input longint unsigned in,
+    input longint unsigned pc
+);
+
+module MCBlackbox (
+  input en,
+  input [63:0] in,
+  input [63:0] pc,
+  output [63:0] out
+);
+  reg [63:0] insn_back;
+
+  always @(*) begin
+    if (en)
+      insn_back = cosim_randomizer_insn(in, pc);
+  end
+  
+  assign out = insn_back;
 
 endmodule

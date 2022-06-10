@@ -95,7 +95,7 @@ $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 
 rocket-patch:
-	cd $(ROCKET_SRC); git checkout -- src/main/scala/rocket/RocketCore.scala src/main/scala/tile/Core.scala src/main/scala/tile/FPU.scala
+	cd $(ROCKET_SRC); git checkout -- src/main/scala/rocket/RocketCore.scala src/main/scala/tile/Core.scala src/main/scala/tile/FPU.scala src/main/scala/rocket/IBuf.scala
 	sed -i "s/import chisel3.withClock/import chisel3.{withClock,dontTouch}/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/nBreakpoints: Int = 1/nBreakpoints: Int = 3/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/useHypervisor: Boolean = false/useHypervisor: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
@@ -106,7 +106,9 @@ rocket-patch:
 	sed -i "s/, load_wb_data/, ieee(wdata).suggestName(\"rtlFuzz_fregLoadData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "s/when ((!wbInfo(0).cp && wen(0)) || divSqrt_wen)/when (fregWrite)/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "/val wexc =/aval fregWrite = ((!wbInfo(0).cp && wen(0)) || divSqrt_wen).suggestName(\"rtlFuzz_fregWriteEnable\")" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-
+	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MCBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(UInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
+	sed -i "/io.pc := Mux/aval randomizer = Module(new MCBlackbox); randomizer.io.in := inst; randomizer.io.pc := io.pc.asSInt; randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
+	sed -i "s/expand(0, 0, inst)/expand(0, 0, randomizer.io.out)/g" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 
 
 
@@ -156,7 +158,7 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX)
 
 verilog: $(VERILOG_SRC)
 verilog-debug: verilog
-verilog-patch: rocket-patch $(VERILOG_SRC)
+verilog-patch: $(VERILOG_SRC)
 	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
@@ -223,8 +225,8 @@ VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64ssvnapot-p-napot
-# rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv
+TESTCASE		:= rv64ui-p-simple
+# rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv rv64ssvnapot-p-napot
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
 TESTCASE_HEX	:= $(TESTCASE_ROOT)/$(TESTCASE).hex
@@ -302,7 +304,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION) # 2>&1 | tee /tmp/rocket.log
+								  $(VSIM_OPTION)  2>&1 | tee /tmp/rocket.log
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \
