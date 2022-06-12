@@ -19,6 +19,7 @@ class StarshipASICTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveSlaveAXI4Port
     with HasAsyncExtInterrupts
     with HasPeripheryUART
+    with CanHavePeripheryMagic
 {
   val chosen = new DeviceSnippet {
     def describe() = Description("chosen", Map(

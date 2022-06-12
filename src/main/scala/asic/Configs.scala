@@ -20,6 +20,7 @@ class WithPeripherals extends Config((site, here, up) => {
   case MaskROMLocated(x) => List(
     MaskROMParams(BigInt(0x20000L), "StarshipROM")
   )
+  case MagicKey => Some(MagicParams(address = 0))
 })
 
 class StarshipSimConfig extends Config(

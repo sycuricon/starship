@@ -31,13 +31,20 @@ extern "C" void cosim_raise_trap (int hartid, reg_t cause) {
     simulator->cosim_raise_trap(hartid, cause);
 }
 extern "C" reg_t cosim_finish () {
-    return simulator->get_finish();
+    return simulator->get_tohost();
 }
 extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsigned long int pc) {
     if (simulator)
       return simulator->cosim_randomizer_insn(in, pc);
     else
       return in;
+}
+
+extern "C" unsigned long int cosim_randomizer_data (unsigned int read_select) {
+  static int cnt = -1;
+  cnt ++;
+  printf("[Todo] replace me with real magic access, %d\n", cnt);
+  return 0x20220611 + cnt;
 }
 
 

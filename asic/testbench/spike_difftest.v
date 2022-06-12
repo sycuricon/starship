@@ -81,3 +81,29 @@ module MCBlackbox (
   assign out = insn_back;
 
 endmodule
+
+import "DPI-C" function longint unsigned cosim_randomizer_data (
+    input int unsigned read_select
+);
+
+module MagicBlackbox (
+  input clock,
+  input reset,
+  input [4:0] read_select,
+  input read_ready,
+  output read_valid,
+  output [63:0] read_data
+);
+  reg [63:0] data_back;
+
+   always @(negedge clock) begin
+      if (!reset) begin
+        if (read_valid && read_ready)
+          data_back = cosim_randomizer_data(read_select);
+      end
+   end
+  
+  assign read_valid = 1'b1;
+  assign read_data = data_back;
+
+endmodule
