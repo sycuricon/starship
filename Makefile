@@ -98,7 +98,7 @@ rocket-patch:
 	cd $(ROCKET_SRC); git checkout -- src/main/scala/rocket/RocketCore.scala src/main/scala/tile/Core.scala src/main/scala/tile/FPU.scala src/main/scala/rocket/IBuf.scala
 	sed -i "s/import chisel3.withClock/import chisel3.{withClock,dontTouch}/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/nBreakpoints: Int = 1/nBreakpoints: Int = 3/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	sed -i "s/useHypervisor: Boolean = false/useHypervisor: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
+	# sed -i "s/useHypervisor: Boolean = false/useHypervisor: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	# sed -i "s/useRVE: Boolean = false/useRVE: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "/val csr =/adontTouch(csr.io)" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
 	sed -i "s/val enableCommitLog = false/val enableCommitLog = true/g" $(ROCKET_SRC)/src/main/scala/tile/Core.scala
@@ -159,10 +159,15 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX)
 verilog: $(VERILOG_SRC)
 verilog-debug: verilog
 verilog-patch: $(VERILOG_SRC)
-	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
+	# sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
+	sed -i "s/_covMap\[initvar\] = _RAND/_covMap\[initvar\] = 0; \/\//g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
+	
 
 
 
@@ -257,12 +262,12 @@ CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
 VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
 
-VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 	\
-			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext \
-			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
-			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" \
+VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 		\
+			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext 			\
+			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
+			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) # +interrupt
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +fuzz +uart_tx=1 +testcase=$(TESTCASE_ELF) # +interrupt
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 
@@ -304,7 +309,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION)  2>&1 | tee /tmp/rocket.log
+								  $(VSIM_OPTION)  2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}"
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \

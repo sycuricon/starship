@@ -22,7 +22,6 @@ import "DPI-C" function void cosim_init(
 
 import "DPI-C" function longint cosim_finish();
 
-
 module CJ #(parameter harts=1, commits=2) (
     input clock,
     input reset,
