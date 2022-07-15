@@ -228,9 +228,10 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE))
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
+#TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
+TESTCASE_ROOT	?= /home/hesirui/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64ui-p-simple
+TESTCASE		:= cosim-p-test
 # rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv rv64ssvnapot-p-napot
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
@@ -309,7 +310,7 @@ reglist-convert:
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION)  2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}"
+								  $(VSIM_OPTION)  2>&1 | tee /home/hesirui/rocket.log; exit "$${PIPESTATUS[0]}"
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \

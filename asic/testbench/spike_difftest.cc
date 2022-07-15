@@ -5,7 +5,6 @@
 #include "cj.h"
 
 cosim_cj_t* simulator = NULL;
-unsigned int round = 0;
 char* fuzz_target = "/eda/project/difuzz-rtl/Fuzzer/output/.input";
 
 extern "C" void cosim_init (const char *testcase, unsigned char verbose) {
@@ -38,17 +37,26 @@ extern "C" reg_t cosim_finish () {
 }
 
 extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsigned long int pc) {
-  if (simulator)
+  if (simulator) {
     return simulator->cosim_randomizer_insn(in, pc);
+  }
   else
     return in;
 }
 
 extern "C" unsigned long int cosim_randomizer_data (unsigned int read_select) {
   static int cnt = -1;
-  cnt ++;
-  printf("[Todo] replace me with real magic access, %d\n", cnt);
-  return 0x20220611 + cnt;
+  reg_t addr = 6;
+  for (int t = read_select; t; t >>= 1) addr --;
+  addr *= 8;
+  printf("[Magic] Read Select = %u; Addr = %u \n", read_select, addr);
+  if (simulator) {
+    return simulator->cosim_randomizer_data(addr);
+  }
+  else {
+    cnt ++;
+    return 0x20220611 + cnt;
+  }
 }
 
 extern "C" void cosim_reinit (const char *testcase, unsigned char verbose) {
@@ -65,6 +73,7 @@ extern "C" void cosim_reinit (const char *testcase, unsigned char verbose) {
 }
 
 extern "C" void update_symlink() {
+  static unsigned int round = 0;
   remove("./testcase.elf");
   remove("./testcase.hex");
   

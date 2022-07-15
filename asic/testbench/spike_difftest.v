@@ -88,7 +88,7 @@ import "DPI-C" function longint unsigned cosim_randomizer_data (
 module MagicBlackbox (
   input clock,
   input reset,
-  input [4:0] read_select,
+  input [11:0] read_select,
   input read_ready,
   output read_valid,
   output [63:0] read_data
