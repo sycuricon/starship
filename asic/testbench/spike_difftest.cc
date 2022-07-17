@@ -46,9 +46,7 @@ extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsign
 }
 
 extern "C" unsigned long int cosim_randomizer_data (unsigned int read_select) {
-  reg_t addr = 6;
-  for (int t = read_select; t; t >>= 1) addr --;
-  addr *= 8;
+  reg_t addr = read_select;
   printf("[Magic] Read Select = %u; Addr = %u \n", read_select, addr);
   if (simulator) {
     return simulator->cosim_randomizer_data(addr);

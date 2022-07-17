@@ -106,8 +106,8 @@ rocket-patch:
 	sed -i "s/, load_wb_data/, ieee(wdata).suggestName(\"rtlFuzz_fregLoadData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "s/when ((!wbInfo(0).cp && wen(0)) || divSqrt_wen)/when (fregWrite)/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "/val wexc =/aval fregWrite = ((!wbInfo(0).cp && wen(0)) || divSqrt_wen).suggestName(\"rtlFuzz_fregWriteEnable\")" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MCBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val clock = Input(Clock())\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(UInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
-	sed -i "/io.pc := Mux/a  val randomizer = Module(new MCBlackbox)\n  randomizer.io.clock := clock\n  randomizer.io.in := inst\n  randomizer.io.pc := io.pc\n  randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
+	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MagicMaskerBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val clock = Input(Clock())\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(UInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
+	sed -i "/io.pc := Mux/a  val randomizer = Module(new MagicMaskerBlackbox)\n  randomizer.io.clock := clock\n  randomizer.io.in := inst\n  randomizer.io.pc := io.pc\n  randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 	sed -i "s/expand(0, 0, inst)/expand(0, 0, randomizer.io.out)/g" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 
 
@@ -225,7 +225,7 @@ export CVA6_REPO_DIR=/eda/project/dut/cva6
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
 VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
-VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE))
+VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
@@ -276,7 +276,7 @@ $(SPIKE_BUILD)/Makefile:
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
 
 $(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) libcosim.a
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) libcosim.a CXXFLAGS=-I$(ROCKET_BUILD)
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
