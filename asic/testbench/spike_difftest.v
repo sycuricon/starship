@@ -64,7 +64,7 @@ import "DPI-C" function longint unsigned cosim_randomizer_insn (
     input longint unsigned pc
 );
 
-module MCBlackbox (
+module MagicMaskerBlackbox (
   input clock,
   input en,
   input [63:0] in,
@@ -73,9 +73,13 @@ module MCBlackbox (
 );
   reg [63:0] insn_back;
 
+  initial begin
+    insn_back = 0;
+  end 
+
   always @ (negedge clock) begin
     if (en)
-      insn_back = cosim_randomizer_insn(in, pc);
+      insn_back <= cosim_randomizer_insn(in, pc);
   end
   
   assign out = insn_back;
@@ -86,7 +90,7 @@ import "DPI-C" function longint unsigned cosim_randomizer_data (
     input int unsigned read_select
 );
 
-module MagicBlackbox (
+module MagicDeviceBlackbox (
   input clock,
   input reset,
   input [11:0] read_select,

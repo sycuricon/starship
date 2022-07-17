@@ -1,5 +1,8 @@
 package starship.asic
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.config._
@@ -24,7 +27,7 @@ class MagicIO(val w: Int) extends Bundle {
   val read_data = Output(UInt(w.W))
 }
 
-class MagicBlackbox(val w: Int) extends BlackBox {
+class MagicDeviceBlackbox(val w: Int) extends BlackBox {
     val io = IO(new MagicIO(w))
 }
 
@@ -34,50 +37,32 @@ trait MagicModule extends HasRegMap {
   val clock: Clock
   val reset: Reset
 
-  val random          = Wire(new DecoupledIO(UInt(params.width.W)))
-  val rdm_word        = Wire(new DecoupledIO(UInt(params.width.W)))
-  val rdm_float       = Wire(new DecoupledIO(UInt(params.width.W)))
-  val rdm_double      = Wire(new DecoupledIO(UInt(params.width.W)))
-  val rdm_fuzz_addr   = Wire(new DecoupledIO(UInt(params.width.W)))
-  val next_fuzz_addr  = Wire(new DecoupledIO(UInt(params.width.W)))
 
-  val impl = Module(new MagicBlackbox(params.width))
+  val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_addr", "epc_next")
+  val field_offset = field_name.zipWithIndex.map((_._2*8))
+  val field_header = "#ifndef _ZJV_MAGIC_DEVICE_H\n" + "#define _ZJV_MAGIC_DEVICE_H\n" +
+                     field_name.zip(field_offset).map(pair => "#define MAGIC_" + pair._1.toUpperCase + " 0x0" + pair._2.toHexString + "\n").mkString +
+                     "#endif\n"
+  Files.write(Paths.get("./build/rocket-chip/magic_device.h"), field_header.getBytes(StandardCharsets.UTF_8))
+
+  val field_wire = field_offset.map(_ => Wire(new DecoupledIO(UInt(params.width.W))))
+  val field_regmap = field_offset.zip(field_wire).map{case (offset, wire) => offset -> Seq(RegField.r(params.width, wire))}
+
+  val impl = Module(new MagicDeviceBlackbox(params.width))
 
   impl.io.clock := clock
   impl.io.reset := reset.asBool
 
-  random.bits := impl.io.read_data
-  rdm_word.bits := impl.io.read_data
-  rdm_float.bits := impl.io.read_data
-  rdm_double.bits := impl.io.read_data
-  rdm_fuzz_addr.bits := impl.io.read_data
-  next_fuzz_addr.bits := impl.io.read_data
+  field_wire.zip(field_offset).foreach{ case (io, offset) =>
+    io.bits := impl.io.read_data
+    io.valid := impl.io.read_valid
+    when(io.ready) {
+      impl.io.read_select := offset.U(12.W)
+    }
+  }
 
-  random.valid := impl.io.read_valid
-  rdm_word.valid := impl.io.read_valid
-  rdm_float.valid := impl.io.read_valid
-  rdm_double.valid := impl.io.read_valid
-  rdm_fuzz_addr.valid := impl.io.read_valid 
-  next_fuzz_addr.valid := impl.io.read_valid
-
-  impl.io.read_select:= Cat(random.ready, rdm_word.ready, rdm_float.ready, rdm_double.ready, rdm_fuzz_addr.ready, next_fuzz_addr.ready)
-  impl.io.read_ready := random.ready || rdm_word.ready || rdm_float.ready || rdm_double.ready || rdm_fuzz_addr.ready || next_fuzz_addr.ready
-
-  val lut = Map(
-    "random" -> 0x00,
-    "rdm_word" -> 0x08,
-    "rdm_float" -> 0x10,
-    "rdm_double" -> 0x18,
-    "rdm_addr" -> 0x20,
-    "is_mepc_in_fuzz" -> 0x28)
-  regmap(
-    0x00    -> Seq(RegField.r(params.width, random)),
-    0x08    -> Seq(RegField.r(params.width, rdm_word)),
-    0x10    -> Seq(RegField.r(params.width, rdm_float)),
-    0x18    -> Seq(RegField.r(params.width, rdm_double)),
-    0x20    -> Seq(RegField.r(params.width, rdm_fuzz_addr)),
-    0x28    -> Seq(RegField.r(params.width, next_fuzz_addr))
-  )
+  impl.io.read_ready := field_wire.foldLeft(false.B)((res, io) => res || io.ready)
+  regmap(field_regmap:_*)
 }
 
 class MagicTL(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
