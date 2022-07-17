@@ -267,7 +267,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) # +fuzzing +interrupt
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) +fuzzing # +interrupt
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 
@@ -318,7 +318,6 @@ vcs-time: $(VCS_SIMV) $(TESTCASE_HEX)
 	echo -e "\033[31m global start `date +%s.%3N` \033[0m"; \
 	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 				$(VSIM_OPTION); echo -e "\033[31m global stop `date +%s.%3N` \033[0m"; # 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
-
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \
