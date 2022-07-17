@@ -34,6 +34,7 @@ module Testbench;
   assign Testbench.testHarness.ldut.metaReset = reset;
 
   initial begin
+    $system("echo -e \"\033[31m vcs start `date +%s.%3N` \033[0m\"");
     if ($test$plusargs("interrupt")) begin
       // #(`RESET_DELAY * 2)
       // forever @(posedge clock) begin
@@ -75,7 +76,7 @@ module Testbench;
     void'($value$plusargs("max-cycles=%d", max_cycles));
     void'($value$plusargs("dump-start=%d", dump_start));
     verbose = $test$plusargs("verbose");
-    fuzz = $test$plusargs("fuzz");
+    fuzz = $test$plusargs("fuzzing");
     dump_wave = $test$plusargs("dump");
 
     // $urandom is seeded via cmdline (+ntb_random_seed in VCS) but that doesn't seed $random.
@@ -115,6 +116,7 @@ module Testbench;
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `MEM_RPL.ram);
     end
+    $system("echo -e \"\033[31m vcs init `date +%s.%3N` \033[0m\"");
     timer_start();
   end
 
@@ -149,6 +151,7 @@ module Testbench;
           if (dump_wave) begin
             `WAVE_CLOSE
           end
+          $system("echo -e \"\033[31m vcs stop `date +%s.%3N` \033[0m\"");
           timer_result = timer_stop();
           $display("Finish time: %d ns", timer_result);
           // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);

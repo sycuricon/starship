@@ -5,12 +5,13 @@
 #include "cj.h"
 
 cosim_cj_t* simulator = NULL;
+config_t cfg;
+char* spike_misa = "rv64gc_xdummy";
 char* fuzz_target = "/eda/project/difuzz-rtl/Fuzzer/output/.input";
 
 extern "C" void cosim_init (const char *testcase, unsigned char verbose) {
-  config_t cfg;
   cfg.elffile = testcase;
-  cfg.isa = "rv64gc_xdummy";
+  cfg.isa = spike_misa;
   if (verbose)
     cfg.verbose = true;
   simulator = new cosim_cj_t(cfg);
@@ -45,7 +46,6 @@ extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsign
 }
 
 extern "C" unsigned long int cosim_randomizer_data (unsigned int read_select) {
-  static int cnt = -1;
   reg_t addr = 6;
   for (int t = read_select; t; t >>= 1) addr --;
   addr *= 8;
@@ -54,18 +54,17 @@ extern "C" unsigned long int cosim_randomizer_data (unsigned int read_select) {
     return simulator->cosim_randomizer_data(addr);
   }
   else {
-    cnt ++;
-    return 0x20220611 + cnt;
+    return 0x20220611;
   }
 }
 
 extern "C" void cosim_reinit (const char *testcase, unsigned char verbose) {
-  if (simulator)
+  if (simulator) {
     delete simulator;
+  }
 
-  config_t cfg;
   cfg.elffile = testcase;
-  cfg.isa = "rv64gc_xdummy";
+
   if (verbose)
     cfg.verbose = true;
   simulator = new cosim_cj_t(cfg);

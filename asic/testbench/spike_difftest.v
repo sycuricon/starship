@@ -53,7 +53,7 @@ module CJ #(parameter harts=1, commits=2) (
         end
     end
 
-    assign finish = tohost & 1'b1;
+    assign finish = (tohost & 8'hff) == 8'h01;
 
 endmodule
 

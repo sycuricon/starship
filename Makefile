@@ -228,10 +228,9 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE))
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-#TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
-TESTCASE_ROOT	?= /home/hesirui/riscv-tests/build/isa
+TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
 # /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= cosim-p-test
+TESTCASE		:= rv64ui-p-simple
 # rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv rv64ssvnapot-p-napot
 TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
@@ -268,7 +267,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +fuzz +uart_tx=1 +testcase=$(TESTCASE_ELF) # +interrupt
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) +fuzzing # +interrupt
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 
@@ -309,8 +308,16 @@ reglist-convert:
 
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); $(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-								  $(VSIM_OPTION)  2>&1 | tee /home/hesirui/rocket.log; exit "$${PIPESTATUS[0]}"
+	cd $(VCS_BUILD); \
+	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
+				$(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
+
+vcs-time: $(VCS_SIMV) $(TESTCASE_HEX)
+	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
+	cd $(VCS_BUILD); \
+	echo -e "\033[31m global start `date +%s.%3N` \033[0m"; \
+	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
+				$(VSIM_OPTION); echo -e "\033[31m global stop `date +%s.%3N` \033[0m"; # 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
 vcs-coverage:
 	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \
