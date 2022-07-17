@@ -65,6 +65,7 @@ import "DPI-C" function longint unsigned cosim_randomizer_insn (
 );
 
 module MCBlackbox (
+  input clock,
   input en,
   input [63:0] in,
   input [63:0] pc,
@@ -72,7 +73,7 @@ module MCBlackbox (
 );
   reg [63:0] insn_back;
 
-  always @(*) begin
+  always @ (negedge clock) begin
     if (en)
       insn_back = cosim_randomizer_insn(in, pc);
   end

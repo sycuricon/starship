@@ -106,8 +106,8 @@ rocket-patch:
 	sed -i "s/, load_wb_data/, ieee(wdata).suggestName(\"rtlFuzz_fregLoadData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "s/when ((!wbInfo(0).cp && wen(0)) || divSqrt_wen)/when (fregWrite)/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
 	sed -i "/val wexc =/aval fregWrite = ((!wbInfo(0).cp && wen(0)) || divSqrt_wen).suggestName(\"rtlFuzz_fregWriteEnable\")" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MCBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(UInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
-	sed -i "/io.pc := Mux/aval randomizer = Module(new MCBlackbox); randomizer.io.in := inst; randomizer.io.pc := io.pc; randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
+	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MCBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val clock = Input(Clock())\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(UInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
+	sed -i "/io.pc := Mux/a  val randomizer = Module(new MCBlackbox)\n  randomizer.io.clock := clock\n  randomizer.io.in := inst\n  randomizer.io.pc := io.pc\n  randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 	sed -i "s/expand(0, 0, inst)/expand(0, 0, randomizer.io.out)/g" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 
 
