@@ -38,7 +38,7 @@ extern "C" reg_t cosim_finish () {
 }
 
 extern "C" unsigned long int cosim_randomizer_insn (unsigned long int in, unsigned long int pc) {
-  if (simulator) {
+  if (simulator && in != 0) {
     return simulator->cosim_randomizer_insn(in, pc);
   }
   else
