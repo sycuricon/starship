@@ -17,7 +17,9 @@
 
 import "DPI-C" function void timer_start();
 import "DPI-C" function longint timer_stop();
-import "DPI-C" function void update_symlink();
+import "DPI-C" function int coverage_collector(
+  input longint unsigned dut_cov
+);
 import "DPI-C" function void cosim_reinit(
     input string testcase,
     input reg verbose
@@ -68,7 +70,7 @@ module Testbench;
   reg [2047:0] vcdplusfile = 0;
   reg [2047:0] vcdfile = 0;
 
-  wire finish;
+  wire [63:0] tohost;
   wire printf_cond = verbose && !reset;
   wire uart_rx, uart_tx;
 
@@ -120,7 +122,7 @@ module Testbench;
     timer_start();
   end
 
-  always @(posedge clock) begin
+  always @(negedge clock) begin
     trace_count = trace_count + 1;
     if (trace_count == dump_start) begin
       if (dump_wave) begin
@@ -141,11 +143,10 @@ module Testbench;
         end
         $fatal;
       end
-      if (finish) begin
+      if (tohost & 1'b1) begin
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
-        $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
         if (fuzz) begin
-          next_round();
+          fuzz_manager();
         end
         else begin
           if (dump_wave) begin
@@ -154,6 +155,7 @@ module Testbench;
           $system("echo -e \"\033[31m vcs stop `date +%s.%3N` \033[0m\"");
           timer_result = timer_stop();
           $display("Finish time: %d ns", timer_result);
+          $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
           // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);
           $finish;
         end
@@ -175,7 +177,7 @@ module Testbench;
   CJ rtlfuzz (
     .clock(clock),
     .reset(reset),
-    .finish(finish));
+    .tohost(tohost));
 
   tty #(115200, 0) u0_tty(
    .STX(uart_rx),
@@ -186,19 +188,19 @@ module Testbench;
   // `include "StarshipASICTop.vh"
   // `include "TestHarness.vh"
 
-  task next_round;
+  task fuzz_manager;
   begin
-    reset = 1;
-    force rtlfuzz.finish = 0;
+    force tohost = 0;
     force clock = 0;
-    #1;
-    update_symlink();
-    $readmemh("./testcase.hex", `MEM_RPL.ram);
-    cosim_reinit("./testcase.elf", verbose);
+    #5;
+    if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
+      reset = 1;
+      $readmemh("./testcase.hex", `MEM_RPL.ram);
+      cosim_reinit("./testcase.elf", verbose);
+    end
     release clock;
-    #5 reset = 0;
-    release rtlfuzz.finish;
-    
+    #10 reset = 0;
+    release tohost;
   end
   endtask
 

@@ -20,16 +20,17 @@ import "DPI-C" function void cosim_init(
     input reg verbose
 );
 
-import "DPI-C" function longint cosim_finish();
+import "DPI-C" function longint cosim_get_tohost();
+
+import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 
 module CJ #(parameter harts=1, commits=2) (
     input clock,
     input reset,
-    output finish
+    output reg [63:0] tohost
 );
     string testcase;
     reg verbose = 1'b0;
-    reg [63:0] tohost;
 
     initial begin
         if (!$value$plusargs("testcase=%s", testcase)) begin
@@ -44,16 +45,13 @@ module CJ #(parameter harts=1, commits=2) (
 
     always @(posedge clock) begin
         if (!reset) begin
-
-            `include "spike_difftest.rocket.v"
-            // `include "spike_difftest.cva6.v"
-            // `include "spike_difftest.boom.v"
-
-            tohost = cosim_finish();
+          `include "spike_difftest.rocket.v"
+          // `include "spike_difftest.cva6.v"
+          // `include "spike_difftest.boom.v"
+          
+          tohost = cosim_get_tohost();
         end
     end
-
-    assign finish = (tohost & 8'hff) == 8'h01;
 
 endmodule
 
@@ -71,11 +69,7 @@ module MagicMaskerBlackbox (
   input [63:0] pc,
   output [63:0] out
 );
-  reg [63:0] insn_back;
-
-  initial begin
-    insn_back = 0;
-  end 
+  reg [63:0] insn_back = 0;
 
   always @ (negedge clock) begin
     if (en)
