@@ -30,6 +30,8 @@ module Testbench;
   reg clock = 1'b0;
   reg reset = 1'b1;
 
+  wire interrupt;
+
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
@@ -37,6 +39,7 @@ module Testbench;
 
   initial begin
     $system("echo -e \"\033[31m vcs start `date +%s.%3N` \033[0m\"");
+    force `PIPELINE.io_interrupts_msip = interrupt;
     if ($test$plusargs("interrupt")) begin
       // #(`RESET_DELAY * 2)
       // forever @(posedge clock) begin
@@ -185,8 +188,13 @@ module Testbench;
    .reset(reset)
   );
 
-  // `include "StarshipASICTop.vh"
-  // `include "TestHarness.vh"
+  coverage_monitor mon(
+    .clock(clock),
+    .reset(reset),
+    .cov(Testbench.testHarness.ldut.io_covSum),
+    .tohost(tohost),
+    .interrupt(interrupt)
+  );
 
   task fuzz_manager;
   begin
@@ -204,4 +212,35 @@ module Testbench;
   end
   endtask
 
+endmodule
+
+
+`define MAX_WAIT_CYCLE  10000
+
+module coverage_monitor(
+  input clock,
+  input reset,
+  input [29:0] cov,
+  input [63:0] tohost,
+  output interrupt
+);
+
+  reg [63:0] count = 0;
+  reg [29:0] pre_cov = 0;
+
+  always @(posedge clock) begin
+    if (!reset) begin
+      if (cov != pre_cov) begin
+        pre_cov <= cov;
+        count = 0;
+      end else begin
+        count <= count + 1;
+      end
+      if (tohost & 1) begin
+        count = 0;
+      end
+    end
+  end
+
+  assign interrupt = count >= `MAX_WAIT_CYCLE;
 endmodule
