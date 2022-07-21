@@ -6,7 +6,8 @@
 
 cosim_cj_t* simulator = NULL;
 config_t cfg;
-char* spike_misa = "rv64gc_xdummy";
+// char* spike_misa = "rv64gc_xdummy";
+char* spike_misa = "rv64gc";
 
 extern "C" void cosim_init (const char *testcase, unsigned char verbose) {
   cfg.elffile = testcase;
@@ -93,6 +94,7 @@ extern "C" int coverage_collector(unsigned long int cov) {
     (tohost == 3 && round_current == MAX_ROUND) ||
     (tohost == 1 && elf_current < MAX_ELF)) {
     round_current = 0;
+    exit(0);
     remove("./testcase.elf");
     remove("./testcase.hex");
     char path_name[1024];
