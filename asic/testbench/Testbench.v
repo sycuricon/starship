@@ -215,7 +215,7 @@ module Testbench;
 endmodule
 
 
-`define MAX_WAIT_CYCLE  10000
+`define MAX_WAIT_CYCLE  1000
 
 module coverage_monitor(
   input clock,

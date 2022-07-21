@@ -16,7 +16,7 @@ endif
 
 GCC_VERSION	:= $(word 1, $(subst ., ,$(shell gcc -dumpversion)))
 ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
-SCL_PREFIX := source scl_source enable devtoolset-9 &&
+SCL_PREFIX := source scl_source enable devtoolset-10 &&
 endif
 
 all: bitstream
@@ -253,6 +253,7 @@ TB_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 
 CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 			   	 +define+STOP_COND=!$(VCS_TB).reset			\
+				 +define+RANDOMIZE							\
 				 +define+RANDOMIZE_MEM_INIT					\
 				 +define+RANDOMIZE_REG_INIT					\
 				 +define+RANDOMIZE_GARBAGE_ASSIGN			\
@@ -273,7 +274,7 @@ vcs-debug: VSIM_OPTION += +verbose +dump
 
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure --enable-commitlog
 
 $(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) libcosim.a CXXFLAGS=-I$(ROCKET_BUILD)
