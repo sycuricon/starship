@@ -75,7 +75,7 @@ extern "C" void cosim_reinit (const char *testcase, unsigned char verbose) {
 
 #define MAX_ROUND 5
 #define MAX_ELF   10
-char* fuzz_target = "/eda/project/difuzz-rtl/Fuzzer/output/.input";
+char* fuzz_target = "/eda/project/riscv-cj-pygen/build/fuzz/fuzz";
 
 /* return a non zero value to reinitialize memory */
 extern "C" int coverage_collector(unsigned long int cov) {
@@ -94,11 +94,11 @@ extern "C" int coverage_collector(unsigned long int cov) {
     (tohost == 3 && round_current == MAX_ROUND) ||
     (tohost == 1 && elf_current < MAX_ELF)) {
     round_current = 0;
-    exit(0);
+ 
     remove("./testcase.elf");
     remove("./testcase.hex");
     char path_name[1024];
-    sprintf(path_name, "%s_%d.elf", fuzz_target, elf_current);
+    sprintf(path_name, "%s_%d", fuzz_target, elf_current);
     printf("Redirect to %s\n", path_name);
     symlink(path_name, "./testcase.elf");
     sprintf(path_name, "%s_%d.hex", fuzz_target, elf_current);

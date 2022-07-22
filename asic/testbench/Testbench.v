@@ -167,14 +167,13 @@ module Testbench;
     end
   end
 
-    // .io_uart_tx(uart_tx),
-    // .io_uart_rx(uart_rx),
-
   `MODEL testHarness(
     .clock(clock),
     .reset(reset),
     .io_uart_tx(1'b0),
     .io_uart_rx(1'b0)
+  // .io_uart_tx(uart_tx),
+  // .io_uart_rx(uart_rx)
   );
 
   CJ rtlfuzz (
@@ -198,9 +197,9 @@ module Testbench;
 
   task fuzz_manager;
   begin
-    force tohost = 0;
+    // force tohost = 0;
     force clock = 0;
-    #5;
+    #50;
     if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
       reset = 1;
       $readmemh("./testcase.hex", `MEM_RPL.ram);
@@ -208,7 +207,7 @@ module Testbench;
     end
     release clock;
     #10 reset = 0;
-    release tohost;
+    // release tohost;
   end
   endtask
 
@@ -226,21 +225,28 @@ module coverage_monitor(
 );
 
   reg [63:0] count = 0;
+  reg [63:0] watch_dog = 0;
   reg [29:0] pre_cov = 0;
 
-  always @(posedge clock) begin
+  always @(negedge clock) begin
     if (!reset) begin
       if (cov != pre_cov) begin
         pre_cov <= cov;
-        count = 0;
+        count <= 0;
       end else begin
         count <= count + 1;
       end
       if (tohost & 1) begin
-        count = 0;
+        count <= 0;
+        watch_dog <= 0;
+      end else begin
+        watch_dog <= watch_dog + 1;
       end
+    end else begin
+      count <= 0;
+      watch_dog <= 0;
     end
   end
 
-  assign interrupt = count >= `MAX_WAIT_CYCLE;
+  assign interrupt = (count >= `MAX_WAIT_CYCLE) || (watch_dog >= 10000) ;
 endmodule

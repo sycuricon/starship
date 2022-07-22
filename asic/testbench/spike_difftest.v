@@ -49,7 +49,7 @@ module CJ #(parameter harts=1, commits=2) (
           // `include "spike_difftest.cva6.v"
           // `include "spike_difftest.boom.v"
           
-          tohost = cosim_get_tohost();
+          tohost <= cosim_get_tohost();
         end
     end
 
