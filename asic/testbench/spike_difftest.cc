@@ -94,7 +94,7 @@ extern "C" int coverage_collector(unsigned long int cov) {
     (tohost == 3 && round_current == MAX_ROUND) ||
     (tohost == 1 && elf_current < MAX_ELF)) {
     round_current = 0;
- 
+
     remove("./testcase.elf");
     remove("./testcase.hex");
     char path_name[1024];
@@ -108,6 +108,7 @@ extern "C" int coverage_collector(unsigned long int cov) {
 
     return 1;
   } else {
+    printf("Finish all %d testcase, exit...  (tohost: %d)\n", elf_current, tohost);
     exit(0);
   }
 

@@ -40,21 +40,6 @@ module Testbench;
   initial begin
     $system("echo -e \"\033[31m vcs start `date +%s.%3N` \033[0m\"");
     force `PIPELINE.io_interrupts_msip = interrupt;
-    if ($test$plusargs("interrupt")) begin
-      // #(`RESET_DELAY * 2)
-      // forever @(posedge clock) begin
-      //   force `PIPELINE.io_interrupts_mtip = 1'b0;
-      //   force `PIPELINE.io_interrupts_msip = 1'b0;
-      //   force `PIPELINE.io_interrupts_meip = 1'b0;
-      //   force `PIPELINE.io_interrupts_seip = 1'b0;
-      //   #200;
-      //   force `PIPELINE.io_interrupts_mtip = 1'b1;
-      //   force `PIPELINE.io_interrupts_msip = 1'b1;
-      //   force `PIPELINE.io_interrupts_meip = 1'b1;
-      //   force `PIPELINE.io_interrupts_seip = 1'b1;
-      //   #1000;
-      // end
-    end  
   end 
 
   int unsigned rand_value;

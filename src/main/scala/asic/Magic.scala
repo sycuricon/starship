@@ -38,10 +38,11 @@ trait MagicModule extends HasRegMap {
   val reset: Reset
 
 
-  val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_addr", "epc_next")
+  val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "epc_next", "epc_map", "rdm_pte")
   val field_offset = field_name.zipWithIndex.map((_._2*8))
   val field_header = "#ifndef _ZJV_MAGIC_DEVICE_H\n" + "#define _ZJV_MAGIC_DEVICE_H\n" +
                      field_name.zip(field_offset).map(pair => "#define MAGIC_" + pair._1.toUpperCase + " 0x0" + pair._2.toHexString + "\n").mkString +
+                     "#define MAX_MAGIC_SPACE " + "0x0" + (field_name.size*8).toHexString + "\n" +
                      "#endif\n"
   Files.write(Paths.get("./build/rocket-chip/magic_device.h"), field_header.getBytes(StandardCharsets.UTF_8))
 

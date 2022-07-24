@@ -268,7 +268,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) +fuzzing # +interrupt
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) +fuzzing #
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 
