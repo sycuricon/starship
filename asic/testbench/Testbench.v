@@ -38,7 +38,7 @@ module Testbench;
   assign Testbench.testHarness.ldut.metaReset = reset;
 
   initial begin
-    $system("echo -e \"\033[31m vcs start `date +%s.%3N` \033[0m\"");
+    $system("echo -e \"\033[31m[>] vcs start `date +%s.%3N` \033[0m\"");
     force `PIPELINE.io_interrupts_msip = interrupt;
   end 
 
@@ -106,7 +106,7 @@ module Testbench;
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `MEM_RPL.ram);
     end
-    $system("echo -e \"\033[31m vcs init `date +%s.%3N` \033[0m\"");
+    $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
     timer_start();
   end
 
@@ -135,13 +135,14 @@ module Testbench;
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
         trace_count = 0;
         if (fuzz) begin
+          $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
           fuzz_manager();
         end
         else begin
           if (dump_wave) begin
             `WAVE_CLOSE
           end
-          $system("echo -e \"\033[31m vcs stop `date +%s.%3N` \033[0m\"");
+          $system("echo -e \"\033[31m[>] vcs stop `date +%s.%3N` \033[0m\"");
           timer_result = timer_stop();
           $display("Finish time: %d ns", timer_result);
           $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
@@ -190,6 +191,7 @@ module Testbench;
       reset = 1;
       $readmemh("./testcase.hex", `MEM_RPL.ram);
       cosim_reinit("./testcase.elf", verbose);
+      $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
     end
     release clock;
     #10 reset = 0;
@@ -234,5 +236,5 @@ module coverage_monitor(
     end
   end
 
-  assign interrupt = (count >= `MAX_WAIT_CYCLE) || (watch_dog >= 10000) ;
+  assign interrupt = (count >= `MAX_WAIT_CYCLE) || (watch_dog >= 50000);
 endmodule
