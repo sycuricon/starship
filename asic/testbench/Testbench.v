@@ -133,6 +133,7 @@ module Testbench;
       end
       if (tohost & 1'b1) begin
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
+        trace_count = 0;
         if (fuzz) begin
           fuzz_manager();
         end
