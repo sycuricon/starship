@@ -5,18 +5,28 @@ import java.nio.file.{Files, Paths}
 
 import chisel3._
 import chisel3.util._
+import freechips.rocketchip.util._
 import freechips.rocketchip.config._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.regmapper._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem._
+import freechips.rocketchip.diplomaticobjectmodel.model._
 
  
 case class MagicParams(
-  address: BigInt = 0x2000,
-  width: Int = 64)
+  baseAddress: BigInt = 0x2000,
+  width: Int = 64) {
+  def address = AddressSet(baseAddress, 0xFFF)
+}
 
 case object MagicKey extends Field[Option[MagicParams]](None)
+
+case class MagicAttachParams(
+  slaveWhere: TLBusWrapperLocation = CBUS
+)
+
+case object MagicAttachKey extends Field(MagicAttachParams())
 
 class MagicIO(val w: Int) extends Bundle {
   val clock = Input(Clock())
@@ -31,56 +41,54 @@ class MagicDeviceBlackbox(val w: Int) extends BlackBox {
     val io = IO(new MagicIO(w))
 }
 
-trait MagicModule extends HasRegMap {
-  implicit val p: Parameters
-  def params: MagicParams
-  val clock: Clock
-  val reset: Reset
+class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters) 
+  extends LazyModule {
+  
+  val device = new SimpleDevice("magic", Seq("zjv,starship,fuzz-magic"))  
+  val node: TLRegisterNode = TLRegisterNode(
+  address   = Seq(params.address),
+  device    = device,
+  beatBytes = beatBytes)
 
+  lazy val module = new LazyModuleImp(this) {
+    Annotated.params(this, params)
+    
+    val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "mepc_next", "sepc_next", "rdm_pte")
+    val field_offset = field_name.zipWithIndex.map((_._2*8))
+    val field_header = "#ifndef _ZJV_MAGIC_DEVICE_H\n" + "#define _ZJV_MAGIC_DEVICE_H\n" +
+                       field_name.zip(field_offset).map(pair => "#define MAGIC_" + pair._1.toUpperCase + " 0x0" + pair._2.toHexString + "\n").mkString +
+                       "#define MAX_MAGIC_SPACE " + "0x0" + (field_name.size*8).toHexString + "\n" +
+                       "#endif\n"
+    Files.write(Paths.get("./build/rocket-chip/magic_device.h"), field_header.getBytes(StandardCharsets.UTF_8))
 
-  val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "mepc_next", "sepc_next", "rdm_pte")
-  val field_offset = field_name.zipWithIndex.map((_._2*8))
-  val field_header = "#ifndef _ZJV_MAGIC_DEVICE_H\n" + "#define _ZJV_MAGIC_DEVICE_H\n" +
-                     field_name.zip(field_offset).map(pair => "#define MAGIC_" + pair._1.toUpperCase + " 0x0" + pair._2.toHexString + "\n").mkString +
-                     "#define MAX_MAGIC_SPACE " + "0x0" + (field_name.size*8).toHexString + "\n" +
-                     "#endif\n"
-  Files.write(Paths.get("./build/rocket-chip/magic_device.h"), field_header.getBytes(StandardCharsets.UTF_8))
-
-  val field_wire = field_offset.map(_ => Wire(new DecoupledIO(UInt(params.width.W))))
-  val field_regmap = field_offset.zip(field_wire).map{case (offset, wire) => offset -> Seq(RegField.r(params.width, wire))}
-
-  val impl = Module(new MagicDeviceBlackbox(params.width))
-
-  impl.io.clock := clock
-  impl.io.reset := reset.asBool
-
-  field_wire.zip(field_offset).foreach{ case (io, offset) =>
-    io.bits := impl.io.read_data
-    io.valid := impl.io.read_valid
-    when(io.ready) {
-      impl.io.read_select := offset.U(12.W)
+    val field_wire = field_offset.map(_ => Wire(new DecoupledIO(UInt(params.width.W))))
+    val field_regmap = field_offset.zip(field_wire).map{
+      case (offset, wire) => offset -> Seq(RegField.r(params.width, wire, RegFieldDesc("rdm", "rdm", reset=Some(0))))
     }
-  }
 
-  impl.io.read_ready := field_wire.foldLeft(false.B)((res, io) => res || io.ready)
-  regmap(field_regmap:_*)
+    val impl = Module(new MagicDeviceBlackbox(params.width))
+    impl.io.clock := clock
+    impl.io.reset := reset.asBool
+
+    field_wire.zip(field_offset).foreach{ case (io, offset) =>
+      io.bits := impl.io.read_data
+      io.valid := impl.io.read_valid
+      when(io.ready) {
+        impl.io.read_select := offset.U(12.W)
+      }
+    }
+
+    impl.io.read_ready := field_wire.foldLeft(false.B)((res, io) => res || io.ready)
+    val omRegMap : OMRegisterMap = node.regmap(field_regmap:_*)
+  }
 }
 
-class MagicTL(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
-  extends TLRegisterRouter(
-    params.address, "magic", Seq("zjv,starship,fuzz-magic"), beatBytes = beatBytes)(
-      new TLRegBundle(params, _))(
-      new TLRegModule(params, _, _) with MagicModule)
 
 trait CanHavePeripheryMagic { this: BaseSubsystem =>
-  private val portName = "magic"
-
-  val magic = p(MagicKey) match {
-    case Some(params) => {
-        val magic = LazyModule(new MagicTL(params, pbus.beatBytes)(p))
-        pbus.toVariableWidthSlave(Some(portName)) { magic.node }
-        Some(magic)
-    }
-    case None => None
+  val MagicOpt = p(MagicKey).map { params =>
+    val tlbus = locateTLBusWrapper(p(MagicAttachKey).slaveWhere)
+    val magic = LazyModule(new MagicDevice(params, cbus.beatBytes))
+    magic.node := tlbus.coupleTo("magic") { TLFragmenter(tlbus) := _ }
+    magic
   }
 }
