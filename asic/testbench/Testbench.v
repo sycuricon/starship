@@ -24,6 +24,7 @@ import "DPI-C" function void cosim_reinit(
     input string testcase,
     input reg verbose
 );
+import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 
 module Testbench;
   
@@ -68,6 +69,9 @@ module Testbench;
     verbose = $test$plusargs("verbose");
     fuzz = $test$plusargs("fuzzing");
     dump_wave = $test$plusargs("dump");
+
+    // fixed for diffuzzRTL, CJ should not timeout
+    max_cycles = 200000;
 
     // $urandom is seeded via cmdline (+ntb_random_seed in VCS) but that doesn't seed $random.
     rand_value = $urandom;
@@ -126,10 +130,18 @@ module Testbench;
 
       if (failure) begin
         $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
-        if (dump_wave) begin
-          `WAVE_CLOSE
+        trace_count = 0;
+        failure = 0;
+        if (fuzz) begin
+          $system("echo -e \"\033[31m[>] round timeout `date +%s.%3N` \033[0m\"");
+          cosim_set_tohost(5);
+          fuzz_manager();
+        end else begin
+          if (dump_wave) begin
+            `WAVE_CLOSE
+          end
+          $fatal;
         end
-        $fatal;
       end
       if (tohost & 1'b1) begin
         $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
@@ -137,8 +149,7 @@ module Testbench;
         if (fuzz) begin
           $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
           fuzz_manager();
-        end
-        else begin
+        end else begin
           if (dump_wave) begin
             `WAVE_CLOSE
           end
@@ -168,11 +179,11 @@ module Testbench;
     .reset(reset),
     .tohost(tohost));
 
-  tty #(115200, 0) u0_tty(
-   .STX(uart_rx),
-   .SRX(uart_tx),
-   .reset(reset)
-  );
+  // tty #(115200, 0) u0_tty(
+  //  .STX(uart_rx),
+  //  .SRX(uart_tx),
+  //  .reset(reset)
+  // );
 
   coverage_monitor mon(
     .clock(clock),
@@ -236,5 +247,5 @@ module coverage_monitor(
     end
   end
 
-  assign interrupt = (count >= `MAX_WAIT_CYCLE) || (watch_dog >= 50000);
+  assign interrupt = (count >= (`MAX_WAIT_CYCLE * ((cov >> 19)+1) )) || (watch_dog >= 50000);
 endmodule

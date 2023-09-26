@@ -7,12 +7,9 @@
 [submodule "repo/fpga-shells"]
 	path = repo/fpga-shells
 	url = https://github.com/Phantom1003/fpga-shells.git
-[submodule "repo/dromajo"]
-	path = repo/dromajo
-	url = https://github.com/chipsalliance/dromajo.git
 [submodule "repo/riscv-isa-sim"]
 	path = repo/riscv-isa-sim
-	url = https://github.com/riscv-software-src/riscv-isa-sim
+	url = https://github.com/sycuricon/riscv-isa-cosim.git
 [submodule "repo/riscv-boom"]
 	path = repo/riscv-boom
 	url = https://github.com/riscv-boom/riscv-boom.git
