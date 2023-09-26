@@ -9,16 +9,16 @@ Global / lintUnusedKeysOnLoad := false
 lazy val commonSettings = Seq(
   organization := "zjv",
   version := "0.1",
-  scalaVersion := "2.12.15",
+  scalaVersion := "2.13.10",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
     "-unchecked",
     "-Xsource:2.11",
-    "-language:reflectiveCalls"
+    "-language:reflectiveCalls",
+    "-Ymacro-annotations"
   ),
-  addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % "3.5.2" cross CrossVersion.full),
-  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full),
+  addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % "3.5.5" cross CrossVersion.full),
   libraryDependencies ++= Seq(
     "com.github.scopt" %% "scopt" % "3.7.1",
     // "edu.berkeley.cs" %% "chisel3" % "3.5.0",
