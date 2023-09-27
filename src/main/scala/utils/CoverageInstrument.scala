@@ -414,8 +414,8 @@ class InstrCov(mod: DefModule, mInfo: moduleInfo, extModules: Seq[String], val m
   def defMemory(name: String, info: String, size: Int, width: Int): (DefMemory, WRef) = {
     val mem = DefMemory(FileInfo(StringLit(info)), name,
       UIntType(IntWidth(1)), size, 1, 0,
-      ArrayBuffer("read"), ArrayBuffer("write"), ArrayBuffer())
-    val ref = WRef(name, BundleType(ArrayBuffer(
+      Seq("read"), Seq("write"), Seq())
+    val ref = WRef(name, BundleType(Seq(
       Field("read", Flip, BundleType(List(
         Field("addr", Default, UIntType(IntWidth(width))),
         Field("en", Default, UIntType(IntWidth(1))),
@@ -728,7 +728,7 @@ class graphLedger(val module: DefModule) {
     s match {
       case stmt: Statement =>
         stmt foreachStmt findNode
-      case other => Unit
+      case other => ()
     }
   }
 
@@ -746,7 +746,7 @@ class graphLedger(val module: DefModule) {
         if (n.isUsed(expr)) {
           sinks.append(Node.findName(loc))
         }
-      case _ => Unit // Port, DefWire, DefMemory, DefInstance, WDefInstance
+      case _ => () // Port, DefWire, DefMemory, DefInstance, WDefInstance
     }
     s foreachStmt findEdge(n, sinks)
   }
@@ -847,7 +847,7 @@ class graphLedger(val module: DefModule) {
       }).maxBy(_.length)
 
       prefix.length match {
-        case 0 => Unit
+        case 0 => ()
         case n => {
           val bodies = regs.map(x => {
             x.substring(n, x.length)

@@ -46,7 +46,8 @@ class Adder(implicit p: Parameters) extends LazyModule {
       ups.head
     }
   )
-  lazy val module = new LazyModuleImp(this) {
+  lazy val module = new Impl
+  class Impl extends LazyModuleImp(this) {
     require(node.in.size >= 2)
     node.out.head._1 := node.in.unzip._1.reduce(_ + _)
   }
@@ -57,7 +58,8 @@ class Adder(implicit p: Parameters) extends LazyModule {
 class AdderDriver(width: Int, numOutputs: Int)(implicit p: Parameters) extends LazyModule {
   val node = new AdderDriverNode(Seq.fill(numOutputs)(DownwardParam(width)))
 
-  lazy val module = new LazyModuleImp(this) {
+  lazy val module = new Impl
+  class Impl extends LazyModuleImp(this) {
     // check that node parameters converge after negotiation
     val negotiatedWidths = node.edges.out.map(_.width)
     require(negotiatedWidths.forall(_ == negotiatedWidths.head), "outputs must all have agreed on same width")
@@ -77,7 +79,8 @@ class AdderMonitor(width: Int, numOperands: Int)(implicit p: Parameters) extends
   val nodeSeq = Seq.fill(numOperands) { new AdderMonitorNode(UpwardParam(width)) }
   val nodeSum = new AdderMonitorNode(UpwardParam(width))
 
-  lazy val module = new LazyModuleImp(this) {
+  lazy val module = new Impl
+  class Impl extends LazyModuleImp(this) {
     val io = IO(new Bundle {
       val error = Output(Bool())
     })
@@ -108,7 +111,8 @@ class demo1TestHarness()(implicit p: Parameters) extends LazyModule {
   drivers.zip(monitor.nodeSeq).foreach { case (driver, monitorNode) => monitorNode := driver.node }
   monitor.nodeSum := adder.node
 
-  lazy val module = new LazyModuleImp(this) {
+  lazy val module = new Impl
+  class Impl extends LazyModuleImp(this) {
     when(monitor.module.io.error) {
       printf("something went wrong")
     }

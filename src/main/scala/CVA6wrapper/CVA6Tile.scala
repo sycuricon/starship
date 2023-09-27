@@ -21,7 +21,6 @@ import freechips.rocketchip.config._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.diplomaticobjectmodel.logicaltree.{LogicalTreeNode}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.subsystem.{RocketCrossingParams}
 import freechips.rocketchip.tilelink._
@@ -76,6 +75,12 @@ case class CVA6CoreParams(
   val fetchWidth: Int = 1 // TODO: Check
   val retireWidth: Int = 2
   val nPTECacheEntries: Int = 8 // TODO: Check
+  val useBitManip: Boolean = false
+  val useBitManipCrypto: Boolean = false
+  val useCryptoNIST: Boolean = false
+  val useCryptoSM: Boolean = false
+  val traceHasWdata: Boolean = false
+  val useConditionalZero: Boolean = false
 }
 
 case class CVA6TileAttachParams(

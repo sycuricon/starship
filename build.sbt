@@ -14,7 +14,6 @@ lazy val commonSettings = Seq(
     "-deprecation",
     "-feature",
     "-unchecked",
-    "-Xsource:2.11",
     "-language:reflectiveCalls",
     "-Ymacro-annotations"
   ),
@@ -34,19 +33,19 @@ lazy val commonSettings = Seq(
 lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
 
 lazy val startship_soc = (project in file("."))
-  .dependsOn(rocket_chip, sifive_blocks, fpga_shells, testchipip, boom)
+  .dependsOn(rocket_chip, peripheral_blocks, fpga_shells, boom)
   .settings(commonSettings: _*)
 
-lazy val sifive_blocks = (project in file("repo/sifive-blocks"))
+lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
   .dependsOn(rocket_chip)
   .settings(commonSettings: _*)
 
-lazy val fpga_shells = (project in file("repo/fpga-shells"))
-  .dependsOn(rocket_chip, sifive_blocks)
+lazy val fpga_shells = (project in file("repo/rocket-chip-fpga-shells"))
+  .dependsOn(rocket_chip, peripheral_blocks)
   .settings(commonSettings: _*)
 
 lazy val testchipip = (project in file("repo/testchipip"))
-  .dependsOn(rocket_chip, sifive_blocks)
+  .dependsOn(rocket_chip, peripheral_blocks)
   .settings(commonSettings: _*)
 
 lazy val boom = (project in file("repo/riscv-boom"))

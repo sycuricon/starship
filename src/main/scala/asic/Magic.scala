@@ -11,7 +11,6 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.regmapper._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.diplomaticobjectmodel.model._
 
  
 case class MagicParams(
@@ -44,13 +43,15 @@ class MagicDeviceBlackbox(val w: Int) extends BlackBox {
 class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters) 
   extends LazyModule {
   
-  val device = new SimpleDevice("magic", Seq("zjv,starship,fuzz-magic"))  
-  val node: TLRegisterNode = TLRegisterNode(
-  address   = Seq(params.address),
-  device    = device,
-  beatBytes = beatBytes)
+  val device = new SimpleDevice("magic", Seq("zjv,starship,fuzz-magic"))
 
-  lazy val module = new LazyModuleImp(this) {
+  val node: TLRegisterNode = TLRegisterNode(
+    address   = Seq(params.address),
+    device    = device,
+    beatBytes = beatBytes)
+
+  lazy val module = new Imp
+  class Imp extends LazyModuleImp(this) {
     Annotated.params(this, params)
     
     val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "mepc_next", "sepc_next", "rdm_pte")
@@ -62,13 +63,14 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
     Files.write(Paths.get("./build/rocket-chip/magic_device.h"), field_header.getBytes(StandardCharsets.UTF_8))
 
     val field_wire = field_offset.map(_ => Wire(new DecoupledIO(UInt(params.width.W))))
-    val field_regmap = field_offset.zip(field_wire).map{
-      case (offset, wire) => offset -> Seq(RegField.r(params.width, wire, RegFieldDesc("rdm", "rdm", reset=Some(0))))
-    }
+    node.regmap(field_offset.zip(field_wire).map{
+      case (offset, wire) => offset -> Seq(RegField.r(params.width, wire, RegFieldDesc(f"rdm_$offset", "", reset=Some(0), volatile=true)))
+    }:_*)
 
     val impl = Module(new MagicDeviceBlackbox(params.width))
     impl.io.clock := clock
     impl.io.reset := reset.asBool
+    impl.io.read_select := 0.U
 
     field_wire.zip(field_offset).foreach{ case (io, offset) =>
       io.bits := impl.io.read_data
@@ -79,12 +81,11 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
     }
 
     impl.io.read_ready := field_wire.foldLeft(false.B)((res, io) => res || io.ready)
-    val omRegMap : OMRegisterMap = node.regmap(field_regmap:_*)
   }
 }
 
 
-trait CanHavePeripheryMagic { this: BaseSubsystem =>
+trait CanHavePeripheryMagicDevice { this: BaseSubsystem =>
   val MagicOpt = p(MagicKey).map { params =>
     val tlbus = locateTLBusWrapper(p(MagicAttachKey).slaveWhere)
     val magic = LazyModule(new MagicDevice(params, cbus.beatBytes))
