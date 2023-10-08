@@ -37,14 +37,15 @@ all: bitstream
 # STARSHIP_CONFIG	?= StarshipFPGAConfig
 # EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
 
+TARGET_CORE		?= BOOM
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= TestHarness
 STARSHIP_TOP	?= StarshipASICTop
 STARSHIP_PKG	?= starship.asic
 STARSHIP_CONFIG	?= StarshipSimConfig
-EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
 
-
+ROCKETCHIP_TOP	:= $(STARSHIP_PKG).$(STARSHIP_TH)
+ROCKETCHIP_CONF	:= starship.asic.With$(TARGET_CORE)Core,$(STARSHIP_PKG).$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
 
 
 #######################################
@@ -70,9 +71,8 @@ verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 $(ROCKET_FIRRTL): 
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
-					-td $(ROCKET_BUILD) -T $(STARSHIP_PKG).$(STARSHIP_TH)	\
-					-C $(STARSHIP_PKG).$(STARSHIP_CONFIG),$(EXTRA_CONFIG) \
-					-n $(ROCKET_OUTPUT)"
+					-td $(ROCKET_BUILD) -T $(ROCKETCHIP_TOP)		\
+					-C $(ROCKETCHIP_CONF) -n $(ROCKET_OUTPUT)"
 
 $(ROCKET_TOP_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
@@ -111,7 +111,10 @@ rocket-patch:
 	sed -i "s/expand(0, 0, inst)/expand(0, 0, randomizer.io.out)/g" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
 
 
+BOOM_SRC		:= $(SRC)/riscv-boom
 
+boom-patch:
+	sed -i "s/enableCommitLogPrintf: Boolean = false/enableCommitLogPrintf: Boolean = true/g" $(BOOM_SRC)/src/main/scala/common/parameters.scala
 
 #######################################
 #
@@ -225,7 +228,7 @@ export CVA6_REPO_DIR=/eda/project/dut/cva6
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
 VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
-VCS_CFLAGS	:= -std=c++11 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
+VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
 TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
@@ -242,14 +245,14 @@ VCS_SRC_C	:= $(TB_DIR)/spike_difftest.cc $(SPIKE_LIB) \
 
 VCS_SRC_V	:= $(VCS_TB_VLOG) \
 			   $(TB_DIR)/spike_difftest.v \
-			   $(TB_DIR)/tty.v \
-			   $(TB_DIR)/coverage.v
+			   $(TB_DIR)/tty.v
 
 TB_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
 			   +define+INITIALIZE_MEMORY					\
 			   +define+CLOCK_PERIOD=1.0	   					\
-			   +define+DEBUG_FSDB
+			   +define+DEBUG_FSDB							\
+			   +define+TARGET_$(TARGET_CORE)
 
 CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 			   	 +define+STOP_COND=!$(VCS_TB).reset			\
@@ -268,16 +271,19 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF) +fuzzing #
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF)
 
 vcs-debug: VSIM_OPTION += +verbose +dump
 
+vcs-fuzz: 		VSIM_OPTION += +fuzzing
+vcs-fuzz-debug:	VSIM_OPTION += +verbose +dump +fuzzing
+
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure --enable-commitlog
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
 
 $(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) libcosim.a CXXFLAGS=-I$(ROCKET_BUILD)
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) CXXFLAGS=-I$(ROCKET_BUILD)
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
@@ -292,9 +298,6 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 		-O binary $< $(TESTCASE_BIN)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
-
-# dromajo-config:
-# 	$(CONFIG)/dromajo_config.py $(DROMAJO_CONFIG_OPT) > $(DROMAJO_CONFIG)
 
 reglist-convert:
 	mkdir -p $(VERDI_OUTPUT) $(ROCKET_BUILD) 
@@ -325,10 +328,11 @@ vcs-coverage:
 								 -o $(VCS_WAVE)/StarshipASICTop.label $(ROCKET_BUILD)/StarshipASICTop.reglist
 	$(CONFIG)/heatmap.py -o $(VCS_WAVE) -n $(TESTCASE) -l $(VCS_WAVE)/StarshipASICTop.label $(VCS_BUILD)/heat.map
 
-
 vcs-debug: vcs
+vcs-fuzz: vcs
+vcs-fuzz-debug: vcs
 
-verdi: $(VCS_WAVE)/*.fsdb
+verdi:
 	mkdir -p $(VERDI_OUTPUT)
 	touch $(VERDI_OUTPUT)/signal.rc
 	cd $(VERDI_OUTPUT); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\

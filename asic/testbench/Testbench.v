@@ -10,10 +10,21 @@
 `endif
 
 `define SOC_TOP  Testbench.testHarness.ldut
-`define CPU_TOP  `SOC_TOP.tile_prci_domain.tile_reset_domain_tile
-`define PIPELINE `CPU_TOP.core
+`define TILE_TOP `SOC_TOP.tile_prci_domain
+
 `define MEM_TOP  Testbench.testHarness.mem.srams.mem
 `define MEM_RPL  `MEM_TOP.mem_ext
+
+`ifdef TARGET_BOOM
+  `define CPU_TOP  `TILE_TOP.tile_reset_domain_boom_tile
+  `define PIPELINE `CPU_TOP.core
+`elsif TARGET_CVA6
+  `define CPU_TOP  `TILE_TOP.tile_reset_domain_cva6_tile
+  `define PIPELINE `CPU_TOP.core.i_ariane.i_cva6
+`else
+  `define CPU_TOP  `TILE_TOP.tile_reset_domain_tile
+  `define PIPELINE `CPU_TOP.core
+`endif
 
 import "DPI-C" function void timer_start();
 import "DPI-C" function longint timer_stop();
@@ -36,7 +47,7 @@ module Testbench;
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
-  assign Testbench.testHarness.ldut.metaReset = reset;
+  assign `SOC_TOP.metaReset = reset;
 
   initial begin
     $system("echo -e \"\033[31m[>] vcs start `date +%s.%3N` \033[0m\"");

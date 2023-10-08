@@ -14,19 +14,6 @@ import starship.utils.transform._
 
 sealed trait StarshipOption extends Unserializable { this: Annotation => }
 
-//case class TestHarnessVerilogAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
-//object TestHarnessVerilogAnnotation extends HasShellOptions {
-//  override val options = Seq(
-//    new ShellOption[String](
-//      longOption = "thn-verilog",
-//      shortOption = Some("thv"),
-//      helpValueName = Some("<testharness verilog file>"),
-//      toAnnotationSeq = s => Seq(TestHarnessVerilogAnnotation(s)),
-//      helpText = "testharness output verilog file"
-//    )
-//  )
-//}
-
 case class TestHarnessModuleAnnotation(name: String) extends NoTargetAnnotation with StarshipOption
 object TestHarnessModuleAnnotation extends HasShellOptions {
   override val options = Seq(
@@ -40,32 +27,6 @@ object TestHarnessModuleAnnotation extends HasShellOptions {
   )
 }
 
-//case class TestHarnessIncludeAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
-//object TestHarnessIncludeAnnotation extends HasShellOptions {
-//  override val options = Seq(
-//    new ShellOption[String](
-//      longOption = "thn-include",
-//      shortOption = Some("thi"),
-//      helpValueName = Some("<testharness include file>"),
-//      toAnnotationSeq = s => Seq(TestHarnessIncludeAnnotation(s)),
-//      helpText = "testharness output include file"
-//    )
-//  )
-//}
-//
-//case class TestHarnessMemConfigAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
-//object TestHarnessMemConfigAnnotation extends HasShellOptions {
-//  override val options = Seq(
-//    new ShellOption[String](
-//      longOption = "thn-mem-config",
-//      shortOption = Some("thmc"),
-//      helpValueName = Some("<testharness memory config file>"),
-//      toAnnotationSeq = s => Seq(TestHarnessMemConfigAnnotation(s)),
-//      helpText = "testharness output memory config file"
-//    )
-//  )
-//}
-
 case class TopModuleAnnotation(name: String) extends NoTargetAnnotation with StarshipOption
 object TopModuleAnnotation extends HasShellOptions {
   override val options = Seq(
@@ -78,32 +39,6 @@ object TopModuleAnnotation extends HasShellOptions {
     )
   )
 }
-
-//case class TopIncludeAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
-//object TopIncludeAnnotation extends HasShellOptions {
-//  override val options = Seq(
-//    new ShellOption[String](
-//      longOption = "top-include",
-//      shortOption = Some("ti"),
-//      helpValueName = Some("<top include file>"),
-//      toAnnotationSeq = s => Seq(TopIncludeAnnotation(s)),
-//      helpText = "top output include file"
-//    )
-//  )
-//}
-//
-//case class TopMemConfigAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
-//object TopMemConfigAnnotation extends HasShellOptions {
-//  override val options = Seq(
-//    new ShellOption[String](
-//      longOption = "top-mem-config",
-//      shortOption = Some("tmc"),
-//      helpValueName = Some("<top memory config file>"),
-//      toAnnotationSeq = s => Seq(TopMemConfigAnnotation(s)),
-//      helpText = "top output memory config file"
-//    )
-//  )
-//}
 
 case class StarshipIncludeAnnotation(file: String) extends NoTargetAnnotation with StarshipOption
 object StarshipIncludeAnnotation extends HasShellOptions {
@@ -122,47 +57,25 @@ trait StarshipCli { this: Shell =>
 
   parser.note("Starship Options")
   Seq(
-//    TestHarnessVerilogAnnotation,
     TestHarnessModuleAnnotation,
-//    TestHarnessIncludeAnnotation,
-//    TestHarnessMemConfigAnnotation,
     TopModuleAnnotation,
-//    TopIncludeAnnotation,
-//    TopMemConfigAnnotation,
     StarshipIncludeAnnotation
   ).foreach(_.addOptions(parser))
 }
 
-// Now we can use following to referrence options
-// val thVlog = view[StarshipOptions](annotations).thVlog
 class StarshipOptions private[stage] (
-//  val thVlog:        Option[String] = None,
   val thName:        Option[String] = None,
-//  val thInclude:     Option[String] = None,
-//  val thMem:         Option[String] = None,
   val topName:       Option[String] = None,
-//  val topInclude:    Option[String] = None,
-//  val topMem:        Option[String] = None,
   val incOutFile:    Option[String] = None) {
 
   private[stage] def copy(
-//    thVlog:        Option[String] = thVlog,
     thName:        Option[String] = thName,
-//    thInclude:     Option[String] = thInclude,
-//    thMem:         Option[String] = thMem,
     topName:       Option[String] = topName,
-//    topInclude:    Option[String] = topInclude,
-//    topMem:        Option[String] = topMem,
     incOutFile:    Option[String] = incOutFile): StarshipOptions = {
 
     new StarshipOptions (
-//      thVlog=thVlog,
       thName=thName,
-//      thInclude=thInclude,
-//      thMem=thMem,
       topName=topName,
-//      topInclude=topInclude,
-//      topMem=topMem,
       incOutFile=incOutFile
     )
   }
@@ -179,13 +92,8 @@ class StarshipStage extends Stage {
 
   override def run(annotations: AnnotationSeq): AnnotationSeq = {
 
-//    val thVlog = view[StarshipOptions](annotations).thVlog
     val thName = view[StarshipOptions](annotations).thName
-//    val thInclude = view[StarshipOptions](annotations).thInclude
-//    val thMem = view[StarshipOptions](annotations).thMem
     val topName = view[StarshipOptions](annotations).topName
-//    val topInclude = view[StarshipOptions](annotations).topInclude
-//    val topMem = view[StarshipOptions](annotations).topMem
     val incOutFile = view[StarshipOptions](annotations).incOutFile
 
     if (topName.isEmpty && thName.isEmpty) {
@@ -196,24 +104,26 @@ class StarshipStage extends Stage {
 
 
     val starshipAnnotation =
-    if (topName.isDefined && thName.isEmpty) {
-      logger.info(s"Generate Top         ${thName}  ${topName}")
-      Seq(
-        RunFirrtlTransformAnnotation(Dependency[ExtractTop]),
-        BlackBoxResourceFileNameAnno(incOutFile.get),
-        RunFirrtlTransformAnnotation(Dependency[RegisterRecord]),
-        RunFirrtlTransformAnnotation(Dependency[CoverageInstrument])
-      )
-    } else { // (topName.isDefined && thName.isDefined)
-      logger.info(s"Generate TestHarness  ${thName}  ${topName}")
-      Seq(
-        RunFirrtlTransformAnnotation(Dependency[ExtractTestHarness]),
-        BlackBoxResourceFileNameAnno(incOutFile.get),
-        AddModuleSuffixAnnotation("_tb"),
-        RunFirrtlTransformAnnotation(Dependency[AddModuleSuffix]),
-        RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
-      )
-    } 
+      if (topName.isDefined && thName.isEmpty) {
+        logger.info(s"Generate Top         ${thName}  ${topName}")
+        Seq(
+          RunFirrtlTransformAnnotation(Dependency[ExtractTop]),
+          BlackBoxResourceFileNameAnno(incOutFile.get),
+          RunFirrtlTransformAnnotation(Dependency[RegisterRecord]),
+          RunFirrtlTransformAnnotation(Dependency[CoverageInstrument])
+        )
+      } else if (topName.isDefined && thName.isDefined) {
+        logger.info(s"Generate TestHarness  ${thName}  ${topName}")
+        Seq(
+          RunFirrtlTransformAnnotation(Dependency[ExtractTestHarness]),
+          BlackBoxResourceFileNameAnno(incOutFile.get),
+          AddModuleSuffixAnnotation("_tb"),
+          RunFirrtlTransformAnnotation(Dependency[AddModuleSuffix]),
+          RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
+        )
+      } else {
+        throw new RuntimeException(s"Unexpected Input!")
+      }
 
     pm.transform(annotations ++ starshipAnnotation)
   }

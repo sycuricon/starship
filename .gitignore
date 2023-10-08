@@ -18,6 +18,7 @@ build/.../*.json
 log*
 *.jou
 *.log
+*log.txt
 
 # verdi
 novas.*
