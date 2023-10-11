@@ -30,22 +30,19 @@ all: bitstream
 #                                      
 #######################################
 
-# STARSHIP_FREQ	?= 100
-# STARSHIP_TH 	?= TestHarness
-# STARSHIP_TOP	?= StarshipFPGATop
-# STARSHIP_PKG	?= starship.fpga
-# STARSHIP_CONFIG	?= StarshipFPGAConfig
-# EXTRA_CONFIG	?= starship.With$(STARSHIP_FREQ)MHz
-
-TARGET_CORE		?= BOOM
+STARSHIP_CORE	?= BOOM
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= TestHarness
-STARSHIP_TOP	?= StarshipASICTop
+
+# STARSHIP_PKG	?= starship.fpga
+# STARSHIP_TOP	?= StarshipFPGATop
+# STARSHIP_CONFIG	?= StarshipFPGAConfig
 STARSHIP_PKG	?= starship.asic
+STARSHIP_TOP	?= StarshipASICTop
 STARSHIP_CONFIG	?= StarshipSimConfig
 
-ROCKETCHIP_TOP	:= $(STARSHIP_PKG).$(STARSHIP_TH)
-ROCKETCHIP_CONF	:= starship.asic.With$(TARGET_CORE)Core,$(STARSHIP_PKG).$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
+ROCKET_TOP	:= $(STARSHIP_PKG).$(STARSHIP_TH)
+ROCKET_CONF	:= starship.asic.With$(STARSHIP_CORE)Core,$(STARSHIP_PKG).$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
 
 
 #######################################
@@ -71,8 +68,8 @@ verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 $(ROCKET_FIRRTL): 
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
-					-td $(ROCKET_BUILD) -T $(ROCKETCHIP_TOP)		\
-					-C $(ROCKETCHIP_CONF) -n $(ROCKET_OUTPUT)"
+					-td $(ROCKET_BUILD) -T $(ROCKET_TOP)		\
+					-C $(ROCKET_CONF) -n $(ROCKET_OUTPUT)"
 
 $(ROCKET_TOP_VERILOG): $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
@@ -151,7 +148,7 @@ $(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
 
-$(ROCKET_ROM_HEX):
+$(ROCKET_ROM_HEX):$(ROCKET_VERILOG) $(ROCKET_INCLUDE)
 	mkdir -p $(FSBL_BUILD)
 	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
 
@@ -252,7 +249,7 @@ TB_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+INITIALIZE_MEMORY					\
 			   +define+CLOCK_PERIOD=1.0	   					\
 			   +define+DEBUG_FSDB							\
-			   +define+TARGET_$(TARGET_CORE)
+			   +define+TARGET_$(STARSHIP_CORE)
 
 CHISEL_DEFINE := +define+PRINTF_COND=$(VCS_TB).printf_cond	\
 			   	 +define+STOP_COND=!$(VCS_TB).reset			\
