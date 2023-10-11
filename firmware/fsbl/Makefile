@@ -5,7 +5,7 @@ BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/fsbl
 CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
 OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
 OBJDUMP		=	$(RISCV)/bin/riscv64-unknown-elf-objdump
-CFLAGS		=	-march=rv64ima -mcmodel=medany -O2 -std=gnu11 -Wall -nostartfiles
+CFLAGS		=	-march=rv64ima_zicsr_zifencei -mcmodel=medany -O2 -std=gnu11 -Wall -nostartfiles
 CFLAGS		+=	-fno-common -g -DENTROPY=0 -mabi=lp64 -DNONSMP_HART=0
 CFLAGS		+=	-I./include -I. -I$(BUILD_DIR)
 LFLAGS		=	-static -nostdlib -L ./linker -T sdboot.elf.lds
@@ -26,8 +26,11 @@ $(dts): $(dts_org)
 
 $(dts_h): $(dts)
 	mkdir -p $(BUILD_DIR)
+	echo "#ifndef _STARSHIP_FSBL_H" > $(dts_h)
+	echo "#define _STARSHIP_FSBL_H" >> $(dts_h)
 	grep -q "sifive,uart" $(dts) && echo "#define UART" >> $(dts_h) || true
 	grep -q "sifive,spi" $(dts)  && echo "#define SD_SPI" >> $(dts_h) || true
+	echo "#endif" >> $(dts_h)
 
 $(dtb): $(dts) $(dts_h)
 	mkdir -p $(BUILD_DIR)

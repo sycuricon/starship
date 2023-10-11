@@ -1,12 +1,18 @@
 [submodule "repo/rocket-chip"]
 	path = repo/rocket-chip
 	url = https://github.com/chipsalliance/rocket-chip.git
-[submodule "repo/sifive-blocks"]
-	path = repo/sifive-blocks
-	url = https://github.com/sifive/sifive-blocks.git
-[submodule "repo/fpga-shells"]
-	path = repo/fpga-shells
-	url = https://github.com/Phantom1003/fpga-shells.git
-[submodule "repo/dromajo"]
-	path = repo/dromajo
-	url = https://github.com/chipsalliance/dromajo.git
+[submodule "repo/riscv-isa-sim"]
+	path = repo/riscv-isa-sim
+	url = https://github.com/sycuricon/riscv-isa-cosim.git
+[submodule "repo/riscv-boom"]
+	path = repo/riscv-boom
+	url = https://github.com/riscv-boom/riscv-boom.git
+[submodule "repo/testchipip"]
+	path = repo/testchipip
+	url = https://github.com/ucb-bar/testchipip.git
+[submodule "repo/rocket-chip-blocks"]
+	path = repo/rocket-chip-blocks
+	url = https://github.com/chipsalliance/rocket-chip-blocks.git
+[submodule "repo/rocket-chip-fpga-shells"]
+	path = repo/rocket-chip-fpga-shells
+	url = https://github.com/chipsalliance/rocket-chip-fpga-shells.git

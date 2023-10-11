@@ -17,7 +17,9 @@ import sifive.blocks.devices.uart._
 class StarshipASICTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveMasterAXI4MemPort
     with CanHaveSlaveAXI4Port
+    with HasAsyncExtInterrupts
     with HasPeripheryUART
+    with CanHavePeripheryMagicDevice
 {
   val chosen = new DeviceSnippet {
     def describe() = Description("chosen", Map(
@@ -51,7 +53,19 @@ class TestHarness()(implicit p: Parameters) extends Module {
   dut.tieOffInterrupts()
   SimAXIMem.connectMem(ldut)
 
-  ldut.l2_frontend_bus_axi4.foreach(_.tieoff)
+  ldut.l2_frontend_bus_axi4.foreach(
+    p => {
+      p.ar.valid := false.B
+      p.ar.bits := DontCare
+      p.aw.valid := false.B
+      p.aw.bits := DontCare
+      p.w.valid := false.B
+      p.w.bits := DontCare
+      p.r.ready := false.B
+      p.b.ready := false.B
+    }
+  )
+
   dut.uart.headOption.foreach(uart => {
       uart.rxd := SyncResetSynchronizerShiftReg(io.uart_rx, 2, init = true.B, name=Some("uart_rxd_sync"))
       io.uart_tx  := uart.txd

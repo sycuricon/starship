@@ -9,34 +9,45 @@ Global / lintUnusedKeysOnLoad := false
 lazy val commonSettings = Seq(
   organization := "zjv",
   version := "0.1",
-  scalaVersion := "2.12.10",
+  scalaVersion := "2.13.10",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
     "-unchecked",
-    "-Xsource:2.11",
-    "-language:reflectiveCalls"
+    "-language:reflectiveCalls",
+    "-Ymacro-annotations"
   ),
-  addCompilerPlugin(
-    "edu.berkeley.cs" % "chisel3-plugin" % "3.5.0" cross CrossVersion.full
-  ),
+  addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % "3.5.5" cross CrossVersion.full),
   libraryDependencies ++= Seq(
     "com.github.scopt" %% "scopt" % "3.7.1",
     // "edu.berkeley.cs" %% "chisel3" % "3.5.0",
     // "edu.berkeley.cs" %% "chiseltest" % "0.5.0" % "test"
+  ),
+  resolvers ++= Seq(
+    Resolver.sonatypeRepo("snapshots"),
+    Resolver.sonatypeRepo("releases"),
+    Resolver.mavenLocal
   )
 )
 
 lazy val rocket_chip = RootProject(file("repo/rocket-chip"))
 
 lazy val startship_soc = (project in file("."))
-  .dependsOn(rocket_chip, sifive_blocks, fpga_shells)
+  .dependsOn(rocket_chip, peripheral_blocks, fpga_shells, boom)
   .settings(commonSettings: _*)
 
-lazy val sifive_blocks = (project in file("repo/sifive-blocks"))
+lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
   .dependsOn(rocket_chip)
   .settings(commonSettings: _*)
 
-lazy val fpga_shells = (project in file("repo/fpga-shells"))
-  .dependsOn(rocket_chip, sifive_blocks)
+lazy val fpga_shells = (project in file("repo/rocket-chip-fpga-shells"))
+  .dependsOn(rocket_chip, peripheral_blocks)
+  .settings(commonSettings: _*)
+
+lazy val testchipip = (project in file("repo/testchipip"))
+  .dependsOn(rocket_chip, peripheral_blocks)
+  .settings(commonSettings: _*)
+
+lazy val boom = (project in file("repo/riscv-boom"))
+  .dependsOn(rocket_chip, testchipip)
   .settings(commonSettings: _*)

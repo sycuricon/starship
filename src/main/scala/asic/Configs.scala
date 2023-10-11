@@ -20,11 +20,11 @@ class WithPeripherals extends Config((site, here, up) => {
   case MaskROMLocated(x) => List(
     MaskROMParams(BigInt(0x20000L), "StarshipROM")
   )
+  case MagicKey => Some(MagicParams(baseAddress = 0))
 })
 
 class StarshipSimConfig extends Config(
   new WithPeripherals ++
-  new WithNBigCores(1) ++
   new StarshipBaseConfig().alter((site,here,up) => {
     case DebugModuleKey => None
 
@@ -34,3 +34,7 @@ class StarshipSimConfig extends Config(
     case DTSTimebase => BigInt(1000000L)
   })
 )
+
+class WithRocketCore extends Config(new WithNBigCores(1))
+class WithBOOMCore extends Config(new boom.common.WithNLargeBooms(1))
+class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
