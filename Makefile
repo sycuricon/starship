@@ -268,12 +268,11 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
-VSIM_OPTION	:= $(VCS_PARAL_RUN) +uart_tx=1 +testcase=$(TESTCASE_ELF)
+VSIM_OPTION	:= $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
 
-vcs-debug: VSIM_OPTION += +verbose +dump
-
-vcs-fuzz: 		VSIM_OPTION += +fuzzing
-vcs-fuzz-debug:	VSIM_OPTION += +verbose +dump +fuzzing
+vcs-debug: VSIM_OPTION += +verbose +dump +uart_tx=0
+vcs-fuzz: 		VSIM_OPTION += +fuzzing +uart_tx=0
+vcs-fuzz-debug:	VSIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
 
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
