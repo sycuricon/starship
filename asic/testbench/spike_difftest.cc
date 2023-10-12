@@ -9,7 +9,7 @@
 
 cosim_cj_t *simulator = NULL;
 config_t cfg;
-char *spike_misa = "rv64gc";
+char *spike_misa = "rv64gc_zicntr";
 
 char *morfuzz_prerelease = NULL;
 const char *razzle_opt = "-m";
