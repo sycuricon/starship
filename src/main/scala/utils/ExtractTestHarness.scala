@@ -22,7 +22,7 @@ class ExtractTestHarness extends Transform with DependencyAPIMigration {
   override def invalidates(a: Transform): Boolean = false
 
   def execute(state: CircuitState): CircuitState = {
-    val topName = view[StarshipOptions](state.annotations).topName
+    val topName = view[StarshipOptions](state.annotations).topName.map(_.split("\\.").last)
     val renames = MutableRenameMap()
 
     val iGraph = InstanceKeyGraph(state.circuit)

@@ -14,7 +14,7 @@ import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
 import sifive.blocks.devices.uart._
 
-class StarshipASICTop(implicit p: Parameters) extends StarshipSystem
+class StarshipSimTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveMasterAXI4MemPort
     with CanHaveSlaveAXI4Port
     with HasAsyncExtInterrupts
@@ -27,10 +27,10 @@ class StarshipASICTop(implicit p: Parameters) extends StarshipSystem
     ))
   }
 
-  override lazy val module = new StarshipASICTopModuleImp(this)
+  override lazy val module = new StarshipSimTopModuleImp(this)
 }
 
-class StarshipASICTopModuleImp[+L <: StarshipASICTop](_outer: L) extends StarshipSystemModuleImp(_outer)
+class StarshipSimTopModuleImp[+L <: StarshipSimTop](_outer: L) extends StarshipSystemModuleImp(_outer)
     with HasRTCModuleImp
     with HasExtInterruptsModuleImp
     with HasPeripheryUARTModuleImp
@@ -43,7 +43,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
     val uart_rx = Input(Bool())
   })
 
-  val ldut = LazyModule(new StarshipASICTop)
+  val ldut = LazyModule(new StarshipSimTop)
   val dut = Module(ldut.module)
 
   // Allow the debug ndreset to reset the dut, but not until the initial reset has completed

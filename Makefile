@@ -30,19 +30,14 @@ all: bitstream
 #                                      
 #######################################
 
-STARSHIP_CORE	?= BOOM
+STARSHIP_CORE	?= Rocket
 STARSHIP_FREQ	?= 100
-STARSHIP_TH 	?= TestHarness
+STARSHIP_TH 	?= starship.asic.TestHarness
+STARSHIP_TOP	?= starship.asic.StarshipSimTop
+STARSHIP_CONFIG	?= starship.asic.StarshipSimConfig
 
-# STARSHIP_PKG	?= starship.fpga
-# STARSHIP_TOP	?= StarshipFPGATop
-# STARSHIP_CONFIG	?= StarshipFPGAConfig
-STARSHIP_PKG	?= starship.asic
-STARSHIP_TOP	?= StarshipASICTop
-STARSHIP_CONFIG	?= StarshipSimConfig
-
-ROCKET_TOP	:= $(STARSHIP_PKG).$(STARSHIP_TH)
-ROCKET_CONF	:= starship.asic.With$(STARSHIP_CORE)Core,$(STARSHIP_PKG).$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
+ROCKET_TOP	:= $(STARSHIP_TH)
+ROCKET_CONF	:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
 
 
 #######################################
@@ -54,7 +49,7 @@ ROCKET_CONF	:= starship.asic.With$(STARSHIP_CORE)Core,$(STARSHIP_PKG).$(STARSHIP
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
 ROCKET_JAVA		:= java -Xmx2G -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
-ROCKET_OUTPUT	:= $(STARSHIP_PKG).$(STARSHIP_TOP).$(STARSHIP_CONFIG)
+ROCKET_OUTPUT	:= $(STARSHIP_TOP).$(STARSHIP_CONFIG)
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
 ROCKET_TOP_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.v
 ROCKET_TH_VERILOG 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.v
@@ -295,17 +290,6 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
 
-reglist-convert:
-	mkdir -p $(VERDI_OUTPUT) $(ROCKET_BUILD) 
-	$(CONFIG)/reglist_convert.py -f signal -p "Testbench.testHarness" -n Probe_TestHarness \
-								 -o $(ROCKET_BUILD)/TestHarness.vh $(ROCKET_BUILD)/TestHarness.reglist
-	$(CONFIG)/reglist_convert.py -f signal -p "Testbench.testHarness.ldut" -n Probe_StarshipASICTop \
-								 -o $(ROCKET_BUILD)/StarshipASICTop.vh $(ROCKET_BUILD)/StarshipASICTop.reglist
-	$(CONFIG)/reglist_convert.py -f wave -p "addSignal /Testbench/testHarness" \
-								 -o $(VERDI_OUTPUT)/TestHarness.rc $(ROCKET_BUILD)/TestHarness.reglist
-	$(CONFIG)/reglist_convert.py -f wave -p "addSignal /Testbench/testHarness/ldut" \
-								 -o $(VERDI_OUTPUT)/StarshipASICTop.rc $(ROCKET_BUILD)/StarshipASICTop.reglist
-
 vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); \
@@ -318,11 +302,6 @@ vcs-time: $(VCS_SIMV) $(TESTCASE_HEX)
 	echo -e "\033[31m global start `date +%s.%3N` \033[0m"; \
 	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 				$(VSIM_OPTION); echo -e "\033[31m global stop `date +%s.%3N` \033[0m"; # 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
-
-vcs-coverage:
-	$(CONFIG)/reglist_convert.py -f label -p "Testbench.testHarness.ldut" \
-								 -o $(VCS_WAVE)/StarshipASICTop.label $(ROCKET_BUILD)/StarshipASICTop.reglist
-	$(CONFIG)/heatmap.py -o $(VCS_WAVE) -n $(TESTCASE) -l $(VCS_WAVE)/StarshipASICTop.label $(VCS_BUILD)/heat.map
 
 vcs-debug: vcs
 vcs-fuzz: vcs

@@ -1,3 +1,0 @@
-#!/bin/sh
-
-make vcs STARSHIP_PKG=starship.asic STARSHIP_TOP=StarshipASICTop STARSHIP_CONFIG=StarshipSimConfig

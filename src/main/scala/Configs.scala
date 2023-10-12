@@ -33,6 +33,10 @@ class With50MHz  extends WithFrequency(50)
 class With100MHz extends WithFrequency(100)
 class With150MHz extends WithFrequency(150)
 
+class WithRocketCore extends Config(new WithNBigCores(1))
+class WithBOOMCore extends Config(new boom.common.WithNSmallBooms(1))
+class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
+
 class StarshipBaseConfig extends Config(
   // new WithRoccExample ++
   new WithExtMemSize(0x80000000L) ++
@@ -53,4 +57,4 @@ class StarshipBaseConfig extends Config(
       p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
     }
   })
-  )
+)

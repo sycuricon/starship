@@ -1,3 +1,0 @@
-#!/bin/sh
-
-make bitstream STARSHIP_PKG=starship.fpga STARSHIP_TOP=StarshipFPGATop STARSHIP_CONFIG=StarshipFPGAConfig

@@ -27,14 +27,10 @@ class StarshipSimConfig extends Config(
   new WithPeripherals ++
   new StarshipBaseConfig().alter((site,here,up) => {
     case DebugModuleKey => None
-
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
-
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
   })
 )
 
-class WithRocketCore extends Config(new WithNBigCores(1))
-class WithBOOMCore extends Config(new boom.common.WithNLargeBooms(1))
-class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
+

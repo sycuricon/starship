@@ -5,10 +5,6 @@
  `define RESET_DELAY 7.7
 `endif
 
-`ifndef MODEL
- `define MODEL TestHarness
-`endif
-
 `define SOC_TOP  Testbench.testHarness.ldut
 `define TILE_TOP `SOC_TOP.tile_prci_domain
 
@@ -176,7 +172,7 @@ module Testbench;
     end
   end
 
-  `MODEL testHarness(
+  TestHarness testHarness(
     .clock(clock),
     .reset(reset),
     .io_uart_tx(1'b0),
