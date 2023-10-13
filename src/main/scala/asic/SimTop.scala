@@ -71,4 +71,6 @@ class TestHarness()(implicit p: Parameters) extends Module {
       io.uart_tx  := uart.txd
     }
   )
+
+  Debug.connectDebug(dut.debug, dut.resetctrl, dut.psd, clock, reset.asBool, WireInit(false.B))
 }

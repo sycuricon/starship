@@ -20,7 +20,10 @@ class WithPeripherals extends Config((site, here, up) => {
   case MaskROMLocated(x) => List(
     MaskROMParams(BigInt(0x20000L), "StarshipROM")
   )
-  case MagicKey => Some(MagicParams(baseAddress = 0))
+  case MagicKey => up(DebugModuleKey) match {
+      case None => Some(MagicParams(baseAddress = 0))
+      case _ => None
+    }
 })
 
 class StarshipSimConfig extends Config(
@@ -33,4 +36,11 @@ class StarshipSimConfig extends Config(
   })
 )
 
-
+class StarshipSimDebugConfig extends Config(
+  new WithPeripherals ++
+  new StarshipBaseConfig().alter((site,here,up) => {
+    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
+    /* timebase-frequency = 1 MHz */
+    case DTSTimebase => BigInt(1000000L)
+  })
+)
