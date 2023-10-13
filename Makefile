@@ -48,6 +48,7 @@ ROCKET_CONF	:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.Wit
 
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
+ROCKET_SRCS     := $(shell find $(TOP) -name "*.scala")
 ROCKET_JAVA		:= java -Xmx2G -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
 ROCKET_OUTPUT	:= $(STARSHIP_TOP).$(STARSHIP_CONFIG)
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
@@ -60,7 +61,7 @@ ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
 verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 
-$(ROCKET_FIRRTL): 
+$(ROCKET_FIRRTL): $(ROCKET_SRCS)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
 					-td $(ROCKET_BUILD) -T $(ROCKET_TOP)		\
