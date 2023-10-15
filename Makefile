@@ -22,8 +22,6 @@ endif
 all: bitstream
 
 
-
-
 #######################################
 #                                      
 #         Starship Configuration
@@ -275,7 +273,7 @@ $(SPIKE_BUILD)/Makefile:
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
 
 $(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) CXXFLAGS=-I$(ROCKET_BUILD)
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc)
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)

@@ -38,6 +38,8 @@ class StarshipSimConfig extends Config(
 
 class StarshipSimDebugConfig extends Config(
   new WithPeripherals ++
+  new WithJtagDTM ++
+  new WithClockGateModel() ++
   new StarshipBaseConfig().alter((site,here,up) => {
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
     /* timebase-frequency = 1 MHz */
