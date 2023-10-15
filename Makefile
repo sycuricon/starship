@@ -348,6 +348,9 @@ DC_TOP		:= $(STARSHIP_TOP)
 #
 #######################################
 
+preprocess:
+	$(MAKE) -C patch
+
 clean:
 	rm -rf $(BUILD)
 

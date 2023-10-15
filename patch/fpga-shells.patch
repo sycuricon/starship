@@ -1,0 +1,167 @@
+diff --git a/src/main/scala/ip/xilinx/Xilinx.scala b/src/main/scala/ip/xilinx/Xilinx.scala
+index 21c69ef..fa26a24 100644
+--- a/src/main/scala/ip/xilinx/Xilinx.scala
++++ b/src/main/scala/ip/xilinx/Xilinx.scala
+@@ -7,6 +7,9 @@ import chisel3.util.HasBlackBoxInline
+ import freechips.rocketchip.util.ElaborationArtefacts
+ import sifive.fpgashells.clocks._
+ 
++import sys.process._
++import chisel3.util.HasBlackBoxPath
++
+ //========================================================================
+ // This file contains common devices used by our Xilinx FPGA flows and some
+ // BlackBox modules used in the Xilinx FPGA flows
+@@ -201,7 +204,7 @@ class Series7MMCM(c : PLLParameters) extends BlackBox with PLLInstance {
+ // vc707reset
+ //-------------------------------------------------------------------------
+ 
+-class vc707reset() extends BlackBox
++class vc707reset() extends BlackBox with HasBlackBoxPath
+ {
+   val io = new Bundle{
+     val areset = Bool(INPUT)
+@@ -214,6 +217,9 @@ class vc707reset() extends BlackBox
+     val clock4 = Clock(INPUT)
+     val reset4 = Bool(OUTPUT)
+   }
++
++  val path = System.getProperty("user.dir")
++  addPath(s"${path}/repo/rocket-chip-fpga-shells/xilinx/vc707/vsrc/vc707reset.v")
+ }
+ 
+ //-------------------------------------------------------------------------
+@@ -353,7 +359,7 @@ class vcu118reset() extends BlackBox
+ // sdio_spi_bridge
+ //-------------------------------------------------------------------------
+ 
+-class sdio_spi_bridge() extends BlackBox
++class sdio_spi_bridge() extends BlackBox with HasBlackBoxPath
+ {
+   val io = new Bundle{
+     val clk      = Clock(INPUT)
+@@ -365,6 +371,9 @@ class sdio_spi_bridge() extends BlackBox
+     val spi_dq_o = Bits(INPUT,4)
+     val spi_dq_i = Bits(OUTPUT,4)
+   }
++
++  val path = System.getProperty("user.dir")
++  addPath(s"${path}/repo/rocket-chip-fpga-shells/xilinx/vc707/vsrc/sdio.v")
+ }
+ 
+ /*
+diff --git a/src/main/scala/shell/xilinx/VC707Shell.scala b/src/main/scala/shell/xilinx/VC707Shell.scala
+index 90b306d..f4ef783 100644
+--- a/src/main/scala/shell/xilinx/VC707Shell.scala
++++ b/src/main/scala/shell/xilinx/VC707Shell.scala
+@@ -15,7 +15,7 @@ import sifive.blocks.devices.chiplink._
+ 
+ import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
+ import sifive.fpgashells.devices.xilinx.xilinxvc707pciex1._
+-import sifive.fpgashells.ip.xilinx.{IBUFDS, PowerOnResetFPGAOnly, sdio_spi_bridge, Series7MMCM, vc707reset}
++import sifive.fpgashells.ip.xilinx._
+ 
+ //vc707_sys_clock_mmcm0, vc707_sys_clock_, vc707_sys_clock_mmcm2 , vc707reset}
+ import sifive.fpgashells.clocks._
+@@ -476,8 +476,10 @@ abstract class VC707Shell(implicit val p: Parameters) extends RawModule {
+   // Clock that drives the clock generator and the MIG
+   sys_clock := sys_clk_ibufds.io.O
+ 
++  val reset_ibuf = Module(new IBUF)
++  reset_ibuf.io.I := reset
+   // Allow the debug module to reset everything. Resets the MIG
+-  sys_reset := reset | dut_ndreset
++  sys_reset := reset_ibuf.io.O | dut_ndreset
+ 
+   //-----------------------------------------------------------------------
+   // Clock Generator
+@@ -497,7 +499,7 @@ abstract class VC707Shell(implicit val p: Parameters) extends RawModule {
+       PLLOutClockParameters(100, 180)))))
+   
+   vc707_sys_clock_mmcm0.io.clk_in1 := sys_clock
+-  vc707_sys_clock_mmcm0.io.reset   := reset
++  vc707_sys_clock_mmcm0.io.reset   := sys_reset
+   val vc707_sys_clock_mmcm0_locked = vc707_sys_clock_mmcm0.io.locked
+   val Seq(clk12_5, clk25, clk37_5, clk50, clk100, clk150, clk100_180) = vc707_sys_clock_mmcm0.getClocks
+ 
+@@ -511,7 +513,7 @@ abstract class VC707Shell(implicit val p: Parameters) extends RawModule {
+       PLLOutClockParameters(65, 180)))))
+   
+   vc707_sys_clock_mmcm1.io.clk_in1 := sys_clock
+-  vc707_sys_clock_mmcm1.io.reset   := reset
++  vc707_sys_clock_mmcm1.io.reset   := sys_reset
+   val clk32_5              = vc707_sys_clock_mmcm1.io.clk_out1
+   val clk65                = vc707_sys_clock_mmcm1.io.clk_out2
+   val vc707_sys_clock_mmcm1_locked = vc707_sys_clock_mmcm1.io.locked
+diff --git a/xilinx/vc707/tcl/clocks.tcl b/xilinx/vc707/tcl/clocks.tcl
+index c62158d..564d267 100644
+--- a/xilinx/vc707/tcl/clocks.tcl
++++ b/xilinx/vc707/tcl/clocks.tcl
+@@ -31,30 +31,30 @@ set group_cl  [get_clocks -quiet {chiplink_b2c_clock              \
+                                   clk_out*_vc707_sys_clock_mmcm3}]
+ set group_pci [get_clocks -quiet {userclk1 txoutclk}]
+ 
+-create_clock -add -name JTCK      -period 100   -waveform {0 50} [get_ports {jtag_TCK}]
++# create_clock -add -name JTCK      -period 100   -waveform {0 50} [get_ports {jtag_TCK}]
+ if { [llength [get_ports -quiet {ulpi_clk}]] > 0 } { create_clock -add -name ULPI_CLK  -period 16.667 [get_ports {ulpi_clk}] }
+ 
+-set group_jtag [get_clocks -quiet {JTCK}]
++# set group_jtag [get_clocks -quiet {JTCK}]
+ 
+ if { [llength [get_ports -quiet {ulpi_clk}]] > 0 } { set group_ulpi [get_clocks -quiet {ULPI_CLK}] }
+ else {set group_ulpi {} }
+ 
+ puts "group_mem: $group_mem"
+ puts "group_sys: $group_sys"
+-puts "group_pci: $group_pci"
++# puts "group_pci: $group_pci"
+ puts "group_cl:  $group_cl"
+-puts "group_jtag: $group_jtag"
++# puts "group_jtag: $group_jtag"
+ puts "group_ulpi: $group_ulpi"
+ 
+ set groups [list]
+ if { [llength $group_mem]    > 0 } { lappend groups -group $group_mem }
+ if { [llength $group_sys]    > 0 } { lappend groups -group $group_sys }
+-if { [llength $group_pci]    > 0 } { lappend groups -group $group_pci }
++# if { [llength $group_pci]    > 0 } { lappend groups -group $group_pci }
+ if { [llength $group_cl]     > 0 } { lappend groups -group $group_cl }
+-if { [llength $group_jtag]   > 0 } { lappend groups -group $group_jtag }
++# if { [llength $group_jtag]   > 0 } { lappend groups -group $group_jtag }
+ if { [llength $group_ulpi]   > 0 } { lappend groups -group $group_ulpi }
+ 
+ puts "set_clock_groups -asynchronous $groups"
+ set_clock_groups -asynchronous {*}$groups
+ 
+-set_false_path -from [get_clocks JTCK] -to [get_clocks -of_objects [get_pins lazysys/xilinxvc707mig_1/island/blackbox/u_vc707mig4gb_mig/u_iodelay_ctrl/clk_ref_mmcm_gen.mmcm_i/CLKOUT1]]
++# set_false_path -from [get_clocks JTCK] -to [get_clocks -of_objects [get_pins lazysys/xilinxvc707mig_1/island/blackbox/u_vc707mig4gb_mig/u_iodelay_ctrl/clk_ref_mmcm_gen.mmcm_i/CLKOUT1]]
+diff --git a/xilinx/vc707/tcl/ios.tcl b/xilinx/vc707/tcl/ios.tcl
+index 915b683..fc17fbd 100644
+--- a/xilinx/vc707/tcl/ios.tcl
++++ b/xilinx/vc707/tcl/ios.tcl
+@@ -48,16 +48,16 @@ set_property IOB TRUE [get_ports uart_rtsn]
+ 
+ # PCI Express
+ #FMC 1 refclk
+-set_property PACKAGE_PIN A10 [get_ports {pcie_REFCLK_rxp}]
+-set_property PACKAGE_PIN A9 [get_ports {pcie_REFCLK_rxn}]
+-create_clock -name pcie_ref_clk -period 10 [get_ports pcie_REFCLK_rxp]
+-set_input_jitter [get_clocks -of_objects [get_ports pcie_REFCLK_rxp]] 0.5
++# set_property PACKAGE_PIN A10 [get_ports {pcie_REFCLK_rxp}]
++# set_property PACKAGE_PIN A9 [get_ports {pcie_REFCLK_rxn}]
++# create_clock -name pcie_ref_clk -period 10 [get_ports pcie_REFCLK_rxp]
++# set_input_jitter [get_clocks -of_objects [get_ports pcie_REFCLK_rxp]] 0.5
+ 
+-set_property PACKAGE_PIN H4 [get_ports {pcie_pci_exp_txp}]
+-set_property PACKAGE_PIN H3 [get_ports {pcie_pci_exp_txn}]
++# set_property PACKAGE_PIN H4 [get_ports {pcie_pci_exp_txp}]
++# set_property PACKAGE_PIN H3 [get_ports {pcie_pci_exp_txn}]
+ 
+-set_property PACKAGE_PIN G6 [get_ports {pcie_pci_exp_rxp}]
+-set_property PACKAGE_PIN G5 [get_ports {pcie_pci_exp_rxn}]
++# set_property PACKAGE_PIN G6 [get_ports {pcie_pci_exp_rxp}]
++# set_property PACKAGE_PIN G5 [get_ports {pcie_pci_exp_rxn}]
+ 
+ # SDIO
+ set_property -dict { PACKAGE_PIN AN30  IOSTANDARD LVCMOS18  IOB TRUE } [get_ports {sdio_clk}]
+ 
