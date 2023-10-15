@@ -264,9 +264,11 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
 VSIM_OPTION	:= $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
 
-vcs-debug: VSIM_OPTION += +verbose +dump +uart_tx=0
+vcs-debug: 		VSIM_OPTION += +verbose +dump +uart_tx=0
 vcs-fuzz: 		VSIM_OPTION += +fuzzing +uart_tx=0
 vcs-fuzz-debug:	VSIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
+vcs-jtag: 		VSIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
+vcs-jtag-debug: VSIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
 
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
