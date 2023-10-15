@@ -28,12 +28,21 @@ all: bitstream
 #                                      
 #######################################
 
+ifdef SIM
 STARSHIP_CORE	?= Rocket
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= starship.asic.TestHarness
 STARSHIP_TOP	?= starship.asic.StarshipSimTop
 STARSHIP_CONFIG	?= starship.asic.StarshipSimConfig
+else
+STARSHIP_CORE	?= Rocket
+STARSHIP_FREQ	?= 100
+STARSHIP_TH 	?= starship.fpga.TestHarness
+STARSHIP_TOP	?= starship.fpga.StarshipFPGATop
+STARSHIP_CONFIG	?= starship.fpga.StarshipFPGAConfig
+endif
 
+VIVADO_TOP  := TestHarness
 ROCKET_TOP	:= $(STARSHIP_TH)
 ROCKET_CONF	:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
 
@@ -142,7 +151,7 @@ $(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
 
-$(ROCKET_ROM_HEX):$(ROCKET_VERILOG) $(ROCKET_INCLUDE)
+$(ROCKET_ROM_HEX):$(ROCKET_INCLUDE)
 	mkdir -p $(FSBL_BUILD)
 	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
 
@@ -163,8 +172,6 @@ verilog-patch: $(VERILOG_SRC)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	
 
-
-
 #######################################
 #
 #         Bitstream Generator
@@ -172,17 +179,17 @@ verilog-patch: $(VERILOG_SRC)
 #######################################
 
 BOARD				:= vc707
-VIVADO_SRC			:= $(SRC)/fpga-shells
+VIVADO_SRC			:= $(SRC)/rocket-chip-fpga-shells
 VIVADO_SCRIPT		:= $(VIVADO_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
 
-$(VIVADO_BITSTREAM): $(ROCKET_VERILOG) $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) $(ROCKET_ROM)
+$(VIVADO_BITSTREAM): $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) $(ROCKET_ROM)
 	mkdir -p $(VIVADO_BUILD)
 	cd $(VIVADO_BUILD); vivado -mode batch -nojournal \
 		-source $(VIVADO_SCRIPT)/common/tcl/vivado.tcl \
 		-tclargs -F "$(ROCKET_INCLUDE)" \
-		-top-module "$(STARSHIP_TH)" \
+		-top-module "$(VIVADO_TOP)" \
 		-ip-vivado-tcls "$(shell find '$(ROCKET_BUILD)' -name '*.vivado.tcl')" \
 		-board "$(BOARD)"
 
@@ -340,6 +347,9 @@ DC_TOP		:= $(STARSHIP_TOP)
 #               Utils
 #
 #######################################
+
+preprocess:
+	$(MAKE) -C patch
 
 clean:
 	rm -rf $(BUILD)
