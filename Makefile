@@ -215,13 +215,9 @@ VCS_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
 VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VCS_TB_VLOG ?= $(TB_DIR)/$(VCS_TB).v
 
-TESTCASE_ROOT	?= /eda/project/riscv-tests/build/isa
-# /eda/project/riscv-tests/build/isa  /eda/project/riscv-tests/build/benchmarks
-TESTCASE		:= rv64ui-p-simple
-# rv64ui-p-addi rv64uf-v-fdiv dhrystone.riscv rv64ssvnapot-p-napot
-TESTCASE_ELF	:= $(TESTCASE_ROOT)/$(TESTCASE)
+TESTCASE_ELF	:= $(STARSHIP_TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
-TESTCASE_HEX	:= $(TESTCASE_ROOT)/$(TESTCASE).hex
+TESTCASE_HEX	:= $(STARSHIP_TESTCASE).hex
 
 VCS_SRC_C	:= $(TB_DIR)/spike_difftest.cc $(SPIKE_LIB) \
 			   $(addprefix $(SPIKE_BUILD)/,libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a) \
