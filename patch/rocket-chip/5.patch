@@ -1,0 +1,16 @@
+diff --git a/src/main/scala/util/InsnRandom.scala b/src/main/scala/util/InsnRandom.scala
+new file mode 100644
+index 000000000..6d552e550
+--- /dev/null
++++ b/src/main/scala/util/InsnRandom.scala
+@@ -0,0 +1,10 @@
++package freechips.rocketchip.util
++import chisel3._
++import chisel3.util._
++class MagicMaskerBlackbox extends BlackBox {
++  val io = IO(new Bundle {
++  val clock = Input(Clock())
++  val en = Input(Bool())
++  val in = Input(UInt(64.W))
++  val pc = Input(SInt(64.W))
++  val out = Output(UInt(64.W))})}

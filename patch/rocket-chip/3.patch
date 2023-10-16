@@ -1,0 +1,13 @@
+diff --git a/src/main/scala/tile/Core.scala b/src/main/scala/tile/Core.scala
+index 4a0be8504..ed828535c 100644
+--- a/src/main/scala/tile/Core.scala
++++ b/src/main/scala/tile/Core.scala
+@@ -134,7 +134,7 @@ trait HasCoreParameters extends HasTileParameters {
+ 
+   // Print out log of committed instructions and their writeback values.
+   // Requires post-processing due to out-of-order writebacks.
+-  val enableCommitLog = false
++  val enableCommitLog = true
+ 
+ }
+ 

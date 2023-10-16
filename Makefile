@@ -80,28 +80,6 @@ $(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
 
 rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
 
-rocket-patch:
-	cd $(ROCKET_SRC); git checkout -- src/main/scala/rocket/RocketCore.scala src/main/scala/tile/Core.scala src/main/scala/tile/FPU.scala src/main/scala/rocket/IBuf.scala
-	sed -i "s/import chisel3.withClock/import chisel3.{withClock,dontTouch}/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	sed -i "s/nBreakpoints: Int = 1/nBreakpoints: Int = 3/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	# sed -i "s/useHypervisor: Boolean = false/useHypervisor: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	# sed -i "s/useRVE: Boolean = false/useRVE: Boolean = true/g" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	sed -i "/val csr =/adontTouch(csr.io)" $(ROCKET_SRC)/src/main/scala/rocket/RocketCore.scala
-	sed -i "s/val enableCommitLog = false/val enableCommitLog = true/g" $(ROCKET_SRC)/src/main/scala/tile/Core.scala
-	sed -i "s/, ieee(wdata)/, ieee(wdata).suggestName(\"rtlFuzz_fregWriteData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	sed -i "s/, load_wb_data/, ieee(wdata).suggestName(\"rtlFuzz_fregLoadData\")/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	sed -i "s/when ((!wbInfo(0).cp && wen(0)) || divSqrt_wen)/when (fregWrite)/g" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	sed -i "/val wexc =/aval fregWrite = ((!wbInfo(0).cp && wen(0)) || divSqrt_wen).suggestName(\"rtlFuzz_fregWriteEnable\")" $(ROCKET_SRC)/src/main/scala/tile/FPU.scala
-	echo -e "package freechips.rocketchip.util\nimport chisel3._\nimport chisel3.util._\nclass MagicMaskerBlackbox extends BlackBox {\n  val io = IO(new Bundle {\n  val clock = Input(Clock())\n  val en = Input(Bool())\n  val in = Input(UInt(64.W))\n  val pc = Input(SInt(64.W))\n  val out = Output(UInt(64.W))})}\n"	> $(ROCKET_SRC)/src/main/scala/util/InsnRandom.scala
-	sed -i "/io.pc := Mux/a  val randomizer = Module(new MagicMaskerBlackbox)\n  randomizer.io.clock := clock\n  randomizer.io.in := inst\n  randomizer.io.pc := io.pc.asSInt\n  randomizer.io.en := io.inst(0).valid" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
-	sed -i "s/expand(0, 0, inst)/expand(0, 0, randomizer.io.out)/g" $(ROCKET_SRC)/src/main/scala/rocket/IBuf.scala
-
-
-BOOM_SRC		:= $(SRC)/riscv-boom
-
-boom-patch:
-	sed -i "s/enableCommitLogPrintf: Boolean = false/enableCommitLogPrintf: Boolean = true/g" $(BOOM_SRC)/src/main/scala/common/parameters.scala
-
 
 #######################################
 #
@@ -325,8 +303,11 @@ DC_NETLIST	:= $(DC_OUTPUT)/netlist
 #
 #######################################
 
-preprocess:
-	$(MAKE) -C patch
+.PHONY: clean clean-all patch
+
+patch:
+	find patch -name "*.patch" | \
+		awk -F/ '{print "(echo \"Apply "$$0"\" && cd repo/"$$2" && git apply --ignore-space-change --ignore-whitespace ../../"$$0")"}' | sh
 
 clean:
 	rm -rf $(BUILD)
