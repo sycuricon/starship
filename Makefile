@@ -126,7 +126,7 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX)
 
 verilog: $(VERILOG_SRC)
 verilog-debug: verilog
-verilog-patch: $(VERILOG_SRC)
+verilog-patch: verilog
 	# sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
@@ -135,7 +135,6 @@ verilog-patch: $(VERILOG_SRC)
 	sed -i "s/_covMap\[initvar\] = _RAND/_covMap\[initvar\] = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
-	
 
 
 #######################################
@@ -245,6 +244,7 @@ $(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc)
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
+	$(MAKE) verilog-patch
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
 						 -f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
@@ -263,13 +263,6 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	cd $(VCS_BUILD); \
 	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 				$(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
-
-vcs-time: $(VCS_SIMV) $(TESTCASE_HEX)
-	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); \
-	echo -e "\033[31m global start `date +%s.%3N` \033[0m"; \
-	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-				$(VSIM_OPTION); echo -e "\033[31m global stop `date +%s.%3N` \033[0m"; # 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
 vcs-debug: vcs
 vcs-fuzz: vcs
