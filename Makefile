@@ -11,12 +11,12 @@ SBT_BUILD 	:= $(TOP)/target $(TOP)/project/target $(TOP)/project/project
 ASIC		:= $(TOP)/asic
 
 ifndef RISCV
-$(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
+  $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
 endif
 
 GCC_VERSION	:= $(word 1, $(subst ., ,$(shell gcc -dumpversion)))
 ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
-SCL_PREFIX := source scl_source enable devtoolset-10 &&
+  SCL_PREFIX := source scl_source enable devtoolset-10 &&
 endif
 
 all: bitstream
@@ -30,6 +30,13 @@ all: bitstream
 
 include conf/build.mk
 
+ifeq ($(STARSHIP_CORE),CVA6)
+  ifndef CVA6_REPO_DIR
+    $(error $$CVA6_REPO_DIR is undefined, please add $$CVA6_REPO_DIR in your configuration)
+  else
+    export CVA6_REPO_DIR
+  endif
+endif
 
 #######################################
 #                                      
@@ -184,7 +191,6 @@ SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
 SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
 
 export LD_LIBRARY_PATH=$(SPIKE_BUILD)
-export CVA6_REPO_DIR=/eda/project/dut/cva6
 
 VCS_TB		?= Testbench
 VCS_SIMV	:= $(VCS_BUILD)/simv
