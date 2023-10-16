@@ -28,23 +28,7 @@ all: bitstream
 #                                      
 #######################################
 
-ifdef SIM
-STARSHIP_CORE	?= Rocket
-STARSHIP_FREQ	?= 100
-STARSHIP_TH 	?= starship.asic.TestHarness
-STARSHIP_TOP	?= starship.asic.StarshipSimTop
-STARSHIP_CONFIG	?= starship.asic.StarshipSimConfig
-else
-STARSHIP_CORE	?= Rocket
-STARSHIP_FREQ	?= 100
-STARSHIP_TH 	?= starship.fpga.TestHarness
-STARSHIP_TOP	?= starship.fpga.StarshipFPGATop
-STARSHIP_CONFIG	?= starship.fpga.StarshipFPGAConfig
-endif
-
-VIVADO_TOP  := TestHarness
-ROCKET_TOP	:= $(STARSHIP_TH)
-ROCKET_CONF	:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
+include conf/build.mk
 
 
 #######################################
@@ -53,6 +37,8 @@ ROCKET_CONF	:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.Wit
 #                                      
 #######################################
 
+ROCKET_TOP		:= $(STARSHIP_TH)
+ROCKET_CONF		:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.With$(STARSHIP_FREQ)MHz
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
 ROCKET_SRCS     := $(shell find $(TOP) -name "*.scala")
@@ -116,6 +102,7 @@ BOOM_SRC		:= $(SRC)/riscv-boom
 boom-patch:
 	sed -i "s/enableCommitLogPrintf: Boolean = false/enableCommitLogPrintf: Boolean = true/g" $(BOOM_SRC)/src/main/scala/common/parameters.scala
 
+
 #######################################
 #
 #         SRAM Generator
@@ -151,7 +138,7 @@ $(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
 
-$(ROCKET_ROM_HEX):$(ROCKET_INCLUDE)
+$(ROCKET_ROM_HEX): $(ROCKET_INCLUDE)
 	mkdir -p $(FSBL_BUILD)
 	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
 
@@ -172,13 +159,14 @@ verilog-patch: $(VERILOG_SRC)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	
 
+
 #######################################
 #
 #         Bitstream Generator
 #
 #######################################
 
-BOARD				:= vc707
+VIVADO_TOP			:= $(lastword $(subst ., ,$(STARSHIP_TH)))
 VIVADO_SRC			:= $(SRC)/rocket-chip-fpga-shells
 VIVADO_SCRIPT		:= $(VIVADO_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
@@ -191,11 +179,9 @@ $(VIVADO_BITSTREAM): $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) $(RO
 		-tclargs -F "$(ROCKET_INCLUDE)" \
 		-top-module "$(VIVADO_TOP)" \
 		-ip-vivado-tcls "$(shell find '$(ROCKET_BUILD)' -name '*.vivado.tcl')" \
-		-board "$(BOARD)"
+		-board "$(STARSHIP_BOARD)"
 
 bitstream: $(VIVADO_BITSTREAM)
-
-
 
 
 #######################################
@@ -323,23 +309,18 @@ verdi:
 						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_SRC_V) &
 
 
-
-
 #######################################
 #
 #         DC Sythesis
 #
 #######################################
 
+DC_TOP		:= $(lastword $(subst ., ,$(STARSHIP_TH)))
 DC_SRC		:= $(ASIC)/scripts/syn
 DC_OUTPUT	:= $(BUILD)/syn
 DC_BUILD	:= $(DC_OUTPUT)/build
 DC_LOG		:= $(DC_OUTPUT)/log
 DC_NETLIST	:= $(DC_OUTPUT)/netlist
-
-DC_TOP		:= $(STARSHIP_TOP)
-
-
 
 
 #######################################
