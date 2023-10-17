@@ -1,5 +1,5 @@
 # Starship Project
-# Copyright (C) 2020-2022 by phantom
+# Copyright (C) 2020-2023 by phantom
 # Email: phantom@zju.edu.cn
 # This file is under MIT License, see https://www.phvntom.tech/LICENSE.txt
 
@@ -52,6 +52,8 @@ ROCKET_SRCS     := $(shell find $(TOP) -name "*.scala")
 ROCKET_JAVA		:= java -Xmx2G -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
 ROCKET_OUTPUT	:= $(STARSHIP_CORE).$(lastword $(subst ., ,$(STARSHIP_TOP))).$(lastword $(subst ., ,$(STARSHIP_CONFIG)))
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
+ROCKET_DTS		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).dts
+ROCKET_ROMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf
 ROCKET_TOP_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.v
 ROCKET_TH_VERILOG 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.v
 ROCKET_TOP_INCLUDE	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.f
@@ -61,31 +63,31 @@ ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
 verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 
-$(ROCKET_FIRRTL): $(ROCKET_SRCS)
+$(ROCKET_FIRRTL) $(ROCKET_DTS) $(ROCKET_ROMCONF)&: $(ROCKET_SRCS)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
 					-td $(ROCKET_BUILD) -T $(ROCKET_TOP)		\
 					-C $(ROCKET_CONF) -n $(ROCKET_OUTPUT)"
 
-$(ROCKET_TOP_VERILOG): $(ROCKET_FIRRTL)
+$(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF)&: $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
 					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TOP) \
 				  	-T $(STARSHIP_TOP) -oinc $(ROCKET_TOP_INCLUDE) \
 					--repl-seq-mem -c:$(STARSHIP_TOP):-o:$(ROCKET_TOP_MEMCONF) \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(FIRRTL_DEBUG_OPTION)"
+					-fct firrtl.passes.InlineInstances \
+					-i $< -o $(ROCKET_TOP_VERILOG) -X verilog $(FIRRTL_DEBUG_OPTION)"
 
-$(ROCKET_TH_VERILOG): $(ROCKET_FIRRTL)
+$(ROCKET_TH_VERILOG) $(ROCKET_TH_INCLUDE) $(ROCKET_TH_MEMCONF)&: $(ROCKET_FIRRTL) $(ROCKET_TOP_VERILOG)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
 					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TH) \
 					-T $(STARSHIP_TOP) -TH $(STARSHIP_TH) -oinc $(ROCKET_TH_INCLUDE) \
 					--repl-seq-mem -c:$(STARSHIP_TH):-o:$(ROCKET_TH_MEMCONF) \
 					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances -i $< -o $@ -X verilog $(FIRRTL_DEBUG_OPTION)"
-
-rocket: $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+					-fct firrtl.passes.InlineInstances \
+					-i $< -o $(ROCKET_TH_VERILOG) -X verilog $(FIRRTL_DEBUG_OPTION)"
 
 
 #######################################
@@ -109,27 +111,27 @@ VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
 				   $(ROCKET_ROM) \
 				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
 
-$(ROCKET_INCLUDE): | $(ROCKET_TOP_VERILOG) $(ROCKET_TH_VERILOG)
+$(ROCKET_INCLUDE): $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) >> $@
 	sed -i "s/.*\.f$$/-f &/g" $@
 
-$(ROCKET_TOP_SRAM): $(ROCKET_INCLUDE)
+$(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TOP_MEMCONF) > $(ROCKET_TOP_SRAM)
 
-$(ROCKET_TH_SRAM): $(ROCKET_INCLUDE)
+$(ROCKET_TH_SRAM): $(ROCKET_TH_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
 	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
 
-$(ROCKET_ROM_HEX): $(ROCKET_INCLUDE)
+$(ROCKET_ROM_HEX): $(ROCKET_DTS)
 	mkdir -p $(FSBL_BUILD)
 	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
 
-$(ROCKET_ROM): $(ROCKET_ROM_HEX)
+$(ROCKET_ROM): $(ROCKET_ROM_HEX) $(ROCKET_ROMCONF)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf $< > $@
+	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_ROMCONF) $< > $@
 
 verilog: $(VERILOG_SRC)
 verilog-debug: verilog
@@ -156,7 +158,7 @@ VIVADO_SCRIPT		:= $(VIVADO_SRC)/xilinx
 VIVADO_BUILD		:= $(BUILD)/vivado
 VIVADO_BITSTREAM 	:= $(VIVADO_BUILD)/$(ROCKET_OUTPUT).bit
 
-$(VIVADO_BITSTREAM): $(ROCKET_INCLUDE) $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) $(ROCKET_ROM)
+$(VIVADO_BITSTREAM): $(ROCKET_INCLUDE) $(VERILOG_SRC)
 	mkdir -p $(VIVADO_BUILD)
 	cd $(VIVADO_BUILD); vivado -mode batch -nojournal \
 		-source $(VIVADO_SCRIPT)/common/tcl/vivado.tcl \
@@ -184,7 +186,7 @@ VCS_WAVE	:= $(VCS_OUTPUT)/wave
 SPIKE_DIR		:= $(SRC)/riscv-isa-sim
 SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.c")
 SPIKE_BUILD		:= $(BUILD)/spike
-SPIKE_LIB		:= $(SPIKE_BUILD)/libcosim.a
+SPIKE_LIB		:= $(addprefix $(SPIKE_BUILD)/,libcosim.a libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a)
 SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
 			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
 SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
@@ -202,8 +204,8 @@ TESTCASE_ELF	:= $(STARSHIP_TESTCASE)
 TESTCASE_BIN	:= $(shell mktemp)
 TESTCASE_HEX	:= $(STARSHIP_TESTCASE).hex
 
-VCS_SRC_C	:= $(TB_DIR)/spike_difftest.cc $(SPIKE_LIB) \
-			   $(addprefix $(SPIKE_BUILD)/,libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a) \
+VCS_SRC_C	:= $(TB_DIR)/spike_difftest.cc \
+			   $(SPIKE_LIB) \
 			   $(TB_DIR)/timer.cc  
 
 VCS_SRC_V	:= $(VCS_TB_VLOG) \
@@ -239,15 +241,15 @@ VSIM_OPTION	:= $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
 vcs-debug: 		VSIM_OPTION += +verbose +dump +uart_tx=0
 vcs-fuzz: 		VSIM_OPTION += +fuzzing +uart_tx=0
 vcs-fuzz-debug:	VSIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
-vcs-jtag: 		VSIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
+vcs-jtag: 		VSIM_OPTION += +jtag_rbb_enable=1 +verbose +uart_tx=0
 vcs-jtag-debug: VSIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
 
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
 
-$(SPIKE_LIB): $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc)
+$(SPIKE_LIB)&: $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
+	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) $(notdir $(SPIKE_LIB))
 
 $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	$(MAKE) verilog-patch
@@ -273,6 +275,8 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 vcs-debug: vcs
 vcs-fuzz: vcs
 vcs-fuzz-debug: vcs
+vcs-jtag: vcs
+vcs-jtag-debug: vcs
 
 verdi:
 	mkdir -p $(VERDI_OUTPUT)
@@ -306,7 +310,13 @@ DC_NETLIST	:= $(DC_OUTPUT)/netlist
 
 patch:
 	find patch -name "*.patch" | \
-		awk -F/ '{print "(echo \"Apply "$$0"\" && cd repo/"$$2" && git apply --ignore-space-change --ignore-whitespace ../../"$$0")"}' | sh
+		awk -F/ '{print \
+			"(" \
+				"echo \"Apply " $$0 "\" && " \
+				"cd repo/" $$2 " && " \
+				"git apply --ignore-space-change --ignore-whitespace ../../" $$0 \
+			")" \
+		}' | sh
 
 clean:
 	rm -rf $(BUILD)
