@@ -1,5 +1,5 @@
 diff --git a/src/main/scala/rocket/RocketCore.scala b/src/main/scala/rocket/RocketCore.scala
-index 1351a8086..5b7984418 100644
+index 34f16d273..460603a72 100644
 --- a/src/main/scala/rocket/RocketCore.scala
 +++ b/src/main/scala/rocket/RocketCore.scala
 @@ -5,7 +5,7 @@ package freechips.rocketchip.rocket
@@ -8,11 +8,11 @@ index 1351a8086..5b7984418 100644
  import chisel3.util._
 -import chisel3.withClock
 +import chisel3.{withClock,dontTouch}
- import freechips.rocketchip.config.Parameters
+ import org.chipsalliance.cde.config.Parameters
  import freechips.rocketchip.tile._
  import freechips.rocketchip.util._
-@@ -31,7 +31,7 @@ case class RocketCoreParams(
-   useCryptoSM: Boolean = false,
+@@ -30,7 +30,7 @@ case class RocketCoreParams(
+   useConditionalZero: Boolean = false,
    nLocalInterrupts: Int = 0,
    useNMI: Boolean = false,
 -  nBreakpoints: Int = 1,
@@ -23,8 +23,8 @@ index 1351a8086..5b7984418 100644
 @@ -306,6 +306,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
    val id_npc = (ibuf.io.pc.asSInt + ImmGen(IMM_UJ, id_inst(0))).asUInt
  
-   val csr = Module(new CSRFile(perfEvents, coreParams.customCSRs.decls))
-+dontTouch(csr.io)
+   val csr = Module(new CSRFile(perfEvents, coreParams.customCSRs.decls, tile.roccCSRs.flatten))
++  dontTouch(csr.io)
    val id_csr_en = id_ctrl.csr.isOneOf(CSR.S, CSR.C, CSR.W)
    val id_system_insn = id_ctrl.csr === CSR.I
    val id_csr_ren = id_ctrl.csr.isOneOf(CSR.S, CSR.C) && id_expanded_inst(0).rs1 === 0.U
