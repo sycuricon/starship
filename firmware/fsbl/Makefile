@@ -6,7 +6,7 @@ CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
 OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
 OBJDUMP		=	$(RISCV)/bin/riscv64-unknown-elf-objdump
 CFLAGS		=	-march=rv64ima_zicsr_zifencei -mcmodel=medany -O2 -std=gnu11 -Wall -nostartfiles
-CFLAGS		+=	-fno-common -g -DENTROPY=0 -mabi=lp64 -DNONSMP_HART=0
+CFLAGS		+=	-fno-common -g -DENTROPY=0 -mabi=lp64 -DNONSMP_HART=0 -Wno-unused-function
 CFLAGS		+=	-I./include -I. -I$(BUILD_DIR)
 LFLAGS		=	-static -nostdlib -L ./linker -T sdboot.elf.lds
 
@@ -17,9 +17,8 @@ default: elf bin dump
 dtb		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dtb
 dts		:= $(BUILD_DIR)/$(ROCKET_OUTPUT).dts
 dts_h	:= $(BUILD_DIR)/dts.h
-dts_org	:= $(ROOT_DIR)/build/rocket-chip/$(ROCKET_OUTPUT).dts
 
-$(dts): $(dts_org)
+$(dts): $(DTS)
 	mkdir -p $(BUILD_DIR)
 	cp $< $(dts)
 	sed -i "s/clock-frequency = <0>/clock-frequency = <$(PBUS_CLK)>/g" $(dts)

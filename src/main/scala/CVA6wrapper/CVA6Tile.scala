@@ -17,7 +17,7 @@ import chisel3.experimental.{IntParam, StringParam}
 
 import scala.collection.mutable.{ListBuffer}
 
-import freechips.rocketchip.config._
+import org.chipsalliance.cde.config._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
@@ -272,18 +272,18 @@ class CVA6TileModuleImp(outer: CVA6Tile) extends BaseTileModuleImp(outer){
     //outer.traceSourceNode.bundle <> core.io.trace_o.asTypeOf(outer.traceSourceNode.bundle)
 
     for (w <- 0 until outer.cva6Params.core.retireWidth) {
-      outer.traceSourceNode.bundle(w).valid     := core.io.trace_o(traceInstSz*w + 2)
-      outer.traceSourceNode.bundle(w).iaddr     := core.io.trace_o(traceInstSz*w + 42, traceInstSz*w + 3)
-      outer.traceSourceNode.bundle(w).insn      := core.io.trace_o(traceInstSz*w + 74, traceInstSz*w + 43)
-      outer.traceSourceNode.bundle(w).priv      := core.io.trace_o(traceInstSz*w + 77, traceInstSz*w + 75)
-      outer.traceSourceNode.bundle(w).exception := core.io.trace_o(traceInstSz*w + 78)
-      outer.traceSourceNode.bundle(w).interrupt := core.io.trace_o(traceInstSz*w + 79)
-      outer.traceSourceNode.bundle(w).cause     := core.io.trace_o(traceInstSz*w + 87, traceInstSz*w + 80)
-      outer.traceSourceNode.bundle(w).tval      := core.io.trace_o(traceInstSz*w + 127, traceInstSz*w + 88)
+      outer.traceSourceNode.bundle.insns(w).valid     := core.io.trace_o(traceInstSz*w + 2)
+      outer.traceSourceNode.bundle.insns(w).iaddr     := core.io.trace_o(traceInstSz*w + 42, traceInstSz*w + 3)
+      outer.traceSourceNode.bundle.insns(w).insn      := core.io.trace_o(traceInstSz*w + 74, traceInstSz*w + 43)
+      outer.traceSourceNode.bundle.insns(w).priv      := core.io.trace_o(traceInstSz*w + 77, traceInstSz*w + 75)
+      outer.traceSourceNode.bundle.insns(w).exception := core.io.trace_o(traceInstSz*w + 78)
+      outer.traceSourceNode.bundle.insns(w).interrupt := core.io.trace_o(traceInstSz*w + 79)
+      outer.traceSourceNode.bundle.insns(w).cause     := core.io.trace_o(traceInstSz*w + 87, traceInstSz*w + 80)
+      outer.traceSourceNode.bundle.insns(w).tval      := core.io.trace_o(traceInstSz*w + 127, traceInstSz*w + 88)
     }
   } else {
     outer.traceSourceNode.bundle := DontCare
-    outer.traceSourceNode.bundle map (t => t.valid := false.B)
+    outer.traceSourceNode.bundle.insns map (t => t.valid := false.B)
   }
 
   // connect the axi interface

@@ -14,7 +14,7 @@ ifndef RISCV
   $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
 endif
 
-GCC_VERSION	:= $(word 1, $(subst ., ,$(shell gcc -dumpversion)))
+GCC_VERSION	:= $(word 1,$(subst ., ,$(shell gcc -dumpversion)))
 ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
   SCL_PREFIX := source scl_source enable devtoolset-10 &&
 endif
@@ -49,9 +49,9 @@ ROCKET_CONF		:= starship.With$(STARSHIP_CORE)Core,$(STARSHIP_CONFIG),starship.Wi
 ROCKET_SRC		:= $(SRC)/rocket-chip
 ROCKET_BUILD	:= $(BUILD)/rocket-chip
 ROCKET_SRCS     := $(shell find $(TOP) -name "*.scala")
-ROCKET_JAVA		:= java -Xmx2G -Xss8M -jar $(ROCKET_SRC)/sbt-launch.jar
 ROCKET_OUTPUT	:= $(STARSHIP_CORE).$(lastword $(subst ., ,$(STARSHIP_TOP))).$(lastword $(subst ., ,$(STARSHIP_CONFIG)))
 ROCKET_FIRRTL	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).fir
+ROCKET_ANNO		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json
 ROCKET_DTS		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).dts
 ROCKET_ROMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.conf
 ROCKET_TOP_VERILOG	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.v
@@ -63,28 +63,30 @@ ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
 verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 
-$(ROCKET_FIRRTL) $(ROCKET_DTS) $(ROCKET_ROMCONF)&: $(ROCKET_SRCS)
+$(ROCKET_FIRRTL) $(ROCKET_DTS) $(ROCKET_ROMCONF) $(ROCKET_ANNO)&: $(ROCKET_SRCS)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_JAVA) "runMain freechips.rocketchip.system.Generator	\
-					-td $(ROCKET_BUILD) -T $(ROCKET_TOP)		\
-					-C $(ROCKET_CONF) -n $(ROCKET_OUTPUT)"
+	sbt "runMain starship.utils.stage.FIRRTLGenerator \
+		--dir $(ROCKET_BUILD) \
+		--top $(ROCKET_TOP) \
+		--config $(ROCKET_CONF) \
+		--name $(ROCKET_OUTPUT)"
 
 $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF) $(ROCKET_TH_VERILOG) $(ROCKET_TH_INCLUDE) $(ROCKET_TH_MEMCONF)&: $(ROCKET_FIRRTL)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
-					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TOP) \
-				  	-T $(STARSHIP_TOP) -oinc $(ROCKET_TOP_INCLUDE) \
-					--repl-seq-mem -c:$(STARSHIP_TOP):-o:$(ROCKET_TOP_MEMCONF) \
-					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances \
-					-i $< -o $(ROCKET_TOP_VERILOG) -X verilog $(FIRRTL_DEBUG_OPTION)"
-	$(ROCKET_JAVA) "runMain starship.utils.stage.Generator \
-					-td $(ROCKET_BUILD) --infer-rw $(STARSHIP_TH) \
-					-T $(STARSHIP_TOP) -TH $(STARSHIP_TH) -oinc $(ROCKET_TH_INCLUDE) \
-					--repl-seq-mem -c:$(STARSHIP_TH):-o:$(ROCKET_TH_MEMCONF) \
-					-faf $(ROCKET_BUILD)/$(ROCKET_OUTPUT).anno.json \
-					-fct firrtl.passes.InlineInstances \
-					-i $< -o $(ROCKET_TH_VERILOG) -X verilog $(FIRRTL_DEBUG_OPTION)"
+	sbt "runMain starship.utils.stage.RTLGenerator \
+		--infer-rw $(STARSHIP_TOP) \
+		-T $(STARSHIP_TOP) -oinc $(ROCKET_TOP_INCLUDE) \
+		--repl-seq-mem -c:$(STARSHIP_TOP):-o:$(ROCKET_TOP_MEMCONF) \
+		-faf $(ROCKET_ANNO) -fct firrtl.passes.InlineInstances \
+		-X verilog $(FIRRTL_DEBUG_OPTION) \
+		-i $< -o $(ROCKET_TOP_VERILOG)"
+	sbt "runMain starship.utils.stage.RTLGenerator \
+		--infer-rw $(STARSHIP_TH) \
+		-T $(STARSHIP_TOP) -TH $(STARSHIP_TH) -oinc $(ROCKET_TH_INCLUDE) \
+		--repl-seq-mem -c:$(STARSHIP_TH):-o:$(ROCKET_TH_MEMCONF) \
+		-faf $(ROCKET_ANNO) -fct firrtl.passes.InlineInstances \
+		-X verilog $(FIRRTL_DEBUG_OPTION) \
+		-i $< -o $(ROCKET_TH_VERILOG)"
 
 
 #######################################
@@ -105,7 +107,7 @@ ROCKET_TOP_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.top.v
 ROCKET_TH_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.testharness.v
 
 VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
-				   $(ROCKET_ROM) \
+				   $(ROCKET_ROM) $(ROCKET_ROM_HEX) \
 				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
 
 $(ROCKET_INCLUDE): $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
@@ -124,7 +126,7 @@ $(ROCKET_TH_SRAM): $(ROCKET_TH_MEMCONF)
 
 $(ROCKET_ROM_HEX): $(ROCKET_DTS)
 	mkdir -p $(FSBL_BUILD)
-	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) ROCKET_OUTPUT=$(ROCKET_OUTPUT) hex
+	$(MAKE) -C $(FSBL_SRC) PBUS_CLK=$(STARSHIP_FREQ)000000 ROOT_DIR=$(TOP) DTS=$(ROCKET_DTS) hex
 
 $(ROCKET_ROM): $(ROCKET_ROM_HEX) $(ROCKET_ROMCONF)
 	mkdir -p $(ROCKET_BUILD)
@@ -267,7 +269,7 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); \
 	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
-				$(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
+		$(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
 vcs-debug: vcs
 vcs-fuzz: vcs
@@ -278,9 +280,10 @@ vcs-jtag-debug: vcs
 verdi:
 	mkdir -p $(VERDI_OUTPUT)
 	touch $(VERDI_OUTPUT)/signal.rc
-	cd $(VERDI_OUTPUT); verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias	\
-						   -ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
-						   -logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_SRC_V) &
+	cd $(VERDI_OUTPUT); \
+	verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias \
+		-ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
+		-logfile $(VCS_LOG)/verdi.log -top $(VCS_TB) -f $(ROCKET_INCLUDE) $(VCS_SRC_V) &
 
 
 #######################################

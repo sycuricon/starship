@@ -5,7 +5,7 @@ import chisel3._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
-import freechips.rocketchip.config._
+import org.chipsalliance.cde.config._
 import freechips.rocketchip.system._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.diplomacy._

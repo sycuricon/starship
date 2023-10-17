@@ -2,7 +2,7 @@ package starship.playyard.cde
 
 import chisel3._
 
-import freechips.rocketchip.config.{Config, Field, Parameters}
+import org.chipsalliance.cde.config.{Config, Field, Parameters}
 
 case object TestKey1 extends Field[Int](-1)
 case object TestKey2 extends Field[Int]

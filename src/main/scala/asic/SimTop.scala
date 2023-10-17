@@ -5,7 +5,7 @@ import chisel3._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
-import freechips.rocketchip.config._
+import org.chipsalliance.cde.config._
 import freechips.rocketchip.system._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem._
@@ -19,6 +19,7 @@ class StarshipSimTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveSlaveAXI4Port
     with HasAsyncExtInterrupts
     with HasPeripheryUART
+    with HasPeripheryDebug
     with CanHavePeripheryMagicDevice
 {
   val chosen = new DeviceSnippet {
@@ -47,7 +48,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   val dut = Module(ldut.module)
 
   // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
-  dut.reset := (reset.asBool | dut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
+  dut.reset := (reset.asBool | ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
 
   dut.dontTouchPorts()
   dut.tieOffInterrupts()
@@ -72,5 +73,5 @@ class TestHarness()(implicit p: Parameters) extends Module {
     }
   )
 
-  Debug.connectDebug(dut.debug, dut.resetctrl, dut.psd, clock, reset.asBool, WireInit(false.B))
+  Debug.connectDebug(ldut.debug, ldut.resetctrl, ldut.psd, clock, reset.asBool, WireInit(false.B))
 }

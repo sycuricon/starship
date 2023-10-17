@@ -129,4 +129,4 @@ class StarshipStage extends Stage {
   }
 }
 
-object Generator extends StageMain(new StarshipStage)
+object RTLGenerator extends StageMain(new StarshipStage)

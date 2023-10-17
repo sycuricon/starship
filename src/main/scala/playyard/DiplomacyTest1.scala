@@ -5,7 +5,7 @@ import chisel3.stage._
 import chisel3.util.random._
 import chisel3.internal.sourceinfo._
 import freechips.rocketchip.diplomacy._
-import chipsalliance.rocketchip.config._
+import org.chipsalliance.cde.config._
 
 /* Parameters */
 

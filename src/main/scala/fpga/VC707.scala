@@ -6,7 +6,7 @@ import firrtl.FirrtlProtos.Firrtl.BigInt
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
-import freechips.rocketchip.config._
+import org.chipsalliance.cde.config._
 import freechips.rocketchip.system._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem._
