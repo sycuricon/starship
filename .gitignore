@@ -6,8 +6,8 @@
 .idea/
 
 # sbt Build
-/build
-/target
+build/
+target/
 
 # Ignore files generated under build
 build/.../*.v

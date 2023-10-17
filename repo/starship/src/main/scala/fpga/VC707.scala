@@ -2,7 +2,6 @@ package starship.fpga
 
 import starship._
 import chisel3._
-import firrtl.FirrtlProtos.Firrtl.BigInt
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
@@ -51,7 +50,6 @@ class StarshipFPGATopModuleImp[+L <: StarshipFPGATop](_outer: L) extends Starshi
 class TestHarness(override implicit val p: Parameters) extends VC707Shell
     with HasDDR3 {
 
-
   dut_clock := (p(FPGAFrequencyKey) match {
     case 25 => clk25
     case 50 => clk50
@@ -65,6 +63,9 @@ class TestHarness(override implicit val p: Parameters) extends VC707Shell
     connectSPI      (dut)
     connectUART     (dut)
     connectMIG      (dut)
+
+    led := VecInit(0.U(8.W).asBools)
+    dut_ndreset := 0.U
 
     dut.tieOffInterrupts()
     dut.dontTouchPorts()

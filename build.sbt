@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2021 by phantom
+ * Copyright (C) 2020-2023 by phantom
  * Email: phantom@zju.edu.cn
  * This file is under MIT License, see https://www.phvntom.tech/LICENSE.txt
  */
@@ -25,12 +25,6 @@ lazy val commonSettings = Seq(
     "edu.berkeley.cs" %% "chisel3" % chiselVersion,
     "com.lihaoyi" %% "mainargs" % "0.5.4",
   ),
-  allDependencies := {
-    val dropDeps = Seq(("edu.berkeley.cs", "rocketchip"))
-    allDependencies.value.filterNot { dep =>
-      dropDeps.contains((dep.organization, dep.name))
-    }
-  },
   resolvers ++= Seq(
     Resolver.sonatypeRepo("snapshots"),
     Resolver.sonatypeRepo("releases"),
@@ -39,12 +33,14 @@ lazy val commonSettings = Seq(
 )
 
 lazy val cde = (project in file("repo/rocket-chip/cde"))
-  .settings(commonSettings)
-  .settings(Compile / scalaSource := baseDirectory.value / "cde/src/chipsalliance/rocketchip")
+  .settings(
+    commonSettings,
+    Compile / scalaSource := baseDirectory.value / "cde/src/chipsalliance/rocketchip"
+  )
 
 lazy val rocket_macros  = (project in file("repo/rocket-chip/macros"))
-  .settings(commonSettings)
   .settings(
+    commonSettings,
     libraryDependencies ++= Seq(
       "org.json4s" %% "json4s-jackson" % "4.0.6",
     )
@@ -55,28 +51,39 @@ lazy val ucb_hardfloat = Project("hardfloat", file("repo/rocket-chip/hardfloat/h
 
 lazy val rocket_chip = (project in file("repo/rocket-chip"))
   .dependsOn(cde, rocket_macros, ucb_hardfloat)
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
 
 lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
   .dependsOn(rocket_chip, cde)
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
 
-lazy val fpga_shells = (project in file("repo/rocket-chip-fpga-shells"))
+lazy val fpga_shells = Project("fpga_shells", file("repo/rocket-chip-fpga-shells"))
   .dependsOn(rocket_chip, peripheral_blocks, cde)
-  .settings(commonSettings: _*)
+  .settings(
+    commonSettings,
+    Compile / resourceDirectory := baseDirectory.value
+  )
 
-lazy val ucb_testchipip = (project in file("repo/testchipip"))
+lazy val ucb_testchipip = Project("testchipip", file("repo/testchipip/src"))
   .dependsOn(rocket_chip, peripheral_blocks)
-  .settings(commonSettings: _*)
+  .settings(
+    commonSettings,
+    Compile / scalaSource := baseDirectory.value / "main/scala",
+    Compile / resourceDirectory := baseDirectory.value / "main/resources"
+  )
 
 lazy val ucb_boom = Project("boom", file("repo/riscv-boom/src"))
-    .settings(
-      Compile / scalaSource := baseDirectory.value / "main/scala",
-      Compile / resourceDirectory := baseDirectory.value / "main/resources"
-    )
-    .dependsOn(rocket_chip, ucb_testchipip)
-    .settings(commonSettings: _*)
+  .dependsOn(rocket_chip, ucb_testchipip)
+  .settings(
+    commonSettings,
+    Compile / scalaSource := baseDirectory.value / "main/scala",
+    Compile / resourceDirectory := baseDirectory.value / "main/resources"
+  )
 
-lazy val startship_soc = (project in file("."))
+lazy val starship = (project in file("repo/starship"))
   .dependsOn(rocket_chip, cde, peripheral_blocks, fpga_shells, ucb_boom)
-  .settings(commonSettings: _*)
+  .settings(commonSettings)
+
+lazy val root = (project in file("."))
+  .dependsOn(starship)
+  .settings(commonSettings)
