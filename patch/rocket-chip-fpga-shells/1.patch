@@ -1,52 +1,49 @@
 diff --git a/src/main/scala/ip/xilinx/Xilinx.scala b/src/main/scala/ip/xilinx/Xilinx.scala
-index 21c69ef..fa26a24 100644
+index 488b19b..d02afac 100644
 --- a/src/main/scala/ip/xilinx/Xilinx.scala
 +++ b/src/main/scala/ip/xilinx/Xilinx.scala
-@@ -7,6 +7,9 @@ import chisel3.util.HasBlackBoxInline
+@@ -6,6 +6,8 @@ import chisel3.util.HasBlackBoxInline
  import freechips.rocketchip.util.ElaborationArtefacts
  import sifive.fpgashells.clocks._
  
-+import sys.process._
-+import chisel3.util.HasBlackBoxPath
++import chisel3.util.HasBlackBoxResource
 +
  //========================================================================
  // This file contains common devices used by our Xilinx FPGA flows and some
  // BlackBox modules used in the Xilinx FPGA flows
-@@ -201,7 +204,7 @@ class Series7MMCM(c : PLLParameters) extends BlackBox with PLLInstance {
+@@ -200,7 +202,7 @@ class Series7MMCM(c : PLLParameters) extends BlackBox with PLLInstance {
  // vc707reset
  //-------------------------------------------------------------------------
  
 -class vc707reset() extends BlackBox
-+class vc707reset() extends BlackBox with HasBlackBoxPath
++class vc707reset() extends BlackBox with HasBlackBoxResource
  {
-   val io = new Bundle{
-     val areset = Bool(INPUT)
-@@ -214,6 +217,9 @@ class vc707reset() extends BlackBox
-     val clock4 = Clock(INPUT)
-     val reset4 = Bool(OUTPUT)
-   }
+   val io = IO(new Bundle{
+     val areset = Input(Bool())
+@@ -213,6 +215,8 @@ class vc707reset() extends BlackBox
+     val clock4 = Input(Clock())
+     val reset4 = Output(Bool())
+   })
 +
-+  val path = System.getProperty("user.dir")
-+  addPath(s"${path}/repo/rocket-chip-fpga-shells/xilinx/vc707/vsrc/vc707reset.v")
++  addResource("/xilinx/vc707/vsrc/vc707reset.v")
  }
  
  //-------------------------------------------------------------------------
-@@ -353,7 +359,7 @@ class vcu118reset() extends BlackBox
+@@ -352,7 +356,7 @@ class vcu118reset() extends BlackBox
  // sdio_spi_bridge
  //-------------------------------------------------------------------------
  
 -class sdio_spi_bridge() extends BlackBox
-+class sdio_spi_bridge() extends BlackBox with HasBlackBoxPath
++class sdio_spi_bridge() extends BlackBox with HasBlackBoxResource
  {
-   val io = new Bundle{
-     val clk      = Clock(INPUT)
-@@ -365,6 +371,9 @@ class sdio_spi_bridge() extends BlackBox
-     val spi_dq_o = Bits(INPUT,4)
-     val spi_dq_i = Bits(OUTPUT,4)
-   }
+   val io = IO(new Bundle{
+     val clk      = Input(Clock())
+@@ -364,6 +368,8 @@ class sdio_spi_bridge() extends BlackBox
+     val spi_dq_o = Input(Bits(4.W))
+     val spi_dq_i = Output(Bits(4.W))
+   })
 +
-+  val path = System.getProperty("user.dir")
-+  addPath(s"${path}/repo/rocket-chip-fpga-shells/xilinx/vc707/vsrc/sdio.v")
++  addResource("/xilinx/vc707/vsrc/sdio.v")
  }
  
  /*

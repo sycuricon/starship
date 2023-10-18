@@ -87,6 +87,7 @@ $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF) $(ROCKET_TH_VE
 		-faf $(ROCKET_ANNO) -fct firrtl.passes.InlineInstances \
 		-X verilog $(FIRRTL_DEBUG_OPTION) \
 		-i $< -o $(ROCKET_TH_VERILOG)"
+	touch $(ROCKET_TOP_INCLUDE) $(ROCKET_TH_INCLUDE)
 
 
 #######################################
@@ -107,10 +108,10 @@ ROCKET_TOP_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.top.v
 ROCKET_TH_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.testharness.v
 
 VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
-				   $(ROCKET_ROM) $(ROCKET_ROM_HEX) \
+				   $(ROCKET_ROM) \
 				   $(ROCKET_TH_VERILOG) $(ROCKET_TOP_VERILOG)
 
-$(ROCKET_INCLUDE): $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
+$(ROCKET_INCLUDE): | $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) >> $@
@@ -250,7 +251,7 @@ $(SPIKE_BUILD)/Makefile:
 $(SPIKE_LIB)&: $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) $(notdir $(SPIKE_LIB))
 
-$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
+$(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	$(MAKE) verilog-patch
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
