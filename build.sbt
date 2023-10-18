@@ -25,11 +25,10 @@ lazy val commonSettings = Seq(
     "edu.berkeley.cs" %% "chisel3" % chiselVersion,
     "com.lihaoyi" %% "mainargs" % "0.5.4",
   ),
-  resolvers ++= Seq(
-    Resolver.sonatypeRepo("snapshots"),
-    Resolver.sonatypeRepo("releases"),
+  resolvers ++=
+    Resolver.sonatypeOssRepos("snapshots") ++
+    Resolver.sonatypeOssRepos("releases") :+
     Resolver.mavenLocal
-  )
 )
 
 lazy val cde = (project in file("repo/rocket-chip/cde"))
@@ -46,7 +45,7 @@ lazy val rocket_macros  = (project in file("repo/rocket-chip/macros"))
     )
   )
 
-lazy val ucb_hardfloat = Project("hardfloat", file("repo/rocket-chip/hardfloat/hardfloat"))
+lazy val ucb_hardfloat = (project in file("repo/rocket-chip/hardfloat/hardfloat"))
   .settings(commonSettings)
 
 lazy val rocket_chip = (project in file("repo/rocket-chip"))
@@ -57,14 +56,14 @@ lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
   .dependsOn(rocket_chip, cde)
   .settings(commonSettings)
 
-lazy val fpga_shells = Project("fpga_shells", file("repo/rocket-chip-fpga-shells"))
+lazy val fpga_shells = (project in file("repo/rocket-chip-fpga-shells"))
   .dependsOn(rocket_chip, peripheral_blocks, cde)
   .settings(
     commonSettings,
     Compile / unmanagedBase := baseDirectory.value
   )
 
-lazy val ucb_testchipip = Project("testchipip", file("repo/testchipip/src"))
+lazy val ucb_testchipip = (project in file("repo/testchipip/src"))
   .dependsOn(rocket_chip, peripheral_blocks)
   .settings(
     commonSettings,
@@ -72,7 +71,7 @@ lazy val ucb_testchipip = Project("testchipip", file("repo/testchipip/src"))
     Compile / resourceDirectory := baseDirectory.value / "main/resources"
   )
 
-lazy val ucb_boom = Project("boom", file("repo/riscv-boom/src"))
+lazy val ucb_boom = (project in file("repo/riscv-boom/src"))
   .dependsOn(rocket_chip, ucb_testchipip)
   .settings(
     commonSettings,
