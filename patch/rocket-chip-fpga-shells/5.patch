@@ -1,0 +1,25 @@
+diff --git a/src/main/scala/devices/xilinx/xilinxvc707mig/XilinxVC707MIGPeriphery.scala b/src/main/scala/devices/xilinx/xilinxvc707mig/XilinxVC707MIGPeriphery.scala
+index 6ba239a..489b862 100644
+--- a/src/main/scala/devices/xilinx/xilinxvc707mig/XilinxVC707MIGPeriphery.scala
++++ b/src/main/scala/devices/xilinx/xilinxvc707mig/XilinxVC707MIGPeriphery.scala
+@@ -10,9 +10,9 @@ case object MemoryXilinxDDRKey extends Field[XilinxVC707MIGParams]
+ trait HasMemoryXilinxVC707MIG { this: BaseSubsystem =>
+   val module: HasMemoryXilinxVC707MIGModuleImp
+ 
+-  val xilinxvc707mig = LazyModule(new XilinxVC707MIG(p(MemoryXilinxDDRKey)))
++  val mig = LazyModule(new XilinxVC707MIG(p(MemoryXilinxDDRKey)))
+ 
+-  mbus.coupleTo("xilinxvc707mig") { xilinxvc707mig.node := TLWidthWidget(mbus.beatBytes) := _ }
++  mbus.coupleTo("xilinxvc707mig") { mig.node := TLWidthWidget(mbus.beatBytes) := _ }
+ }
+ 
+ trait HasMemoryXilinxVC707MIGBundle {
+@@ -30,7 +30,7 @@ trait HasMemoryXilinxVC707MIGModuleImp extends LazyModuleImp
+   val depth = ranges.head.size
+   val xilinxvc707mig = IO(new XilinxVC707MIGIO(depth))
+ 
+-  xilinxvc707mig <> outer.xilinxvc707mig.module.io.port
++  xilinxvc707mig <> outer.mig.module.io.port
+ }
+ 
+ /*
