@@ -238,6 +238,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   $(CHISEL_DEFINE) $(TB_DEFINE)
 VSIM_OPTION	:= $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
 
+vcs-wave: 		VSIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VSIM_OPTION += +verbose +dump +uart_tx=0
 vcs-fuzz: 		VSIM_OPTION += +fuzzing +uart_tx=0
 vcs-fuzz-debug:	VSIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
@@ -272,11 +273,9 @@ vcs: $(VCS_SIMV) $(TESTCASE_HEX)
 	$(VCS_SIMV) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 		$(VSIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
-vcs-debug: vcs
-vcs-fuzz: vcs
-vcs-fuzz-debug: vcs
-vcs-jtag: vcs
-vcs-jtag-debug: vcs
+vcs-wave vcs-debug: vcs
+vcs-fuzz vcs-fuzz-debug: vcs
+vcs-jtag vcs-jtag-debug: vcs
 
 verdi:
 	mkdir -p $(VERDI_OUTPUT)
