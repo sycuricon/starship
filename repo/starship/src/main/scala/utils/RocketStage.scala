@@ -1,13 +1,12 @@
 package starship.utils.stage
 
+import mainargs._
 import chisel3.RawModule
 import chisel3.stage.ChiselGeneratorAnnotation
-import chisel3.stage.phases.{Elaborate, Convert}
-import firrtl.AnnotationSeq
-import firrtl.options.TargetDirAnnotation
+import firrtl.options.{Dependency, PhaseManager, TargetDirAnnotation}
 import freechips.rocketchip.diplomacy.LazyModule
 import org.chipsalliance.cde.config.{Config, Parameters}
-import mainargs._
+
 
 object FIRRTLGenerator {
   @main def elaborate(
@@ -30,17 +29,18 @@ object FIRRTLGenerator {
           case lm: LazyModule => LazyModule(lm).module
         }
 
-    val annos = Seq(
-      new Elaborate,
-      new GenerateROMs,
-      new Convert
-    ).foldLeft(
+    val pm = new PhaseManager(
       Seq(
-        TargetDirAnnotation(dir),
-        ChiselGeneratorAnnotation(() => gen())
-      ): AnnotationSeq
-    ) { case (annos, phase) => phase.transform(annos) }
-      .flatMap {
+        Dependency[chisel3.stage.phases.Elaborate],
+        Dependency[starship.utils.stage.GenerateROMs],
+        Dependency[chisel3.stage.phases.Convert]
+      )
+    )
+
+    val annos = pm.transform(Seq(
+      TargetDirAnnotation(dir),
+      ChiselGeneratorAnnotation(() => gen())
+    )).flatMap {
         case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
           os.write.over(os.Path(dir) / s"$outputName.fir", circuit.serialize)
           None
