@@ -35,8 +35,9 @@ class WithPeripherals extends Config((site, here, up) => {
 
 class StarshipFPGAConfig extends Config(
   new WithPeripherals ++
+  new WithJtagDTM ++
   new StarshipBaseConfig().alter((site,here,up) => {
-    case DebugModuleKey => None
+    //case DebugModuleKey => None
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)

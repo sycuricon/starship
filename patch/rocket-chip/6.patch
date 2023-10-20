@@ -1,0 +1,12 @@
+diff --git a/src/main/scala/util/ClockGate.scala b/src/main/scala/util/ClockGate.scala
+index e8c7a70bb..8b66f1397 100644
+--- a/src/main/scala/util/ClockGate.scala
++++ b/src/main/scala/util/ClockGate.scala
+@@ -51,4 +51,6 @@ object ClockGate {
+ }
+ 
+ // behavioral model of Integrated Clock Gating cell
+-class EICG_wrapper extends ClockGate
++class EICG_wrapper extends ClockGate{
++  addVerilogResource("/vsrc/EICG_wrapper.v")
++}
