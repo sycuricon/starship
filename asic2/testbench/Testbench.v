@@ -33,15 +33,17 @@ import "DPI-C" function void cosim_reinit(
 );
 import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 
-module Testbench;
-  
-  reg clock = 1'b0;
-  reg reset = 1'b1;
+module Testbench(
+  input clock,
+  input reset
+);
+  // reg clock = 1'b0;
+  // reg reset = 1'b1;
 
   wire interrupt;
 
-  always #(`CLOCK_PERIOD/2.0) clock = ~clock;
-  initial #(`RESET_DELAY) reset = 0;
+  //always #(`CLOCK_PERIOD/2.0) clock = ~clock;
+  //initial #(`RESET_DELAY) reset = 0;
 
   // assign `SOC_TOP.metaReset = reset;
 
@@ -89,6 +91,7 @@ module Testbench;
       end
     `endif
 
+
     if (dump_wave) begin
       `ifdef DEBUG_FSDB
         `define WAVE_ON     $fsdbDumpon;
@@ -123,70 +126,70 @@ module Testbench;
     timer_start();
   end
 
-  always @(negedge clock) begin
-    trace_count = trace_count + 1;
-    if (trace_count == dump_start) begin
-      if (dump_wave) begin
-        `WAVE_ON
-      end
-    end
+  // always @(negedge clock) begin
+  //   trace_count = trace_count + 1;
+  //   if (trace_count == dump_start) begin
+  //     if (dump_wave) begin
+  //       `WAVE_ON
+  //     end
+  //   end
 
-    if (!reset) begin
-      if (max_cycles > 0 && trace_count > max_cycles) begin
-        reason = " (timeout)";
-        failure = 1'b1;
-      end
+  //   if (!reset) begin
+  //     if (max_cycles > 0 && trace_count > max_cycles) begin
+  //       reason = " (timeout)";
+  //       failure = 1'b1;
+  //     end
 
-      if (failure) begin
-        $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
-        trace_count = 0;
-        failure = 0;
-        if (fuzz) begin
-          $system("echo -e \"\033[31m[>] round timeout `date +%s.%3N` \033[0m\"");
-          cosim_set_tohost(5);
-          fuzz_manager();
-        end else begin
-          if (dump_wave) begin
-            `WAVE_CLOSE
-          end
-          $fatal;
-        end
-      end
-      if (tohost & 1'b1) begin
-        $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
-        trace_count = 0;
-        if (fuzz) begin
-          $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
-          fuzz_manager();
-        end else begin
-          if (dump_wave) begin
-            `WAVE_CLOSE
-          end
-          $system("echo -e \"\033[31m[>] vcs stop `date +%s.%3N` \033[0m\"");
-          timer_result = timer_stop();
-          $display("Finish time: %d ns", timer_result);
-          $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
-          // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);
-          $finish;
-        end
+  //     if (failure) begin
+  //       $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
+  //       trace_count = 0;
+  //       failure = 0;
+  //       if (fuzz) begin
+  //         $system("echo -e \"\033[31m[>] round timeout `date +%s.%3N` \033[0m\"");
+  //         cosim_set_tohost(5);
+  //         fuzz_manager();
+  //       end else begin
+  //         if (dump_wave) begin
+  //           `WAVE_CLOSE
+  //         end
+  //         $fatal;
+  //       end
+  //     end
+  //     if (tohost & 1'b1) begin
+  //       $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
+  //       trace_count = 0;
+  //       if (fuzz) begin
+  //         $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
+  //         fuzz_manager();
+  //       end else begin
+  //         if (dump_wave) begin
+  //           `WAVE_CLOSE
+  //         end
+  //         $system("echo -e \"\033[31m[>] vcs stop `date +%s.%3N` \033[0m\"");
+  //         timer_result = timer_stop();
+  //         $display("Finish time: %d ns", timer_result);
+  //         $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
+  //         // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);
+  //         $finish;
+  //       end
 
-      end
-    end
-  end
+  //     end
+  //   end
+  // end
 
   TestHarness testHarness(
     .clock(clock),
     .reset(reset),
-    //.io_uart_tx(1'b0),
-    .io_uart_rx(1'b0)
-  // .io_uart_tx(uart_tx),
-  // .io_uart_rx(uart_rx)
+    // .io_uart_tx(),
+    // .io_uart_rx(1'b0)
+    .io_uart_tx(uart_tx),
+    .io_uart_rx(uart_rx)
   );
 
-  CJ rtlfuzz (
-    .clock(clock),
-    .reset(reset),
-    .tohost(tohost));
+  // CJ rtlfuzz (
+  //   .clock(clock),
+  //   .reset(reset),
+  //   .tohost(tohost));
 
   // tty #(115200, 0) u0_tty(
   //  .STX(uart_rx),
@@ -202,22 +205,22 @@ module Testbench;
     .interrupt(interrupt)
   );
 
-  task fuzz_manager;
-  begin
-    // force tohost = 0;
-    force clock = 0;
-    #50;
-    if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
-      reset = 1;
-      $readmemh("./testcase.hex", `MEM_RPL.ram);
-      cosim_reinit("./testcase.elf", verbose);
-      $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
-    end
-    release clock;
-    #10 reset = 0;
-    // release tohost;
-  end
-  endtask
+  // task fuzz_manager;
+  // begin
+  //   // force tohost = 0;
+  //   force clock = 0;
+  //   #50;
+  //   if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
+  //     reset = 1;
+  //     $readmemh("./testcase.hex", `MEM_RPL.ram);
+  //     cosim_reinit("./testcase.elf", verbose);
+  //     $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
+  //   end
+  //   release clock;
+  //   #10 reset = 0;
+  //   // release tohost;
+  // end
+  // endtask
 
 endmodule
 

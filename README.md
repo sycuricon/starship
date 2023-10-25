@@ -36,6 +36,7 @@ Before you start compiling, you should already have sbt, vivado and a RISC-V too
 
 $ git clone https://github.com/riscv-zju/riscv-starship.git
 $ git submodule update --init --recursive --progress
+$ make patch
 
 # set $RISCV to your toolchain path, not inclued bin
 $ make bitstream
@@ -53,7 +54,7 @@ $ sudo sgdisk --clear \
       --new=2:264192:     --change-name=2:root       --typecode=2:0FC63DAF-8483-4772-8E79-3D69D8477DE4 \
       /dev/sdx
 sudo dd if=<program> of=/dev/sdx1 bs=4096
-sudo mke2fs -t ext3 /dev/sdx2
+sudo mke2fs -t ext4 /dev/sdx2
 ```
 The default device tree is following:
 ```dts
