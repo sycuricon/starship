@@ -337,17 +337,17 @@ VERILATOR_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
 VERILATOR_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VERILATOR_TOP) -o $(VERILATOR_TOP) \
 						-CFLAGS "-DVL_DEBUG -DTOP=${VERILATOR_TOP} ${VCS_CFLAGS}"
 
-VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF)
+VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +jtag_rbb_enable=1
 
 make_verilate: $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
 	mkdir -p $(VER_BUILD)
 	mkdir -p $(VER_BUILD)/wave/
 	cd $(VER_BUILD); verilator $(VERILATOR_TFLAGS) $(VERILATOR_FLAGS) $(VERILATOR_OPTION) $(VERILATOR_SRCS)
-	
-verilate: make_verilate $(TESTCASE_HEX)
 	cd $(VER_BUILD); cp V${VERILATOR_TOP}.h VTOP.h
 	make -C $(VER_BUILD) -f V$(VERILATOR_TOP).mk $(VERILATOR_TOP)
+	
+verilate: make_verilate $(TESTCASE_HEX)
 	cd $(VER_BUILD); ./$(VERILATOR_TOP) $(VERILATOR_SIMOPTION)
 
 wave:
