@@ -294,6 +294,7 @@ verdi:
 TB_DIR		:= $(TOP)/verilate/testbench
 VER_BUILD	:= $(BUILD)/verilate
 VER_WAVE 	:= $(VER_BUILD)/wave
+VER_TARGET  := $(VER_BUILD)/$(VERILATOR_TOP)
 
 VER_TB		?= Testbench
 VER_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
@@ -339,7 +340,7 @@ VERILATOR_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VERILATOR_TOP)
 
 VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +jtag_rbb_enable=1
 
-make_verilate: $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
+$(VER_TARGET):$(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
 	mkdir -p $(VER_BUILD)
 	mkdir -p $(VER_BUILD)/wave/
@@ -347,7 +348,7 @@ make_verilate: $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $
 	cd $(VER_BUILD); cp V${VERILATOR_TOP}.h VTOP.h
 	make -C $(VER_BUILD) -f V$(VERILATOR_TOP).mk $(VERILATOR_TOP)
 	
-verilate: make_verilate $(TESTCASE_HEX)
+verilate: $(VER_TARGET) $(TESTCASE_HEX)
 	cd $(VER_BUILD); ./$(VERILATOR_TOP) $(VERILATOR_SIMOPTION)
 
 wave:
