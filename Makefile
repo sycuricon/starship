@@ -8,7 +8,7 @@ SRC			:= $(TOP)/repo
 BUILD		:= $(TOP)/build
 CONFIG		:= $(TOP)/conf
 SBT_BUILD 	:= $(TOP)/target $(TOP)/project/target $(TOP)/project/project
-ASIC		:= $(TOP)/asic2
+ASIC		:= $(TOP)/asic
 
 ifndef RISCV
   $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
@@ -291,20 +291,9 @@ verdi:
 #
 #######################################
 
-TB_DIR		:= $(ASIC)/testbench
+TB_DIR		:= $(TOP)/verilate/testbench
 VER_BUILD	:= $(BUILD)/verilate
 VER_WAVE 	:= $(VER_BUILD)/wave
-
-SPIKE_DIR		:= $(SRC)/riscv-isa-sim
-SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.c")
-SPIKE_BUILD		:= $(BUILD)/spike
-SPIKE_LIB		:= $(addprefix $(SPIKE_BUILD)/,libcosim.a libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a)
-SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
-			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
-SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
-SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
-
-export LD_LIBRARY_PATH=$(SPIKE_BUILD)
 
 VER_TB		?= Testbench
 VER_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
@@ -340,15 +329,6 @@ CHISEL_DEFINE := +define+PRINTF_COND=$(VER_TB).printf_cond	\
 				 +define+RANDOMIZE_INVALID_ASSIGN			\
 				 +define+RANDOMIZE_DELAY=0.1
 
-VER_PARAL_COM	:= -j$(shell nproc) # -fgp
-VER_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
-
-VER_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 		\
-			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext 			\
-			   +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 						\
-			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
-			   $(CHISEL_DEFINE) $(TB_DEFINE)
-
 VERILATOR_TOP		:= $(VER_TB)
 VERILATOR_SRCS 		:= $(shell cat $(ROCKET_INCLUDE)) $(VER_SRC_V) $(VER_SRC_C)
 VERILATOR_TFLAGS	:= -Wno-WIDTH -Wno-STMTDLY -Wno-fatal --timescale 1ns/10ps --trace --timing
@@ -357,7 +337,7 @@ VERILATOR_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
 VERILATOR_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VERILATOR_TOP) -o $(VERILATOR_TOP) \
 						-CFLAGS "-DVL_DEBUG -DTOP=${VERILATOR_TOP} ${VCS_CFLAGS}"
 
-VERILATOR_SIMOPTION	:= +dump +testcase=$(TESTCASE_ELF)
+VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF)
 
 make_verilate: $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
@@ -371,7 +351,7 @@ verilate: make_verilate $(TESTCASE_HEX)
 	cd $(VER_BUILD); ./$(VERILATOR_TOP) $(VERILATOR_SIMOPTION)
 
 wave:
-	gtkwave $(VER_WAVE)/starship.vcd
+	gtkwave $(VER_WAVE)/testbench.vcd
 #######################################
 #
 #         DC Sythesis
