@@ -33,17 +33,14 @@ import "DPI-C" function void cosim_reinit(
 );
 import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 
-module Testbench(
-  input clock,
-  input reset
-);
-  // reg clock = 1'b0;
-  // reg reset = 1'b1;
+module Testbench;
+  reg clock = 1'b0;
+  reg reset = 1'b1;
 
   wire interrupt;
 
-  //always #(`CLOCK_PERIOD/2.0) clock = ~clock;
-  //initial #(`RESET_DELAY) reset = 0;
+  always #(`CLOCK_PERIOD/2.0) clock = ~clock;
+  initial #(`RESET_DELAY) reset = 0;
 
   // assign `SOC_TOP.metaReset = reset;
 
@@ -117,7 +114,7 @@ module Testbench(
     end
 
     // Memory Initialize
-    // #(`RESET_DELAY/2.0)
+    #(`RESET_DELAY/2.0)
     if ($value$plusargs("testcase=%s", testcase)) begin
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `MEM_RPL.ram);
@@ -207,18 +204,18 @@ module Testbench(
 
   task fuzz_manager;
   begin
-    // // force tohost = 0;
-    // force clock = 0;
-    // #50;
-    // if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
-    //   reset = 1;
-    //   $readmemh("./testcase.hex", `MEM_RPL.ram);
-    //   cosim_reinit("./testcase.elf", verbose);
-    //   $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
-    // end
-    // release clock;
-    // #10 reset = 0;
-    // // release tohost;
+    // force tohost = 0;
+    force clock = 0;
+    #50;
+    if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
+      reset = 1;
+      $readmemh("./testcase.hex", `MEM_RPL.ram);
+      cosim_reinit("./testcase.elf", verbose);
+      $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
+    end
+    release clock;
+    #10 reset = 0;
+    // release tohost;
   end
   endtask
 

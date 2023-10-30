@@ -338,7 +338,10 @@ VERILATOR_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
 VERILATOR_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VERILATOR_TOP) -o $(VERILATOR_TOP) \
 						-CFLAGS "-DVL_DEBUG -DTOP=${VERILATOR_TOP} ${VCS_CFLAGS}"
 
-VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +jtag_rbb_enable=1
+VERILATOR_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +dump
+#   +jtag_rbb_enable=1
+
+CPPFLAGS 			:= $(CPPFLAGS) -g
 
 $(VER_TARGET):$(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
@@ -352,7 +355,7 @@ verilate: $(VER_TARGET) $(TESTCASE_HEX)
 	cd $(VER_BUILD); ./$(VERILATOR_TOP) $(VERILATOR_SIMOPTION)
 
 wave:
-	gtkwave $(VER_WAVE)/testbench.vcd
+	gtkwave $(VER_WAVE)/starship.vcd
 #######################################
 #
 #         DC Sythesis

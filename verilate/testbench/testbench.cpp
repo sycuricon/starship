@@ -4,46 +4,35 @@
 
 #include "VTOP.h"
 #include "verilated.h"
-#include "verilated_vcd_c.h"
 
-#define max_time 2000
+#define max_time 200000
 
-int main(int argc, char **argv, char **env) {
-    Verilated::traceEverOn(true);
-    VTestbench *topp = new VTestbench();
-    VerilatedContext* contextp = new VerilatedContext;
-    contextp->debug(0);
-    contextp->randReset(10);
-    VerilatedVcdC* tfp = new VerilatedVcdC;
-    topp->trace(tfp, 99);
-    tfp->open("./wave/testbench.vcd");
-    Verilated::commandArgs(argc,argv);
+int main(int argc, char** argv, char**) {
+    // Setup context, defaults, and parse command line
+    Verilated::debug(0);
+    const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
+    contextp->traceEverOn(true);
+    contextp->commandArgs(argc, argv);
 
-    int init_time = 10;
-    int clk = 0;
-    int rstn = 1;
+    // Construct the Verilated model, from Vtop.h generated from Verilating
+    const std::unique_ptr<VTestbench> topp{new VTestbench{contextp.get()}};
 
-    topp->reset = rstn;
-    for (int i = 0; i < init_time; i++) {
-        topp->clock = clk;
+
+    // Simulate until $finish
+    while (contextp->time()<max_time && !contextp->gotFinish()) {
+        // Evaluate model
         topp->eval();
-        clk = !clk;
+        // Advance time
+        if(!topp->eventsPending())break;
+        contextp->time(topp->nextTimeSlot());
+        // printf("%d\n",contextp->time());
     }
 
-    rstn = 0;
-    while (contextp->time() < max_time && !contextp->gotFinish()) {
-        topp->clock = clk;
-        topp->reset = rstn;
-        contextp->timeInc(1);
-        topp->eval();
-        tfp->dump(contextp->time());
-        clk = !clk;
-        rstn = 0;
+    if (!contextp->gotFinish()) {
+        VL_DEBUG_IF(VL_PRINTF("+ Exiting without $finish; no events left\n"););
     }
 
-    tfp->close();
-    delete tfp;
-    delete topp;
-    delete contextp;
+    // Final model cleanup
+    topp->final();
     return 0;
 }
