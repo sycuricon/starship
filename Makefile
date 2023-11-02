@@ -337,7 +337,7 @@ VER_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
 VER_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VER_TOP) --main -o $(VER_TOP) \
 						-CFLAGS "-DVL_DEBUG -DTOP=${VER_TOP} ${VCS_CFLAGS}"
 
-ver-wave: 		VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) 
+ver-wave: 		VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +dump 
 ver-jtag: 		VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +jtag_rbb_enable=1
 ver-jtag-debug: VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +dump +jtag_rbb_enable=1
 

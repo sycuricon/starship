@@ -193,7 +193,7 @@ module Testbench;
 
   CJ rtlfuzz (
     .clock(clock),
-    .reset(reset),
+    .reset(reset|jtag_rbb_enable),
     .tohost(tohost));
 
   // tty #(115200, 0) u0_tty(
