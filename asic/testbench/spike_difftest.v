@@ -22,7 +22,7 @@ import "DPI-C" function void cosim_init(
 
 import "DPI-C" function longint cosim_get_tohost();
 
-import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
+// import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 
 module CJ #(parameter harts=1, commits=2) (
     input clock,
