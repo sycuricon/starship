@@ -46,3 +46,19 @@ class StarshipFPGAConfig extends Config(
       x.copy(master = x.master.copy(size = site(VCU707DDRSizeKey))))
   })
 )
+
+class StarshipFPGADebugConfig extends Config(
+  new WithPeripherals ++
+  new WithJtagDTM ++
+  new WithClockGateModel() ++
+  new StarshipBaseConfig().alter((site,here,up) => {
+    //case DebugModuleKey => None
+    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
+    /* timebase-frequency = 1 MHz */
+    case DTSTimebase => BigInt(1000000L)
+    /* memory-size = 1 GB */
+    case MemoryXilinxDDRKey => XilinxVC707MIGParams(address = Seq(AddressSet(0x80000000L,site(VCU707DDRSizeKey)-1)))
+    case ExtMem => up(ExtMem, site).map(x => 
+      x.copy(master = x.master.copy(size = site(VCU707DDRSizeKey))))
+  })
+)

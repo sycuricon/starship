@@ -39,6 +39,7 @@ class StarshipSimTopModuleImp[+L <: StarshipSimTop](_outer: L) extends StarshipS
 
 
 class TestHarness()(implicit p: Parameters) extends Module {
+  
   val io = IO(new Bundle {
     val uart_tx = Output(Bool())
     val uart_rx = Input(Bool())
