@@ -313,27 +313,18 @@ VER_SRC_V	:= $(VER_TB_VLOG) \
 			   $(TB_DIR)/spike_difftest.v \
 			   $(TB_DIR)/tty.v
 
-TB_DEFINE			:= +define+MODEL=$(STARSHIP_TH)					\
+VER_DEFINE			:= +define+MODEL=$(STARSHIP_TH)					\
 						+define+TOP_DIR=\"$(VER_BUILD)\"			\
 						+define+INITIALIZE_MEMORY					\
 						+define+CLOCK_PERIOD=1.0	   				\
 						+define+DEBUG_VCD							\
 						+define+TARGET_$(STARSHIP_CORE)
 
-CHISEL_DEFINE := +define+PRINTF_COND=$(VER_TB).printf_cond	\
-			   	 +define+STOP_COND=!$(VER_TB).reset		    \
-				 +define+RANDOMIZE							\
-				 +define+RANDOMIZE_MEM_INIT					\
-				 +define+RANDOMIZE_REG_INIT					\
-				 +define+RANDOMIZE_GARBAGE_ASSIGN			\
-				 +define+RANDOMIZE_INVALID_ASSIGN			\
-				 +define+RANDOMIZE_DELAY=0.1
-
 VER_TOP		:= $(VER_TB)
 VER_SRCS 		:= $(shell cat $(ROCKET_INCLUDE)) $(VER_SRC_V) $(VER_SRC_C)
 VER_TFLAGS	:= -Wno-WIDTH -Wno-STMTDLY -Wno-fatal --timescale 1ns/10ps --trace --timing
 VER_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
-			   			+incdir+$(ROCKET_BUILD) +incdir+$(TB_DIR) $(CHISEL_DEFINE) $(TB_DEFINE)
+			   			+incdir+$(ROCKET_BUILD) +incdir+$(TB_DIR) $(CHISEL_DEFINE) $(VER_DEFINE)
 VER_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VER_TOP) --main -o $(VER_TOP) \
 						-CFLAGS "-DVL_DEBUG -DTOP=${VER_TOP} ${VCS_CFLAGS}"
 
@@ -348,7 +339,8 @@ $(VER_TARGET):$(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(
 	cd $(VER_BUILD); verilator $(VER_TFLAGS) $(VER_FLAGS) $(VER_OPTION) $(VER_SRCS)
 	make -C $(VER_BUILD) -f V$(VER_TOP).mk $(VER_TOP)
 	
-verilate: $(VER_TARGET) $(TESTCASE_HEX)
+verilate: 
+	# $(VER_TARGET) $(TESTCASE_HEX)
 	cd $(VER_BUILD); ./$(VER_TOP) $(VER_SIMOPTION)
 
 wave:
