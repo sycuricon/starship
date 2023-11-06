@@ -28,4 +28,4 @@ for (int i = 0; i < commits; i++) begin
     if (`PIPELINE.commit_ack[i] & `PIPELINE.commit_instr_id_commit[i].ex.valid & `PIPELINE.commit_instr_id_commit[i].ex.cause[63]) begin
         cosim_raise_trap(0, `PIPELINE.commit_instr_id_commit[i].ex.cause);
     end
-end            
+end
