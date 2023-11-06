@@ -24,6 +24,7 @@ import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
 class StarshipFPGATop(implicit p: Parameters) extends StarshipSystem
   with HasPeripheryUART
   with HasPeripherySPI
+  with HasPeripheryDebug
   with HasMemoryXilinxVC707MIG
 {
 
@@ -39,6 +40,7 @@ class StarshipFPGATop(implicit p: Parameters) extends StarshipSystem
   }
 
   override lazy val module = new StarshipFPGATopModuleImp(this)
+
 }
 
 class StarshipFPGATopModuleImp[+L <: StarshipFPGATop](_outer: L) extends StarshipSystemModuleImp(_outer)
@@ -48,7 +50,9 @@ class StarshipFPGATopModuleImp[+L <: StarshipFPGATop](_outer: L) extends Starshi
   with DontTouch
 
 class TestHarness(override implicit val p: Parameters) extends VC707Shell
-    with HasDDR3 {
+    with HasDDR3 
+    with HasDebugJTAG 
+    {
 
   dut_clock := (p(FPGAFrequencyKey) match {
     case 25 => clk25
@@ -58,16 +62,26 @@ class TestHarness(override implicit val p: Parameters) extends VC707Shell
   })
 
   withClockAndReset(dut_clock, dut_reset) {
-    val dut = Module(LazyModule(new StarshipFPGATop).module)
+    val top = LazyModule(new StarshipFPGATop)
+    val dut = Module(top.module)
     
     connectSPI      (dut)
     connectUART     (dut)
     connectMIG      (dut)
+    connectDebugJTAG(top)
+
+    val childReset = (dut_reset.asBool | top.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
+    dut.reset := childReset
 
     led := VecInit(0.U(8.W).asBools)
     dut_ndreset := 0.U
 
     dut.tieOffInterrupts()
     dut.dontTouchPorts()
+
+    top.resetctrl.foreach { rc =>
+      rc.hartIsInReset.foreach { _ := childReset }
+    }
+    Debug.connectDebugClockAndReset(top.debug, dut_clock)
   }
 }
