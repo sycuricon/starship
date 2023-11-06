@@ -189,8 +189,6 @@ SPIKE_BUILD		:= $(BUILD)/spike
 SPIKE_LIB		:= $(addprefix $(SPIKE_BUILD)/,libcosim.a libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a)
 SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
 			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
-SPIKE_CONFIG  	:= $(SPIKE_BUILD)/cj-config.h
-SPIKE_CONFIG_OPT = --testcase $(TESTCASE_ELF)
 
 export LD_LIBRARY_PATH=$(SPIKE_BUILD)
 
@@ -256,7 +254,7 @@ $(VCS_SIMV): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(V
 	$(MAKE) verilog-patch
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_BUILD); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(VCS_TB) \
-						 -f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
+		-f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
 	riscv64-unknown-elf-objcopy --gap-fill 0			\
@@ -291,64 +289,55 @@ verdi:
 #
 #######################################
 
-TB_DIR		:= $(ASIC)/testbench
-VER_BUILD	:= $(BUILD)/verilate
-VER_WAVE 	:= $(VER_BUILD)/wave
-VER_TARGET  := $(VER_BUILD)/$(VER_TOP)
+VLT_TB		?= Testbench
+VLT_BUILD	:= $(BUILD)/verilator
+VLT_WAVE 	:= $(VLT_BUILD)/wave
+VLT_TARGET  := $(VLT_BUILD)/$(VLT_TB)
 
-VER_TB		?= Testbench
-VER_INCLUDE	:= $(ROCKET_BUILD)+$(TB_DIR)
-VER_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
-VER_TB_VLOG ?= $(TB_DIR)/$(VER_TB).v
+VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
+VLT_TB_VLOG ?= $(TB_DIR)/$(VLT_TB).v
 
-TESTCASE_ELF	:= $(STARSHIP_TESTCASE)
-TESTCASE_BIN	:= $(shell mktemp)
-TESTCASE_HEX	:= $(STARSHIP_TESTCASE).hex
-
-VER_SRC_C	:= $(TB_DIR)/spike_difftest.cc \
+VLT_SRC_C	:= $(TB_DIR)/spike_difftest.cc \
 			   $(SPIKE_LIB) \
 			   $(TB_DIR)/timer.cc
 
-VER_SRC_V	:= $(VER_TB_VLOG) \
+VLT_SRC_V	:= $(VLT_TB_VLOG) \
 			   $(TB_DIR)/spike_difftest.v \
 			   $(TB_DIR)/tty.v
 
-VER_DEFINE			:= +define+MODEL=$(STARSHIP_TH)					\
-						+define+TOP_DIR=\"$(VER_BUILD)\"			\
-						+define+INITIALIZE_MEMORY					\
-						+define+CLOCK_PERIOD=1.0	   				\
-						+define+DEBUG_VCD							\
-						+define+TARGET_$(STARSHIP_CORE)
+VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
+			   +define+TOP_DIR=\"$(VLT_BUILD)\"			\
+			   +define+INITIALIZE_MEMORY				\
+			   +define+CLOCK_PERIOD=1.0	   				\
+			   +define+DEBUG_VCD						\
+			   +define+TARGET_$(STARSHIP_CORE)
 
-VER_TOP		:= $(VER_TB)
-VER_SRCS 		:= $(shell cat $(ROCKET_INCLUDE)) $(VER_SRC_V) $(VER_SRC_C)
-VER_TFLAGS	:= -Wno-WIDTH -Wno-STMTDLY -Wno-fatal --timescale 1ns/10ps --trace --timing
-VER_OPTION	:= +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 			\
-			   			+incdir+$(ROCKET_BUILD) +incdir+$(TB_DIR) $(CHISEL_DEFINE) $(VER_DEFINE)
-VER_FLAGS		:= --cc --exe --Mdir $(VER_BUILD) --top-module $(VER_TOP) --main -o $(VER_TOP) \
-						-CFLAGS "-DVL_DEBUG -DTOP=${VER_TOP} ${VCS_CFLAGS}"
+VLT_OPTION	:= -Wno-WIDTH -Wno-STMTDLY -Wno-fatal --timescale 1ns/10ps --trace --timing		\
+			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
+			   +incdir+$(ROCKET_BUILD) +incdir+$(TB_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)		\
+			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(VLT_TB) --main -o $(VLT_TB) 	\
+			   -CFLAGS "-DVL_DEBUG -DTOP=${VLT_TB} ${VLT_CFLAGS}"
+VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF)
 
-ver-wave: 		VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +dump 
-ver-jtag: 		VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +jtag_rbb_enable=1
-ver-jtag-debug: VER_SIMOPTION	:= +testcase=$(TESTCASE_ELF) +dump +jtag_rbb_enable=1
+vlt-wave: 		VLT_SIM_OPTION	+= +dump 
+vlt-jtag: 		VLT_SIM_OPTION	+= +jtag_rbb_enable=1
+vlt-jtag-debug: VLT_SIM_OPTION	+= +dump +jtag_rbb_enable=1
 
-$(VER_TARGET):$(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VER_SRC_V) $(VER_SRC_C) $(SPIKE_LIB) 
+$(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
-	mkdir -p $(VER_BUILD)
-	mkdir -p $(VER_BUILD)/wave/
-	cd $(VER_BUILD); verilator $(VER_TFLAGS) $(VER_FLAGS) $(VER_OPTION) $(VER_SRCS)
-	make -C $(VER_BUILD) -f V$(VER_TOP).mk $(VER_TOP)
+	mkdir -p $(VLT_BUILD) $(VLT_WAVE)
+	cd $(VLT_BUILD); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
+	make -C $(VLT_BUILD) -f V$(VLT_TB).mk $(VLT_TB)
 	
-verilate: 
-	# $(VER_TARGET) $(TESTCASE_HEX)
-	cd $(VER_BUILD); ./$(VER_TOP) $(VER_SIMOPTION)
+vlt: $(VLT_TARGET) $(TESTCASE_HEX)
+	cd $(VLT_BUILD); ./$(VLT_TB) $(VLT_SIM_OPTION)
 
-wave:
-	gtkwave $(VER_WAVE)/starship.vcd
+gtkwave:
+	gtkwave $(VLT_WAVE)/starship.vcd
 
-ver-wave: 		verilate
-ver-jtag: 		verilate
-ver-jtag-debug: verilate
+vlt-wave: 		vlt
+vlt-jtag: 		vlt
+vlt-jtag-debug: vlt
 
 #######################################
 #
