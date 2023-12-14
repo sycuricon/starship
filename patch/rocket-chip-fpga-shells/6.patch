@@ -1,0 +1,32 @@
+diff --git a/src/main/scala/shell/xilinx/VC707Shell.scala b/src/main/scala/shell/xilinx/VC707Shell.scala
+index 0fc8931..69f4882 100644
+--- a/src/main/scala/shell/xilinx/VC707Shell.scala
++++ b/src/main/scala/shell/xilinx/VC707Shell.scala
+@@ -86,12 +86,23 @@ trait HasDebugJTAG { this: VC707Shell =>
+       ElaborationArtefacts.add(
+         """vc707debugjtag.xdc""",
+         """set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets jtag_TCK]
+-           set_property -dict { PACKAGE_PIN R32  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TCK}]
+-           set_property -dict { PACKAGE_PIN W36  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TMS}]
+-           set_property -dict { PACKAGE_PIN W37  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDI}]
+-           set_property -dict { PACKAGE_PIN V40  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDO}]
++           set_property -dict { PACKAGE_PIN BB24  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TCK}]
++           set_property -dict { PACKAGE_PIN BA21  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TMS}]
++           set_property -dict { PACKAGE_PIN BB21  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDI}]
++           set_property -dict { PACKAGE_PIN BB23  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDO}]
+            create_clock -add -name JTCK        -period 100   -waveform {0 50} [get_ports {jtag_TCK}];"""
+       )
++      // """set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets jtag_TCK]
++      //      set_property -dict { PACKAGE_PIN R32  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TCK}]
++      //      set_property -dict { PACKAGE_PIN W36  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TMS}]
++      //      set_property -dict { PACKAGE_PIN W37  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDI}]
++      //      set_property -dict { PACKAGE_PIN V40  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDO}]
++      //      create_clock -add -name JTCK        -period 100   -waveform {0 50} [get_ports {jtag_TCK}];"""
++      //
++      //           14 VCC   17 GPIO1 TDI   BB21
++      //           16 GND   18 GPIO0 TMS   BA21
++      //  17 DI    18 MS    19 GPIO3 TDO   BB24
++      //  19 DO    20 CLK   20 GPIO2 TCLK  BB23
+     } else {
+       //VC707 constraints for Olimex connect to LCD panel header
+      ElaborationArtefacts.add(
