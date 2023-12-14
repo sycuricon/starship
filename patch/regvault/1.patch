@@ -1,0 +1,969 @@
+diff --git a/src/main/scala/rocc/PointerEncryption.scala b/src/main/scala/rocc/PointerEncryption.scala
+new file mode 100644
+index 000000000..c9889c837
+--- /dev/null
++++ b/src/main/scala/rocc/PointerEncryption.scala
+@@ -0,0 +1,259 @@
++package freechips.rocketchip.rocc.pec
++
++import chisel3._
++import chisel3.util._
++import org.chipsalliance.cde.config._
++import freechips.rocketchip.tile._
++import freechips.rocketchip.rocc.qaram._
++import freechips.rocketchip.diplomacy._
++
++class PointerEncryption(opcodes: OpcodeSet)(implicit p: Parameters)
++    extends LazyRoCC(opcodes)
++    with HasCoreParameters {
++      override val roccCSRs = Seq(
++        CustomCSR(0x7f0,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x7f1,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f0,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f1,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f2,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f3,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f4,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f5,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f6,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f7,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f8,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5f9,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5fa,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5fb,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5fc,BigInt(1),Some(BigInt(0))),
++        CustomCSR(0x5fd,BigInt(1),Some(BigInt(0)))
++      )
++      val nRoCCCSRs = roccCSRs.size
++      override lazy val module = new PointerEncryptionMultiCycleImp(this)
++}
++
++class PointerEncryptionSingleCycleImp(outer: PointerEncryption)(implicit p: Parameters)
++  extends LazyRoCCModuleImp(outer)
++  with HasCoreParameters
++{
++  val pec_engine = Module(new QarmaSingleCycle(7))
++
++  val keyval = Wire(Vec(outer.nRoCCCSRs,UInt(64.W)))
++  for(i <- 0 until outer.nRoCCCSRs){
++    io.csrs(i).sdata := 0.U(64.W)
++    io.csrs(i).set := false.B
++    io.csrs(i).stall := false.B
++    keyval(i) := Mux(io.csrs(i).wen, io.csrs(i).wdata, io.csrs(i).value)
++  }
++  val csr_mcrmkeyl = keyval(0)
++  val csr_mcrmkeyh = keyval(1)
++  val csr_scrtkeyl = keyval(2)
++  val csr_scrtkeyh = keyval(3)
++  val csr_scrakeyl = keyval(4)
++  val csr_scrakeyh = keyval(5)
++  val csr_scrbkeyl = keyval(6)
++  val csr_scrbkeyh = keyval(7)
++  val csr_scrckeyl = keyval(8)
++  val csr_scrckeyh = keyval(9)
++  val csr_scrdkeyl = keyval(10)
++  val csr_scrdkeyh = keyval(11)
++  val csr_screkeyl = keyval(12)
++  val csr_screkeyh = keyval(13)
++  val csr_scrfkeyl = keyval(14)
++  val csr_scrfkeyh = keyval(15)
++
++  val keyindex = Wire(UInt(3.W))
++  keyindex := Cat(io.cmd.bits.inst.xd, io.cmd.bits.inst.xs1, io.cmd.bits.inst.xs2)
++  pec_engine.io.input.bits.keyh := MuxLookup(keyindex, csr_scrtkeyh, Seq(
++    "b000".U -> csr_scrtkeyh,
++    "b001".U -> csr_mcrmkeyh,
++    "b010".U -> csr_scrakeyh,
++    "b011".U -> csr_scrbkeyh,
++    "b100".U -> csr_scrckeyh,
++    "b101".U -> csr_scrdkeyh,
++    "b110".U -> csr_screkeyh,
++    "b111".U -> csr_scrfkeyh
++  ))
++
++  pec_engine.io.input.bits.keyl := MuxLookup(keyindex, csr_scrtkeyl, Seq(
++    "b000".U -> csr_scrtkeyl,
++    "b001".U -> csr_mcrmkeyl,
++    "b010".U -> csr_scrakeyl,
++    "b011".U -> csr_scrbkeyl,
++    "b100".U -> csr_scrckeyl,
++    "b101".U -> csr_scrdkeyl,
++    "b110".U -> csr_screkeyl,
++    "b111".U -> csr_scrfkeyl
++  ))
++
++  val begin = Wire(UInt(3.W))
++  val end = Wire(UInt(3.W))
++  val smallbefore = Wire(Bool())
++  smallbefore := io.cmd.bits.inst.funct(3,1) <= io.cmd.bits.inst.funct(6,4)
++  begin := Mux(smallbefore, io.cmd.bits.inst.funct(3,1), io.cmd.bits.inst.funct(6,4))
++  end := Mux(smallbefore, io.cmd.bits.inst.funct(6,4), io.cmd.bits.inst.funct(3,1))
++
++  val mask = Wire(Vec(8,UInt(8.W)))
++  val mask_text = Wire(UInt(64.W))
++  for(i <- 0 until 8){
++    mask(i) := Fill(8, i.asUInt >= begin && i.asUInt <= end)
++  }
++  mask_text := mask.asTypeOf(UInt(64.W))
++
++  pec_engine.io.input.bits.text          := Mux(~io.cmd.bits.inst.funct(0), io.cmd.bits.rs1 & mask_text, io.cmd.bits.rs1)
++  pec_engine.io.input.bits.tweak         := io.cmd.bits.rs2
++  pec_engine.io.input.bits.actual_round  := 7.U(3.W)
++  pec_engine.io.input.bits.encrypt       := ~io.cmd.bits.inst.funct(0)
++  pec_engine.io.input.valid              := io.cmd.fire()
++  pec_engine.io.output.ready             := true.B
++
++  io.resp.bits.rd                     := io.cmd.bits.inst.rd
++  io.resp.bits.data                   := pec_engine.io.output.bits.result
++
++  val except_examine = Wire(Bool())
++  except_examine := Mux(pec_engine.io.output.bits.decrypt, (pec_engine.io.output.bits.result & ~mask_text) =/= 0.U(64.W), false.B) | ~smallbefore
++
++  io.cmd.ready  := io.resp.ready
++  io.busy       := io.cmd.valid
++  io.resp.valid := io.cmd.valid
++
++  // Disable unused interfaces
++  io.interrupt      := false.B
++  io.mem.req.valid  := false.B
++}
++
++class PointerEncryptionMultiCycleImp(outer: PointerEncryption)(implicit p: Parameters)
++  extends LazyRoCCModuleImp(outer)
++  with HasCoreParameters
++{
++  val pec_engine = Module(new QarmaMultiCycle(7))
++
++  val keyval = Wire(Vec(outer.nRoCCCSRs,UInt(64.W)))
++  for(i <- 0 until outer.nRoCCCSRs){
++    io.csrs(i).sdata := 0.U(64.W)
++    io.csrs(i).set := false.B
++    io.csrs(i).stall := false.B
++    keyval(i) := Mux(io.csrs(i).wen, io.csrs(i).wdata, io.csrs(i).value)
++  }
++  val csr_mcrmkeyl = keyval(0)
++  val csr_mcrmkeyh = keyval(1)
++  val csr_scrtkeyl = keyval(2)
++  val csr_scrtkeyh = keyval(3)
++  val csr_scrakeyl = keyval(4)
++  val csr_scrakeyh = keyval(5)
++  val csr_scrbkeyl = keyval(6)
++  val csr_scrbkeyh = keyval(7)
++  val csr_scrckeyl = keyval(8)
++  val csr_scrckeyh = keyval(9)
++  val csr_scrdkeyl = keyval(10)
++  val csr_scrdkeyh = keyval(11)
++  val csr_screkeyl = keyval(12)
++  val csr_screkeyh = keyval(13)
++  val csr_scrfkeyl = keyval(14)
++  val csr_scrfkeyh = keyval(15)
++
++  val keyindex = Wire(UInt(3.W))
++  val keyh = Wire(UInt(64.W))
++  keyindex := Cat(io.cmd.bits.inst.xd, io.cmd.bits.inst.xs1, io.cmd.bits.inst.xs2)
++  keyh := MuxLookup(keyindex, csr_scrtkeyh, Seq(
++    "b000".U -> csr_scrtkeyh,
++    "b001".U -> csr_mcrmkeyh,
++    "b010".U -> csr_scrakeyh,
++    "b011".U -> csr_scrbkeyh,
++    "b100".U -> csr_scrckeyh,
++    "b101".U -> csr_scrdkeyh,
++    "b110".U -> csr_screkeyh,
++    "b111".U -> csr_scrfkeyh
++  ))
++
++  val keyl = Wire(UInt(64.W))
++  keyl := MuxLookup(keyindex, csr_scrtkeyl, Seq(
++    "b000".U -> csr_scrtkeyl,
++    "b001".U -> csr_mcrmkeyl,
++    "b010".U -> csr_scrakeyl,
++    "b011".U -> csr_scrbkeyl,
++    "b100".U -> csr_scrckeyl,
++    "b101".U -> csr_scrdkeyl,
++    "b110".U -> csr_screkeyl,
++    "b111".U -> csr_scrfkeyl
++  ))
++
++  val begin = Wire(UInt(3.W))
++  val end = Wire(UInt(3.W))
++  val smallbefore = Wire(Bool())
++  smallbefore := io.cmd.bits.inst.funct(3,1) <= io.cmd.bits.inst.funct(6,4)
++  begin := Mux(smallbefore, io.cmd.bits.inst.funct(3,1), io.cmd.bits.inst.funct(6,4))
++  end := Mux(smallbefore, io.cmd.bits.inst.funct(6,4), io.cmd.bits.inst.funct(3,1))
++
++  val mask = Wire(Vec(8,UInt(8.W)))
++  val mask_text = Wire(UInt(64.W))
++  val text = Wire(UInt(64.W))
++  for(i <- 0 until 8){
++    mask(i) := Fill(8, i.asUInt >= begin && i.asUInt <= end)
++  }
++  mask_text := mask.asTypeOf(UInt(64.W))
++  text := Mux(~io.cmd.bits.inst.funct(0), io.cmd.bits.rs1 & mask_text, io.cmd.bits.rs1)
++
++  val reg_rd = RegInit(0.U(5.W))
++  val reg_busy = RegInit(false.B)
++  val reg_resp = RegInit(false.B)
++  val reg_result = RegInit(0.U(xLen.W))
++  val reg_decrypt = RegInit(false.B)
++  val reg_text  = RegInit(0.U(xLen.W))
++  val reg_tweak = RegInit(0.U(xLen.W))
++  val reg_mask = RegInit(0.U(xLen.W))
++  val reg_keyh = RegInit(0.U(xLen.W))
++  val reg_keyl = RegInit(0.U(xLen.W))
++  val reg_encrypt = RegInit(false.B)
++  val reg_valid = RegInit(false.B)
++
++  pec_engine.io.input.bits.text          := reg_text
++  pec_engine.io.input.bits.tweak         := reg_tweak
++  pec_engine.io.input.bits.keyl          := reg_keyl
++  pec_engine.io.input.bits.keyh          := reg_keyh
++  pec_engine.io.input.bits.actual_round  := 7.U(3.W)
++  pec_engine.io.input.bits.encrypt       := reg_encrypt
++  pec_engine.io.input.valid              := reg_valid
++  pec_engine.io.output.ready             := pec_engine.io.output.valid
++
++  when(io.cmd.fire()){
++    reg_valid := true.B
++    reg_busy := true.B
++    reg_rd := io.cmd.bits.inst.rd
++    reg_keyh := keyh
++    reg_keyl := keyl
++    reg_text := text
++    reg_mask := mask_text
++    reg_tweak := io.cmd.bits.rs2
++    reg_encrypt := ~io.cmd.bits.inst.funct(0)
++  }
++
++  when(pec_engine.io.output.valid){
++    reg_result := pec_engine.io.output.bits.result
++    reg_resp := true.B
++    reg_decrypt := pec_engine.io.output.bits.decrypt
++  }
++
++  when(io.resp.fire()){
++    reg_valid := false.B
++    reg_busy := false.B
++    reg_resp := false.B
++  }
++
++  when(reg_valid){
++    reg_valid := false.B
++  }
++
++  val except_examine = Wire(Bool())
++  except_examine := Mux(reg_decrypt, (reg_result & ~reg_mask) =/= 0.U(64.W), false.B) | ~smallbefore
++
++  io.resp.bits.rd   := reg_rd
++  io.resp.bits.data := reg_result
++  io.cmd.ready  := !reg_busy
++  io.busy       := reg_busy
++  io.resp.valid := reg_resp
++
++  // Disable unused interfaces
++  io.interrupt      := false.B
++  io.mem.req.valid  := false.B
++}
+\ No newline at end of file
+diff --git a/src/main/scala/rocc/QARMA.scala b/src/main/scala/rocc/QARMA.scala
+new file mode 100644
+index 000000000..15d8aaa68
+--- /dev/null
++++ b/src/main/scala/rocc/QARMA.scala
+@@ -0,0 +1,553 @@
++package freechips.rocketchip.rocc.qaram
++
++import chisel3._
++import chisel3.util._
++
++trait QarmaParams {
++    val debug = false
++    val ppldbg = false
++    val superscalar = false
++    val ds = false
++
++    val n = 64
++    val m= n/16
++    val sbox_number = 2
++    val check_box = Array(
++        "hc003b93999b33765".U,
++        "h270a787275c48d10".U,
++        "h5c06a7501b63b2fd".U
++    )
++    val alpha = "hC0AC29B7C97C50DD".U
++    val c = VecInit(
++        "h0000000000000000".U, "h13198A2E03707344".U, "hA4093822299F31D0".U, "h082EFA98EC4E6C89".U,
++        "h452821E638D01377".U, "hBE5466CF34E90C6C".U, "h3F84D5B5B5470917".U, "h9216D5D98979FB1B".U
++    )
++    val sbox = Array(
++        VecInit(0.U(4.W), 14.U(4.W), 2.U(4.W), 10.U(4.W), 9.U(4.W), 15.U(4.W), 8.U(4.W), 11.U(4.W), 6.U(4.W), 4.U(4.W), 3.U(4.W), 7.U(4.W), 13.U(4.W), 12.U(4.W), 1.U(4.W), 5.U(4.W)),
++        VecInit(10.U(4.W), 13.U(4.W), 14.U(4.W), 6.U(4.W), 15.U(4.W), 7.U(4.W), 3.U(4.W), 5.U(4.W), 9.U(4.W), 8.U(4.W), 0.U(4.W), 12.U(4.W), 11.U(4.W), 1.U(4.W), 2.U(4.W), 4.U(4.W)),
++        VecInit(11.U(4.W), 6.U(4.W), 8.U(4.W), 15.U(4.W), 12.U(4.W), 0.U(4.W), 9.U(4.W), 14.U(4.W), 3.U(4.W), 7.U(4.W), 4.U(4.W), 5.U(4.W), 13.U(4.W), 2.U(4.W), 1.U(4.W), 10.U(4.W))
++    )
++    val sbox_inv = Array(
++        VecInit(0.U, 14.U, 2.U, 10.U, 9.U, 15.U, 8.U, 11.U, 6.U, 4.U, 3.U, 7.U, 13.U, 12.U, 1.U, 5.U),
++        VecInit(10.U, 13.U, 14.U, 6.U, 15.U, 7.U, 3.U, 5.U, 9.U, 8.U, 0.U, 12.U, 11.U, 1.U, 2.U, 4.U),
++        VecInit(5.U, 14.U, 13.U, 8.U, 10.U, 11.U, 1.U, 9.U, 2.U, 6.U, 15.U, 0.U, 4.U, 12.U, 7.U, 3.U)
++    )
++    val t = Array(0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
++    val t_inv = Array(0, 5, 15, 10, 13, 8, 2, 7, 11, 14, 4, 1, 6, 3, 9, 12)
++    val h = Array(6, 5, 14, 15, 0, 1, 2, 3, 7, 12, 13, 4, 8, 9, 10, 11)
++    val h_inv = Array(4, 5, 6, 7, 11, 1, 0, 8, 12, 13, 14, 15, 9, 10, 2, 3)
++
++    val M = Array(
++        0, 1, 2, 1,
++        1, 0, 1, 2,
++        2, 1, 0, 1,
++        1, 2, 1, 0
++    )
++
++    def lfsr_operation(operand:UInt): UInt = {
++        Cat(operand(1)^operand(0),operand(3,1))
++    }
++
++    def lfsr_inv_operation(operand:UInt): UInt = {
++        Cat(operand(2,0),operand(0)^operand(3))
++    }
++
++    def o_operation(operand: UInt): UInt = {
++        Cat(operand(0), operand(operand.getWidth - 1, 1)) ^ (operand >> (n - 1).asUInt).asUInt
++    }
++
++    def log(round: Int, num1: UInt, num2: UInt): Unit = {
++        if (debug) {
++            printf("cp %d\tis=%x tk=%x\n", round.asUInt, num1, num2)
++        }
++    }
++
++    val code_map_width = 2
++    val code_map = Map(
++        "end" -> 0.U(code_map_width.W),
++        "forward" -> 1.U(code_map_width.W),
++        "reflect" -> 2.U(code_map_width.W),
++        "backward" -> 3.U(code_map_width.W)
++    )
++}
++
++class MixColumnOperatorIO extends Bundle {
++    val in = Input(UInt(64.W))
++    val out = Output(UInt(64.W))
++}
++
++class MixColumnOperator extends Module with QarmaParams {
++    val io = IO(new MixColumnOperatorIO)
++
++    val perm = Wire(Vec(16,UInt(4.W)))
++    perm := io.in.asTypeOf(Vec(16,UInt(4.W)))
++
++    val tmp_vec = Wire(Vec(16,Vec(4,UInt(4.W))))
++    val res_vec = Wire(Vec(16,UInt(4.W)))
++
++    for(x<- 0 until 4; y <- 0 until 4){
++        for(j <- 0 until 4){
++            val a = perm(15 - (4 * j + y)).asUInt
++            val b = M(4 * x + j)
++            when(b.asUInt =/= 0.U){
++                tmp_vec(15 - (4 * x + y))(j) := Cat(a(3-b,0),a(3,3-b)) >> 1.U
++            }.otherwise{
++                tmp_vec(15 - (4 * x + y))(j) := 0.U
++            }
++        }
++        res_vec(15 - ( 4 * x + y)) := tmp_vec(15 - (4 * x + y)).reduce((a,b) => (a^b).asUInt)
++    }
++    io.out := res_vec.asTypeOf(UInt(64.W))
++}
++
++class TweakIO extends Bundle {
++    val old_tk = Input(UInt(64.W))
++    val new_tk = Output(UInt(64.W))
++}
++
++class ForwardTweakUpdateOperator extends Module with QarmaParams {
++    val io = IO(new TweakIO)
++    val tmp_vec = Wire(Vec(16,UInt(4.W)))
++    val res_vec = Wire(Vec(16,UInt(4.W)))
++
++    val cell = Wire(Vec(16,UInt(4.W)))
++    cell := io.old_tk.asTypeOf(Vec(16,UInt(4.W)))
++
++    for(i <- 0 until 16){
++        tmp_vec(15 - i) := cell(15 - h(i))
++    }
++
++    for(i <- 0 until 16){
++        if(Set(0,1,3,4,8,11,13).contains(i)){
++            res_vec(15 - i) := lfsr_operation(tmp_vec(15 - i))
++        }else{
++            res_vec(15 - i) := tmp_vec(15 - i)
++        }
++    }
++
++    io.new_tk := res_vec.asTypeOf(UInt(64.W))
++}
++
++class BackwardTweakUpdateOperator extends Module with QarmaParams {
++    val io = IO(new TweakIO)
++    val tmp_vec = Wire(Vec(16,UInt(4.W)))
++    val res_vec = Wire(Vec(16,UInt(4.W)))
++
++    val cell = Wire(Vec(16,UInt(4.W)))
++    cell := io.old_tk.asTypeOf(Vec(16,UInt(4.W)))
++
++    for(i <- 0 until 16){
++        if(Set(0,1,3,4,8,11,13).contains(i)){
++            tmp_vec(15 - i) := lfsr_inv_operation(cell(15 - i))
++        }else{
++            tmp_vec(15 - i) := cell(15 - i)
++        }
++    }
++
++    for(i <- 0 until 16){
++        res_vec(15 - i) := tmp_vec(15 - h_inv(i))
++    }
++
++    io.new_tk := res_vec.asTypeOf(UInt(64.W))
++}
++
++class OperatorIO extends Bundle {
++    val is = Input(UInt(64.W))
++    val tk = Input(UInt(64.W))
++    val round_zero = Input(Bool())
++    val out = Output(UInt(64.W))
++}
++
++class ForwardOperator extends Module with QarmaParams {
++    val io = IO(new OperatorIO)
++
++    val tmp_is = Wire(UInt(64.W))
++    tmp_is := io.is^io.tk
++
++    val cell = Wire(Vec(16,UInt(4.W)))
++    cell := tmp_is.asTypeOf(Vec(16,UInt(4.W)))
++
++    val perm = Wire(Vec(16,UInt(4.W)))
++    for(i <- 0 until 16){
++        perm(15 - i) := cell(15 - t(i))
++    }
++
++    val mix_column_is = Wire(UInt(64.W))
++    val mix_column_operator = Module(new MixColumnOperator)
++    mix_column_operator.io.in := perm.asTypeOf(UInt(64.W))
++    mix_column_is := mix_column_operator.io.out
++
++    val mux_is = Wire(UInt(64.W))
++    mux_is := Mux(io.round_zero,tmp_is,mix_column_is)
++    val cell_final = Wire(Vec(16,UInt(4.W)))
++    cell_final := mux_is.asTypeOf(Vec(16,UInt(4.W)))
++
++    val res_vec = Wire(Vec(16,UInt(4.W)))
++    for(i <- 0 until 16){
++        res_vec(15 - i) := sbox(sbox_number)(cell_final(15 - i))
++    }
++
++    io.out := res_vec.asTypeOf(UInt(64.W))
++}
++
++class BackwardOperator extends Module with QarmaParams{
++    val io = IO(new OperatorIO)
++    val cell = Wire(Vec(16,UInt(4.W)))
++    cell := io.is.asTypeOf(Vec(16,UInt(4.W)))
++
++    val sub_cell = Wire(Vec(16,UInt(4.W)))
++    for(i <- 0 until 16){
++        sub_cell(15 - i) := sbox_inv(sbox_number)(cell(15 - i))
++    }
++
++    val mix_column_is = Wire(UInt(64.W))
++    val mix_column = Module(new MixColumnOperator)
++    mix_column.io.in := sub_cell.asTypeOf(UInt(64.W))
++    mix_column_is := mix_column.io.out
++
++    val mixc = Wire(Vec(16,UInt(4.W)))
++    mixc := mix_column_is.asTypeOf(Vec(16,UInt(4.W)))
++
++    val shuffle_cell = Wire(Vec(16,UInt(4.W)))
++    for(i <- 0 until 16){
++        shuffle_cell(15 - i) := mixc(15 - t_inv(i))
++    }
++
++    val final_cell = Wire(Vec(16,UInt(4.W)))
++    final_cell := Mux(io.round_zero,sub_cell,shuffle_cell)
++    val tmp_is = Wire(UInt(64.W))
++    tmp_is := final_cell.asTypeOf(UInt(64.W))
++
++    io.out := tmp_is ^ io.tk
++}
++
++class PseudoReflectOperatorIO extends Bundle {
++    val is = Input(UInt(64.W))
++    val tk = Input(UInt(64.W))
++    val out = Output(UInt(64.W))
++}
++
++class PseudoReflectOperator extends Module with QarmaParams {
++    val io = IO(new PseudoReflectOperatorIO)
++    val cell = Wire(Vec(16,UInt(4.W)))
++    val perm = Wire(Vec(16,UInt(4.W)))
++    cell := io.is.asTypeOf(Vec(16,UInt(4.W)))
++
++    for(i <- 0 until 16){
++        perm(15 - i) := cell(15 - t(i))
++    }
++
++    val mix_column_res = Wire(UInt(64.W))
++    val mix_column = Module(new MixColumnOperator)
++    mix_column.io.in := perm.asTypeOf(UInt(64.W))
++    mix_column_res := mix_column.io.out
++
++    val mix_column_cell = Wire(Vec(16,UInt(4.W)))
++    val cell_final = Wire(Vec(16,UInt(4.W)))
++    val perm_final = Wire(Vec(16,UInt(4.W)))
++    mix_column_cell := mix_column_res.asTypeOf(Vec(16,UInt(4.W)))
++    for(i <- 0 until 16){
++        val key_base = 4*(15 - i)
++        cell_final(15 - i) := mix_column_cell(15 - i) ^ io.tk(key_base+3, key_base)
++        perm_final(15 - i) := cell_final(15 - t_inv(i))
++    }
++
++    io.out := perm_final.asTypeOf(UInt(64.W))
++}
++
++class MetaBundle(max_round: Int) extends Bundle with QarmaParams {
++    val valid = Bool()
++    val done = Bool()
++    val pointer = UInt(log2Ceil(code_map_width * (max_round * 2 + 2)).W)
++}
++
++class DataBundle(max_round: Int, step_len: Int) extends Bundle with QarmaParams {
++    //describe what the FSM should do on each cycle by code_width
++    //the full stage consist of max_round*forward+reflect+max_round*backword+end
++    //the unit can process step_len stage forward and backward in one cycle
++    //so the final cycle is ((max_round + step_len - 1) / step_len * 2 + 2)
++    //the state describle length is code_map_width * ((max_round + step_len - 1) / step_len * 2 + 2)
++    val code = UInt((code_map_width * ((max_round + step_len - 1) / step_len * 2 + 2)).W)
++    //when to stop when remaining stage number is smaller than step_len
++    val step_end = UInt((log2Ceil(step_len) * ((max_round + step_len - 1) / step_len * 2 + 2)).W)
++    val is = UInt(64.W)
++    val tk = UInt(64.W)
++    val k0 = UInt(64.W)
++    val k1 = UInt(64.W)
++    val w0 = UInt(64.W)
++    val w1 = UInt(64.W)
++}
++
++class ExecutionContext(max_round: Int = 7, depth: Int=0, port: Int = 0, step_len: Int)
++    extends Module with QarmaParams {
++
++    if(port != 0 && port != 1 && port != 2){
++        println("Variable read_port in ExecutionContext should be in [1, 2].")
++        sys.exit(-1)
++    }
++
++    //the pipeline process unit in unit
++    //the unit can process slot_depth instruction together
++    val slot_depth = if(depth == 0){ if(superscalar) 2 else 1 } else depth
++    val read_write_port = if (port == 0) slot_depth else port
++    val code_width = code_map_width * ((max_round + step_len - 1) / step_len * 2 + 2)
++    val valid_width = 1
++    val done_width = 1
++    val data_width = 64 * 6
++    val pointer_width = log2Ceil(code_width)
++    val data_slot_width = new DataBundle(max_round, step_len).getWidth
++    val meta_slot_width = new MetaBundle(max_round).getWidth
++
++    val io = IO(new Bundle{
++        val input =new Bundle {
++            val new_data = Input(Vec(slot_depth, new DataBundle(max_round, step_len)))
++            val new_meta = Input(Vec(slot_depth, new MetaBundle(max_round)))
++            val update = Input(Vec(slot_depth, Bool()))
++        }
++        val output = new Bundle {
++            val old_data = Input(Vec(slot_depth, new DataBundle(max_round, step_len)))
++            val old_meta = Input(Vec(slot_depth, new MetaBundle(max_round)))
++        }
++    })
++
++    val data = RegInit(VecInit(Seq.fill(slot_depth)(0.U(data_slot_width.W))))
++    val meta = RegInit(VecInit(Seq.fill(slot_depth)(0.U(meta_slot_width.W))))
++
++    for(i <- 0 until slot_depth){
++        when(io.input.update(i)){
++            meta(i) := io.input.new_meta(i).asUInt
++            data(i) := io.input.new_data(i).asUInt
++        }
++    }
++
++    for(i <- 0 until slot_depth){
++        io.output.old_meta := meta(i).asTypeOf(new MetaBundle(max_round))
++        io.output.old_data := data(i).asTypeOf(new DataBundle(max_round,step_len))
++    }
++}
++
++trait QarmaParamsIO extends Module with QarmaParams {
++    val io = IO(new Bundle{
++        val input = Flipped(Decoupled(new Bundle{
++            val encrypt = Bool()
++            val keyh = UInt(64.W)
++            val keyl = UInt(64.W)
++            val tweak = UInt(64.W)
++            val text = UInt(64.W)
++            val actual_round = UInt(3.W)
++        }))
++        val output = Decoupled(new Bundle{
++            val result = UInt(64.W)
++            val decrypt = Bool()
++        })
++    })
++}
++
++class QarmaSingleCycle(max_round: Int = 7) extends QarmaParamsIO {
++    val mix_column = Module(new MixColumnOperator)
++    mix_column.io.in := io.input.bits.keyl
++    val w0 = Mux(io.input.bits.encrypt, io.input.bits.keyh, o_operation(io.input.bits.keyh))
++    val k0 = Mux(io.input.bits.encrypt, io.input.bits.keyl, io.input.bits.keyl^alpha.asUInt)
++    val w1 = Mux(io.input.bits.encrypt, o_operation(io.input.bits.keyh), io.input.bits.keyh)
++    val k1 = Mux(io.input.bits.encrypt, io.input.bits.keyl, mix_column.io.out)
++
++    val is_vec = Wire(Vec(max_round * 2 + 4, UInt(64.W)))
++    val tk_vec = Wire(Vec(max_round * 2 + 4, UInt(64.W)))
++    val forward_operator_vec = Array.fill(max_round + 1)(Module(new ForwardOperator).io)
++    val forward_tweak_update_operator_vec = Array.fill(max_round)(Module(new ForwardTweakUpdateOperator).io)
++    val reflector = Module(new PseudoReflectOperator).io
++    val backward_operator_vec = Array.fill(max_round + 1)(Module(new BackwardOperator).io)
++    val backward_tweak_update_operator_vec = Array.fill(max_round)(Module(new BackwardTweakUpdateOperator).io)
++    var wire_index = 0
++    var module_index = 0
++
++    is_vec(wire_index) := io.input.bits.text ^ w0
++    tk_vec(wire_index) := io.input.bits.tweak
++    log(0, is_vec(wire_index), tk_vec(wire_index))
++    for(i <- 0 until max_round){
++        forward_operator_vec(module_index).is := is_vec(wire_index)
++        forward_operator_vec(module_index).tk := tk_vec(wire_index) ^ k0 ^ c(i.asUInt)
++        forward_operator_vec(module_index).round_zero := i.asUInt === 0.U
++        forward_tweak_update_operator_vec(module_index).old_tk := tk_vec(wire_index)
++        wire_index = wire_index + 1
++        is_vec(wire_index) := Mux(i.asUInt < io.input.bits.actual_round, forward_operator_vec(module_index).out, is_vec(wire_index - 1))
++        tk_vec(wire_index) := Mux(i.asUInt < io.input.bits.actual_round, forward_tweak_update_operator_vec(module_index).new_tk, tk_vec(wire_index - 1))
++        module_index = module_index + 1
++        log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    }
++
++    forward_operator_vec(module_index).is := is_vec(wire_index)
++    forward_operator_vec(module_index).tk := tk_vec(wire_index) ^ w1
++    forward_operator_vec(module_index).round_zero := false.B
++    wire_index = wire_index + 1
++    is_vec(wire_index) := forward_operator_vec(module_index).out
++    tk_vec(wire_index) := tk_vec(wire_index - 1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++
++    reflector.is := is_vec(wire_index)
++    reflector.tk := k1
++    wire_index = wire_index + 1
++    is_vec(wire_index) := reflector.out
++    tk_vec(wire_index) := tk_vec(wire_index - 1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++
++    backward_operator_vec(module_index).is := is_vec(wire_index)
++    backward_operator_vec(module_index).tk := tk_vec(wire_index) ^ w0
++    backward_operator_vec(module_index).round_zero := false.B
++    wire_index = wire_index + 1
++    is_vec(wire_index) := backward_operator_vec(module_index).out
++    tk_vec(wire_index) := tk_vec(wire_index - 1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    module_index = 0
++
++    for(j <- 0 until max_round){
++        val i = max_round -j -1
++        backward_tweak_update_operator_vec(module_index).old_tk := tk_vec(wire_index)
++        tk_vec(wire_index + 1) := Mux(i.asUInt < io.input.bits.actual_round, backward_tweak_update_operator_vec(module_index).new_tk, tk_vec(wire_index))
++        backward_operator_vec(module_index).is := is_vec(wire_index)
++        backward_operator_vec(module_index).tk := tk_vec(wire_index + 1) ^ k0 ^ alpha.asUInt ^ c(i.asUInt)
++        backward_operator_vec(module_index).round_zero := i.asUInt === 0.U
++        is_vec(wire_index + 1) := Mux(i.asUInt < io.input.bits.actual_round, backward_operator_vec(module_index).out, is_vec(wire_index))
++        wire_index = wire_index + 1
++        module_index = module_index + 1
++        log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    }
++
++    io.output.bits.result := is_vec(wire_index) ^ w1
++    io.output.bits.decrypt := ~io.input.bits.encrypt & io.input.valid
++    io.output.valid := true.B
++    io.input.ready := true.B
++}
++
++class QarmaMultiCycle(max_round: Int = 7) extends QarmaParamsIO {
++    val mix_column = Module(new MixColumnOperator)
++    mix_column.io.in := io.input.bits.keyl
++    val w0 = Mux(io.input.bits.encrypt, io.input.bits.keyh, o_operation(io.input.bits.keyh))
++    val k0 = Mux(io.input.bits.encrypt, io.input.bits.keyl, io.input.bits.keyl^alpha.asUInt)
++    val w1 = Mux(io.input.bits.encrypt, o_operation(io.input.bits.keyh), io.input.bits.keyh)
++    val k1 = Mux(io.input.bits.encrypt, io.input.bits.keyl, mix_column.io.out)
++
++    val is_vec = Wire(Vec(max_round * 2 + 5, UInt(64.W)))
++    val tk_vec = Wire(Vec(max_round * 2 + 5, UInt(64.W)))
++    val forward_operator_vec = Array.fill(max_round + 1)(Module(new ForwardOperator).io)
++    val forward_tweak_update_operator_vec = Array.fill(max_round)(Module(new ForwardTweakUpdateOperator).io)
++    val reflector = Module(new PseudoReflectOperator).io
++    val backward_operator_vec = Array.fill(max_round + 1)(Module(new BackwardOperator).io)
++    val backward_tweak_update_operator_vec = Array.fill(max_round)(Module(new BackwardTweakUpdateOperator).io)
++    var wire_index = 0
++    var module_index = 0
++
++    var temp_index = new Array[Int](3)
++    val stall_table = Wire(Vec(4, Bool()))
++    //internal register
++    //5-stage pipeline: load-forward-reflect-backward-out
++    val busy_table = RegInit(VecInit(Seq.fill(4)(false.B)))
++    val round_table = RegInit(VecInit(Seq.fill(4)(0.U(3.W))))
++    val is_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val tk_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val w0_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val w1_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val k0_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val k1_regs = RegInit(VecInit(Seq.fill(4)(0.U((64).W))))
++    val decrypt_regs = RegInit(VecInit(Seq.fill(4)(false.B)))
++
++    is_vec(wire_index) := is_regs(0)
++    tk_vec(wire_index) := tk_regs(0)
++    log(0, is_vec(wire_index), tk_vec(wire_index))
++    for(i <- 0 until max_round){
++        forward_operator_vec(module_index).is := is_vec(wire_index)
++        forward_operator_vec(module_index).tk := tk_vec(wire_index) ^ k0_regs(0) ^ c(i.asUInt)
++        forward_operator_vec(module_index).round_zero := i.asUInt === 0.U
++        forward_tweak_update_operator_vec(module_index).old_tk := tk_vec(wire_index)
++        wire_index = wire_index + 1
++        is_vec(wire_index) := Mux(i.asUInt < round_table(0), forward_operator_vec(module_index).out, is_vec(wire_index - 1))
++        tk_vec(wire_index) := Mux(i.asUInt < round_table(0), forward_tweak_update_operator_vec(module_index).new_tk, tk_vec(wire_index - 1))
++        module_index = module_index + 1
++        log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    }
++    temp_index(0) = wire_index
++
++    forward_operator_vec(module_index).is := is_regs(1)
++    forward_operator_vec(module_index).tk := tk_regs(1) ^ w1_regs(1)
++    forward_operator_vec(module_index).round_zero := false.B
++    wire_index = wire_index + 1
++    is_vec(wire_index) := forward_operator_vec(module_index).out
++    tk_vec(wire_index) := tk_regs(1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++
++    reflector.is := is_vec(wire_index)
++    reflector.tk := k1_regs(1)
++    wire_index = wire_index + 1
++    is_vec(wire_index) := reflector.out
++    tk_vec(wire_index) := tk_vec(wire_index - 1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++
++    backward_operator_vec(module_index).is := is_vec(wire_index)
++    backward_operator_vec(module_index).tk := tk_vec(wire_index) ^ w0_regs(1)
++    backward_operator_vec(module_index).round_zero := false.B
++    wire_index = wire_index + 1
++    is_vec(wire_index) := backward_operator_vec(module_index).out
++    tk_vec(wire_index) := tk_vec(wire_index - 1)
++    log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    module_index = 0
++    temp_index(1) = wire_index
++
++    wire_index = wire_index + 1
++    is_vec(wire_index) := is_regs(2)
++    tk_vec(wire_index) := tk_regs(2)
++    for(j <- 0 until max_round){
++        val i = max_round -j -1
++        backward_tweak_update_operator_vec(module_index).old_tk := tk_vec(wire_index)
++        tk_vec(wire_index + 1) := Mux(i.asUInt < round_table(2), backward_tweak_update_operator_vec(module_index).new_tk, tk_vec(wire_index))
++        backward_operator_vec(module_index).is := is_vec(wire_index)
++        backward_operator_vec(module_index).tk := tk_vec(wire_index + 1) ^ k0_regs(2) ^ alpha.asUInt ^ c(i.asUInt)
++        backward_operator_vec(module_index).round_zero := i.asUInt === 0.U
++        is_vec(wire_index + 1) := Mux(i.asUInt < round_table(2), backward_operator_vec(module_index).out, is_vec(wire_index))
++        wire_index = wire_index + 1
++        module_index = module_index + 1
++        log(wire_index, is_vec(wire_index), tk_vec(wire_index))
++    }
++    temp_index(2) = wire_index
++
++    for(i <- 0 until 4){
++        if(i == 3){
++            stall_table(i) := Mux(busy_table(i), !io.output.ready, false.B)
++        } else {
++            stall_table(i) := Mux(busy_table(i), stall_table(i + 1), false.B)
++        }
++        if(i == 0){
++            when(!stall_table(i)){
++                busy_table(i) := io.input.valid
++                round_table(i) := io.input.bits.actual_round
++                is_regs(i) := io.input.bits.text ^ w0
++                tk_regs(i) := io.input.bits.tweak
++                w0_regs(i) := w0
++                w1_regs(i) := w1
++                k0_regs(i) := k0
++                k1_regs(i) := k1
++                decrypt_regs(i) := io.input.valid & ~io.input.bits.encrypt
++            }
++        } else {
++            when(!stall_table(i)){
++                busy_table(i) := busy_table(i - 1)
++                round_table(i) := round_table(i - 1)
++                is_regs(i) := is_vec(temp_index(i - 1))
++                tk_regs(i) := tk_vec(temp_index(i - 1))
++                w0_regs(i) := w0_regs(i - 1)
++                w1_regs(i) := w1_regs(i - 1)
++                k0_regs(i) := k0_regs(i - 1)
++                k1_regs(i) := k1_regs(i - 1)
++                decrypt_regs(i) := decrypt_regs(i - 1)
++            }
++        }
++    }
++
++    io.output.bits.result := is_regs(3) ^ w1_regs(3)
++    io.output.bits.decrypt := decrypt_regs(3)
++    io.output.valid := busy_table(3)
++    io.input.ready := !stall_table(3)
++}
++
++// object Driver extends App {
++//   (new chisel3.stage.ChiselStage).emitVerilog(new QarmaMultiCycle, args)
++// }
+diff --git a/src/main/scala/rocket/CSR.scala b/src/main/scala/rocket/CSR.scala
+index 737f18673..8c7286493 100644
+--- a/src/main/scala/rocket/CSR.scala
++++ b/src/main/scala/rocket/CSR.scala
+@@ -899,7 +899,7 @@ class CSRFile(
+     io_dec.fp_illegal := io.status.fs === 0.U || reg_mstatus.v && reg_vsstatus.fs === 0.U || !reg_misa('f'-'a')
+     io_dec.vector_illegal := io.status.vs === 0.U || reg_mstatus.v && reg_vsstatus.vs === 0.U || !reg_misa('v'-'a')
+     io_dec.fp_csr := decodeFast(fp_csrs.keys.toList)
+-    io_dec.rocc_illegal := io.status.xs === 0.U || reg_mstatus.v && reg_vsstatus.xs === 0.U || !reg_misa('x'-'a')
++    io_dec.rocc_illegal := false.B //io.status.xs === 0.U || reg_mstatus.v && reg_vsstatus.xs === 0.U || !reg_misa('x'-'a')
+     val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) ||
+       usingHypervisor.B && !reg_mstatus.v && reg_mstatus.prv === PRV.S.U && CSR.mode(addr) === PRV.H.U
+     val csr_exists = decodeAny(read_mapping)
+@@ -1477,7 +1477,7 @@ class CSRFile(
+       }
+     }
+     def writeCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
+-      val mask = csr.mask.U(xLen.W)
++      val mask = Fill(64,1.U(1.W))//csr.mask.U(xLen.W)
+       when (decoded_addr(csr.id)) {
+         reg := (wdata & mask) | (reg & ~mask)
+         io.wen := true.B
+@@ -1502,7 +1502,7 @@ class CSRFile(
+   }
+ 
+   def setCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
+-    val mask = csr.mask.U(xLen.W)
++    val mask = Fill(64,1.U(1.W))//csr.mask.U(xLen.W)
+     when (io.set) {
+       reg := (io.sdata & mask) | (reg & ~mask)
+     }
+diff --git a/src/main/scala/rocket/CustomInstructions.scala b/src/main/scala/rocket/CustomInstructions.scala
+index b4cada00b..340cbe570 100644
+--- a/src/main/scala/rocket/CustomInstructions.scala
++++ b/src/main/scala/rocket/CustomInstructions.scala
+@@ -34,6 +34,7 @@ object CustomInstructions {
+   def CUSTOM3_RD         = BitPat("b?????????????????100?????1111011")
+   def CUSTOM3_RD_RS1     = BitPat("b?????????????????110?????1111011")
+   def CUSTOM3_RD_RS1_RS2 = BitPat("b?????????????????111?????1111011")
++  def PECInst            = BitPat("b?????????????????????????1101011")
+ }
+ 
+ object CustomCSRs {
+@@ -41,6 +42,7 @@ object CustomCSRs {
+   val mnepc = 0x351
+   val mncause = 0x352
+   val mnstatus = 0x353
++
+   val all = {
+     val res = collection.mutable.ArrayBuffer[Int]()
+     res += mnscratch
+diff --git a/src/main/scala/rocket/IDecode.scala b/src/main/scala/rocket/IDecode.scala
+index 86ee7eef5..f31e90d52 100644
+--- a/src/main/scala/rocket/IDecode.scala
++++ b/src/main/scala/rocket/IDecode.scala
+@@ -459,5 +459,6 @@ class RoCCDecode(aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends Dec
+     CUSTOM3_RS1_RS2->   List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+     CUSTOM3_RD->        List(Y,N,Y,N,N,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+     CUSTOM3_RD_RS1->    List(Y,N,Y,N,N,N,N,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+-    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
++    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
++    PECInst->           List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
+ }
+diff --git a/src/main/scala/rocket/Instructions.scala b/src/main/scala/rocket/Instructions.scala
+index adf118338..005f9f6a4 100644
+--- a/src/main/scala/rocket/Instructions.scala
++++ b/src/main/scala/rocket/Instructions.scala
+@@ -816,7 +816,6 @@ object Instructions {
+   def XPERM4             = BitPat("b0010100??????????010?????0110011")
+   def XPERM8             = BitPat("b0010100??????????100?????0110011")
+   def ZEXT_H             = BitPat("b000010000000?????100?????0111011")
+-
+ }
+ object Causes {
+   val misaligned_fetch = 0x0
+@@ -1292,6 +1291,7 @@ object CSRs {
+   val mhpmcounter29h = 0xb9d
+   val mhpmcounter30h = 0xb9e
+   val mhpmcounter31h = 0xb9f
++
+   val all = {
+     val res = collection.mutable.ArrayBuffer[Int]()
+     res += fflags
+diff --git a/src/main/scala/subsystem/Configs.scala b/src/main/scala/subsystem/Configs.scala
+index a9dbf4307..f2c05d4e0 100644
+--- a/src/main/scala/subsystem/Configs.scala
++++ b/src/main/scala/subsystem/Configs.scala
+@@ -14,7 +14,7 @@ import freechips.rocketchip.util._
+ 
+ class BaseSubsystemConfig extends Config ((site, here, up) => {
+   // Tile parameters
+-  case PgLevels => if (site(XLen) == 64) 3 /* Sv39 */ else 2 /* Sv32 */
++  case PgLevels => if (site(XLen) == 64) 5 /* Sv57 */ else 2 /* Sv32 */
+   case XLen => 64 // Applies to all cores
+   case MaxHartIdBits => log2Up((site(TilesLocated(InSubsystem)).map(_.tileParams.hartId) :+ 0).max+1)
+   // Interconnect parameters
+@@ -367,6 +367,15 @@ class WithRoccExample extends Config((site, here, up) => {
+     })
+ })
+ 
++class WithPECRocc extends Config((site, here, up) => {
++  case BuildRoCC => List(
++    (p: Parameters) => {
++        import freechips.rocketchip.rocc.pec._
++        val pec_engine = LazyModule(new PointerEncryption(OpcodeSet.pec_ext)(p))
++        pec_engine
++    })
++})
++
+ class WithDefaultBtb extends Config((site, here, up) => {
+   case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site) map {
+     case tp: RocketTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(
+diff --git a/src/main/scala/system/Configs.scala b/src/main/scala/system/Configs.scala
+index 9fb7debde..3a5a4e421 100644
+--- a/src/main/scala/system/Configs.scala
++++ b/src/main/scala/system/Configs.scala
+@@ -20,7 +20,12 @@ class BaseConfig extends Config(
+   new BaseSubsystemConfig
+ )
+ 
+-class DefaultConfig extends Config(new WithNBigCores(1) ++ new WithCoherentBusTopology ++ new BaseConfig)
++class DefaultConfig extends Config(
++  new WithPECRocc ++
++  new WithNBigCores(1) ++
++  new WithCoherentBusTopology ++
++  new BaseConfig
++)
+ 
+ class DefaultBufferlessConfig extends Config(new WithBufferlessBroadcastHub ++ new DefaultConfig)
+ class DefaultSmallConfig extends Config(new WithNSmallCores(1) ++ new WithCoherentBusTopology ++ new BaseConfig)
+diff --git a/src/main/scala/tile/LazyRoCC.scala b/src/main/scala/tile/LazyRoCC.scala
+index c0218d003..69f681d69 100644
+--- a/src/main/scala/tile/LazyRoCC.scala
++++ b/src/main/scala/tile/LazyRoCC.scala
+@@ -402,7 +402,8 @@ object OpcodeSet {
+   def custom1 = new OpcodeSet(Seq("b0101011".U))
+   def custom2 = new OpcodeSet(Seq("b1011011".U))
+   def custom3 = new OpcodeSet(Seq("b1111011".U))
+-  def all = custom0 | custom1 | custom2 | custom3
++  def pec_ext = new OpcodeSet(Seq("b1101011".U))
++  def all = custom0 | custom1 | custom2 | custom3 | pec_ext
+ }
+ 
+ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
