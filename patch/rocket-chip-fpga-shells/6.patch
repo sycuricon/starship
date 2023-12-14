@@ -25,8 +25,8 @@ index 0fc8931..69f4882 100644
 +      //
 +      //           14 VCC   17 GPIO1 TDI   BB21
 +      //           16 GND   18 GPIO0 TMS   BA21
-+      //  17 DI    18 MS    19 GPIO3 TCLK  BB24
-+      //  19 DO    20 CLK   20 GPIO2 TDO   BB23
++      //  17 DI    18 MS    19 GPIO3 TDO   BB24
++      //  19 DO    20 CLK   20 GPIO2 TCLK  BB23
      } else {
        //VC707 constraints for Olimex connect to LCD panel header
       ElaborationArtefacts.add(
