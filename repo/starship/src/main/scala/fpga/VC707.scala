@@ -73,7 +73,15 @@ class TestHarness(override implicit val p: Parameters) extends VC707Shell
     val childReset = (dut_reset.asBool | top.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
     dut.reset := childReset
 
-    led := VecInit(0.U(8.W).asBools)
+    led(0) := jtag_TCK.asBool
+    led(1) := jtag_TDI.asBool
+    led(2) := jtag_TDO.asBool
+    led(3) := jtag_TMS.asBool
+    led(4) := false.B
+    led(5) := true.B
+    led(6) := false.B
+    led(7) := true.B
+
     dut_ndreset := 0.U
 
     dut.tieOffInterrupts()

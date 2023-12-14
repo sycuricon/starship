@@ -45,6 +45,7 @@ class StarshipBaseConfig extends Config(
   new WithEdgeDataBits(64) ++
   new WithCoherentBusTopology ++
   new WithoutTLMonitors ++
+  new WithPECRocc ++
   new BaseConfig().alter((site,here,up) => {
     case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
       // invoke makefile for zero stage boot
