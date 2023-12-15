@@ -226,11 +226,14 @@ VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 
 VCS_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SPIKE_LIB) \
-			   $(SIM_DIR)/timer.cc  
+			   $(SIM_DIR)/timer.cc  \
+			   $(SIM_DIR)/parafuzz.cc
 
 VCS_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \
-			   $(SIM_DIR)/tty.v
+			   $(SIM_DIR)/tty.v \
+			   $(SIM_DIR)/pift_lib.v \
+			   $(SIM_DIR)/parafuzz.sv
 
 VCS_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
@@ -238,6 +241,9 @@ VCS_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+CLOCK_PERIOD=1.0	   					\
 			   +define+DEBUG_FSDB							\
 			   +define+TARGET_$(STARSHIP_CORE)
+
+vcs-fuzz:		VCS_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
+vcs-fuzz-debug:	VCS_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 
 VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
 VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
@@ -247,7 +253,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
-VCS_SIM_OPTION	:= +vcs+initreg+random $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
+VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VCS_SIM_OPTION += +verbose +dump +uart_tx=0
@@ -303,11 +309,14 @@ VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 
 VLT_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SPIKE_LIB) \
-			   $(SIM_DIR)/timer.cc
+			   $(SIM_DIR)/timer.cc \
+			   $(SIM_DIR)/parafuzz.cc
 
 VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \
-			   $(SIM_DIR)/tty.v
+			   $(SIM_DIR)/tty.v \
+			   $(SIM_DIR)/pift_lib.v \
+			   $(SIM_DIR)/parafuzz.sv
 
 VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
 			   +define+TOP_DIR=\"$(VLT_BUILD)\"			\
@@ -316,16 +325,22 @@ VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
 			   +define+DEBUG_VCD						\
 			   +define+TARGET_$(STARSHIP_CORE)
 
-VLT_OPTION	:= -Wno-WIDTH -Wno-STMTDLY -Wno-fatal --timescale 1ns/10ps --trace --timing		\
+vlt-fuzz:		VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
+vlt-fuzz-debug:	VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
+
+VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
+			   --timescale 1ns/10ps --trace --timing										\
 			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
-			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)		\
+			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
 			   -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"
 VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF)
 
-vlt-wave: 		VLT_SIM_OPTION	+= +dump 
+vlt-wave: 		VLT_SIM_OPTION	+= +dump
+vlt-fuzz: 		VLT_SIM_OPTION	+= +fuzzing
+vlt-fuzz-debug: VLT_SIM_OPTION	+= +fuzzing +verbose +dump
 vlt-jtag: 		VLT_SIM_OPTION	+= +jtag_rbb_enable=1
-vlt-jtag-debug: VLT_SIM_OPTION	+= +dump +jtag_rbb_enable=1
+vlt-jtag-debug: VLT_SIM_OPTION	+= +jtag_rbb_enable=1 +dump
 
 $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
@@ -337,6 +352,7 @@ vlt: $(VLT_TARGET) $(TESTCASE_HEX)
 	cd $(VLT_BUILD); ./$(TB_TOP) $(VLT_SIM_OPTION)
 
 vlt-wave: 		vlt
+vlt-fuzz: 		vlt
 vlt-jtag: 		vlt
 vlt-jtag-debug: vlt
 

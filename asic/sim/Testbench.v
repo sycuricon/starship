@@ -22,7 +22,10 @@
   `define PIPELINE `CPU_TOP.core
 `endif
 
-import "DPI-C" function void timer_start();
+`ifdef COVERAGE_SUMMARY
+  `define COVERAGE_PROBE Testbench.testHarness.ldut.io_covSum
+`endif
+
 import "DPI-C" function longint timer_stop();
 import "DPI-C" function int coverage_collector(
   input longint unsigned dut_cov
@@ -44,7 +47,9 @@ module Testbench;
   initial #(`RESET_DELAY) reset = 0;
 
   `ifdef VCS
-    assign `SOC_TOP.metaReset = reset;
+    `ifdef COVERAGE_SUMMARY
+      assign `SOC_TOP.metaReset = reset;
+    `endif
   `endif
 
   initial begin
@@ -71,6 +76,8 @@ module Testbench;
   reg [2047:0] vcdplusfile = 0;
   reg [2047:0] vcdfile = 0;
 
+  int taint_fd;
+
   wire [63:0] tohost;
   wire printf_cond = verbose && !reset;
   wire uart_rx, uart_tx;
@@ -84,7 +91,7 @@ module Testbench;
     dump_wave = $test$plusargs("dump");
 
     // fixed for diffuzzRTL, CJ should not timeout
-    max_cycles = 200000;
+    max_cycles = 2000000000;
 
     // $urandom is seeded via cmdline (+ntb_random_seed in VCS) but that doesn't seed $random.
     rand_value = $urandom;
@@ -126,11 +133,19 @@ module Testbench;
       $readmemh({testcase, ".hex"}, `MEM_RPL.ram);
     end
     $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
-    timer_start();
+
+    // taint
+    taint_fd = $fopen({`TOP_DIR, "/wave/taint.csv"}, "w");
+    $fwrite(taint_fd,"time,taint_sum\n", `SOC_TOP.taint_sum);
+  end
+
+  always @(posedge clock) begin
+    if (!reset)
+      $fwrite(taint_fd,"%t, %d\n", $time, `SOC_TOP.taint_sum);
   end
 
   always @(negedge clock) begin
-    if(!jtag_rbb_enable)begin
+    if(!jtag_rbb_enable) begin
       trace_count = trace_count + 1;
       if (trace_count == dump_start) begin
         if (dump_wave) begin
@@ -170,10 +185,9 @@ module Testbench;
               `WAVE_CLOSE
             end
             $system("echo -e \"\033[31m[>] vcs stop `date +%s.%3N` \033[0m\"");
-            timer_result = timer_stop();
-            $display("Finish time: %d ns", timer_result);
-            $display("[CJ] coverage sum = %d", Testbench.testHarness.ldut.io_covSum);
-            // $writememh("test.hex", Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_tile.frontend.tlb.r_need_gpa);
+            `ifdef COVERAGE_SUMMARY
+            $display("[CJ] coverage sum = %d", `COVERAGE_PROBE);
+            `endif
             $finish;
           end
 
@@ -191,10 +205,13 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
+`ifdef COSIMULATION
   CJ rtlfuzz (
     .clock(clock),
     .reset(reset|jtag_rbb_enable),
-    .tohost(tohost));
+    .tohost(tohost)
+  );
+`endif
 
   // tty #(115200, 0) u0_tty(
   //  .STX(uart_rx),
@@ -202,28 +219,30 @@ module Testbench;
   //  .reset(reset)
   // );
 
+`ifdef COVERAGE_SUMMARY
   coverage_monitor mon(
     .clock(clock),
     .reset(reset),
-    .cov(Testbench.testHarness.ldut.io_covSum),
+    .cov(`COVERAGE_PROBE),
     .tohost(tohost),
     .interrupt(interrupt)
   );
+`endif
 
   task fuzz_manager;
   begin
-    // force tohost = 0;
     force clock = 0;
     #50;
-    if (coverage_collector(Testbench.testHarness.ldut.io_covSum)) begin
+    `ifdef COVERAGE_SUMMARY
+    if (coverage_collector(`COVERAGE_PROBE)) begin
       reset = 1;
       $readmemh("./testcase.hex", `MEM_RPL.ram);
       cosim_reinit("./testcase.elf", verbose);
       $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
     end
+    `endif
     release clock;
     #10 reset = 0;
-    // release tohost;
   end
   endtask
 
