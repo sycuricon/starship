@@ -43,7 +43,7 @@ class MagicDeviceBlackbox(val w: Int) extends BlackBox {
 class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters) 
   extends LazyModule {
   
-  val device = new SimpleDevice("magic", Seq("zjv,starship,fuzz-magic"))
+  val device = new SimpleDevice("magic", Seq("sycuricon,risc-free,magic-device"))
 
   val node: TLRegisterNode = TLRegisterNode(
     address   = Seq(params.address),
@@ -56,7 +56,7 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
     
     val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "mepc_next", "sepc_next", "rdm_pte")
     val field_offset = field_name.zipWithIndex.map((_._2*8))
-    val field_header = "#ifndef _ZJV_MAGIC_DEVICE_H\n" + "#define _ZJV_MAGIC_DEVICE_H\n" +
+    val field_header = "#ifndef _SYCURICON_MAGIC_DEVICE_H\n" + "#define _SYCURICON_MAGIC_DEVICE_H\n" +
                        field_name.zip(field_offset).map(pair => "#define MAGIC_" + pair._1.toUpperCase + " 0x0" + pair._2.toHexString + "\n").mkString +
                        "#define MAX_MAGIC_SPACE " + "0x0" + (field_name.size*8).toHexString + "\n" +
                        "#endif\n"
@@ -83,7 +83,6 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
     impl.io.read_ready := field_wire.foldLeft(false.B)((res, io) => res || io.ready)
   }
 }
-
 
 trait CanHavePeripheryMagicDevice { this: BaseSubsystem =>
   val MagicOpt = p(MagicKey).map { params =>

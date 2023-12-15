@@ -23,7 +23,8 @@ class WithPeripherals extends Config((site, here, up) => {
   case MagicKey => up(DebugModuleKey) match {
       case None => Some(MagicParams(baseAddress = 0))
       case _ => None
-    }
+  }
+  case ResetManagerKey => Some(ResetManagerParams())
 })
 
 class StarshipSimConfig extends Config(

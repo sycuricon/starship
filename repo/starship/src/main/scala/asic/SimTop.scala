@@ -2,6 +2,7 @@ package starship.asic
 
 import starship._
 import chisel3._
+import chisel3.experimental.{annotate, ChiselAnnotation}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
@@ -21,6 +22,7 @@ class StarshipSimTop(implicit p: Parameters) extends StarshipSystem
     with HasPeripheryUART
     with HasPeripheryDebug
     with CanHavePeripheryMagicDevice
+    with CanHavePeripheryResetManager
 {
   val chosen = new DeviceSnippet {
     def describe() = Description("chosen", Map(
@@ -35,6 +37,7 @@ class StarshipSimTopModuleImp[+L <: StarshipSimTop](_outer: L) extends StarshipS
     with HasRTCModuleImp
     with HasExtInterruptsModuleImp
     with HasPeripheryUARTModuleImp
+    with CanHavePeripheryResetManagerImp
     with DontTouch
 
 
@@ -48,8 +51,16 @@ class TestHarness()(implicit p: Parameters) extends Module {
   val ldut = LazyModule(new StarshipSimTop)
   val dut = Module(ldut.module)
 
+  // annotate(new ChiselAnnotation{
+  //   override def toFirrtl = firrtl.AttributeAnnotation(
+  //     dut.toTarget, "pift_keep_pin=1")
+  // })
+
+  dut.reset_manager.map (_.reset_in := reset.asBool)
   // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
-  dut.reset := (reset.asBool | ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B)).asBool
+  dut.reset := (reset.asBool |
+                ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B) |
+                dut.reset_manager.map { _.reset_out }.getOrElse(false.B)).asBool
 
   dut.dontTouchPorts()
   dut.tieOffInterrupts()
