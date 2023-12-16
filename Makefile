@@ -88,7 +88,7 @@ $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF) $(ROCKET_TH_VE
 		-X verilog $(FIRRTL_DEBUG_OPTION) \
 		-i $< -o $(ROCKET_TH_VERILOG)"
 	touch $(ROCKET_TOP_INCLUDE) $(ROCKET_TH_INCLUDE)
-
+	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).bak
 
 #######################################
 #
@@ -145,6 +145,11 @@ verilog-patch: verilog
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 
+verilog-instrument: verilog
+	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
+	$(MAKE) verilog-patch
+	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
+	yosys -s asic/syn/pift.ys
 
 #######################################
 #

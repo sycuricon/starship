@@ -1,0 +1,14 @@
+read_verilog -sv build/rocket-chip/BOOM.StarshipSimTop.StarshipSimConfig.top.v.untainted
+read_verilog -sv asic/syn/blackbox.v
+
+hierarchy
+
+proc; opt
+pmuxtree; bmuxmap; opt
+memory_collect; opt
+
+pift --ignore-ports clock,reset --verbose
+opt -purge
+tcov --verbose
+
+write_verilog build/rocket-chip/BOOM.StarshipSimTop.StarshipSimConfig.top.v
