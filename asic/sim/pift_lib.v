@@ -38,11 +38,17 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
         case (TYPE)
             "and": begin: genand
                 // assign Y_taint = A_taint | B_taint; 
-                assign Y_taint = (((A_san ^ A_taint) & B_san) ^ Y_san) | (((B_san ^ B_taint) & A_san) ^ Y_san);
+                // assign Y_taint = (A_taint & B_san) | (B_taint & A_san);
+                assign Y_taint = (A_taint & B_san) | (B_taint & A_san) | (A_taint & B_taint);
             end
             "or": begin: genor
                 // assign Y_taint = A_taint | B_taint;
-                assign Y_taint = (((A_san ^ A_taint) | B_san) ^ Y_san) | (((B_san ^ B_taint) | A_san) ^ Y_san); 
+                // assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san);
+                assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san) | (A_taint & B_taint);
+            end
+            "eq", "ne": begin
+                // assign Y_taint = |{A_taint, B_taint};
+                assign Y_taint = ((A_san & ~(A_taint | B_taint)) == (B_san & ~(A_taint | B_taint))) & |{A_taint, B_taint};
             end
             default: begin: gendefault
                 assign Y_taint = A_taint | B_taint;
