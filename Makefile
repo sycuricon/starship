@@ -114,7 +114,7 @@ VERILOG_SRC		:= $(ROCKET_TOP_SRAM) $(ROCKET_TH_SRAM) \
 $(ROCKET_INCLUDE): | $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
 	mkdir -p $(ROCKET_BUILD)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
-	echo $(VERILOG_SRC) >> $@
+	echo $(VERILOG_SRC) | tr ' ' '\n' >> $@
 	sed -i "s/.*\.f$$/-f &/g" $@
 
 $(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
@@ -134,8 +134,10 @@ $(ROCKET_ROM): $(ROCKET_ROM_HEX) $(ROCKET_ROMCONF)
 	$(ROCKET_SRC)/scripts/vlsi_rom_gen $(ROCKET_ROMCONF) $< > $@
 
 verilog: $(VERILOG_SRC)
-verilog-debug: verilog
-verilog-patch: verilog
+
+verilog-debug: $(VERILOG_SRC)
+
+verilog-patch: $(VERILOG_SRC)
 	# sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
@@ -145,11 +147,12 @@ verilog-patch: verilog
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 
-verilog-instrument: verilog
+verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
 	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
 	$(MAKE) verilog-patch
 	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
 	yosys -s asic/syn/pift.ys
+	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
 #######################################
 #

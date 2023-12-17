@@ -1,5 +1,6 @@
 read_verilog -sv build/rocket-chip/BOOM.StarshipSimTop.StarshipSimConfig.top.v.untainted
 read_verilog -sv asic/syn/blackbox.v
+read_verilog -sv build/rocket-chip/BOOM.StarshipSimTop.StarshipSimConfig.behav_srams.top.v
 
 hierarchy
 
