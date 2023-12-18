@@ -106,6 +106,9 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire pos_arst = ARST == ARST_POLARITY;
     wire pos_en = EN == EN_POLARITY;
 
+    wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
+    wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
+
     generate
         initial #(`RESET_DELAY) Q_taint = 0;
         case (TYPE)
@@ -138,7 +141,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (`SOC_TOP.reset)
                         Q_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? D_taint : Q_taint) | (EN_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                        Q_taint <= (pos_en ? D_taint : Q_taint) | (EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}});
                 end
             end
             "sdffe": begin: gensdffe
@@ -147,7 +150,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_srst ? 0 : (pos_en ? D_taint : Q_taint)) | 
-                            (SRST_taint ? {WIDTH{1'b1}} : (!pos_srst & EN_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}}));
+                            (SRST_taint ? {WIDTH{1'b1}} : (!pos_srst & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "adffe": begin: genadffe
@@ -156,7 +159,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_arst ? 0 : (pos_en ? D_taint : Q_taint)) | 
-                            (ARST_taint ? {WIDTH{1'b1}} : (!pos_arst & EN_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}}));
+                            (ARST_taint ? {WIDTH{1'b1}} : (!pos_arst & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "sdffce": begin: gensdffce
@@ -165,7 +168,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : Q_taint) |
-                            (EN_taint ? {WIDTH{1'b1}} : (pos_en & SRST_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}}));
+                            (EN_taint ? D_san ^ Q_san : (pos_en & SRST_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}}));
                 end
             end
             default: begin: generror
