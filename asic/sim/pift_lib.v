@@ -125,7 +125,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (`SOC_TOP.reset)
                         Q_taint <= 0;
                     else
-                        Q_taint <= (pos_srst ? 0 : D_taint) | (SRST_taint ? SRST_VALUE ^ Q_san : {WIDTH{1'b0}});
+                        Q_taint <= (pos_srst ? 0 : D_taint) | (pos_srst & SRST_taint ? SRST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "adff": begin: genadff
@@ -133,7 +133,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (`SOC_TOP.reset)
                         Q_taint <= 0;
                     else
-                        Q_taint <= (pos_arst ? 0 : D_taint) | (ARST_taint ? ARST_VALUE ^ Q_san : {WIDTH{1'b0}});
+                        Q_taint <= (pos_arst ? 0 : D_taint) | (pos_arst & ARST_taint ? ARST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "dffe": begin: gendffe
@@ -141,7 +141,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (`SOC_TOP.reset)
                         Q_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? D_taint : Q_taint) | (EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}});
+                        Q_taint <= (pos_en ? D_taint : Q_taint) | (pos_en & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}});
                 end
             end
             "sdffe": begin: gensdffe
@@ -150,7 +150,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_srst ? 0 : (pos_en ? D_taint : Q_taint)) | 
-                            (SRST_taint ? SRST_VALUE ^ Q_san : (!pos_srst & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
+                            (pos_srst & SRST_taint ? SRST_VALUE ^ Q_san : (pos_en & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "adffe": begin: genadffe
@@ -159,7 +159,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_arst ? 0 : (pos_en ? D_taint : Q_taint)) | 
-                            (ARST_taint ? ARST_VALUE ^ Q_san : (!pos_arst & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
+                            (pos_arst & ARST_taint ? ARST_VALUE ^ Q_san : (pos_en & EN_taint ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "sdffce": begin: gensdffce
@@ -168,7 +168,8 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         Q_taint <= 0;
                     else
                         Q_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : Q_taint) |
-                            (EN_taint ? D_san ^ Q_san : (pos_en & SRST_taint ? SRST_VALUE ^ Q_san : {WIDTH{1'b0}}));
+                            (pos_en & EN_taint & ~pos_srst & SRST_taint ? D_san ^ Q_san :
+                                (pos_en & EN_taint & pos_srst & SRST_taint ? SRST_VALUE ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             default: begin: generror
