@@ -10,15 +10,25 @@ make
 export PATH=$PATH:$(pwd)
 ```
 
-2. Set up this repository.
+2. Compile test cases.
+
+```bash
+git clone https://github.com/sycuricon/riscv-tests-parafuzz.git
+cd riscv-tests-parafuzz
+mkdir build; cd build; ../configure
+make
+```
+
+3. Set up this repository.
 
 ```bash
 git clone https://github.com/sycuricon/starship-parafuzz.git
 cd starship-parafuzz
+git submodule update --init --recursive --progress
 make patch
 ```
 
-3. Modify the configuration file `conf/build.mk` to the following content.
+4. Modify the configuration file `conf/build.mk` to the following content.
 
 ```
 STARSHIP_CORE	?= BOOM
@@ -26,15 +36,17 @@ STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= starship.asic.TestHarness
 STARSHIP_TOP	?= starship.asic.StarshipSimTop
 STARSHIP_CONFIG	?= starship.asic.StarshipSimConfig
+
+STARSHIP_TESTCASE	?= <path to starship-parafuzz>/build/benchmarks/spectre-v1.riscv
 ```
 
-4. Generate the design under test (DUT) verilog file and the testbench verilog file.
+5. Generate the design under test (DUT) verilog file and the testbench verilog file.
 
 ```bash
 make verilog-instrument
 ```
 
-5. RTL Simulation.
+6. RTL Simulation.
 
 ```bash
 make vcs # use synopsys vcs
