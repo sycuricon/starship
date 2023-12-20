@@ -129,6 +129,8 @@ module Testbench;
     timer_start();
   end
 
+  wire [63:0] credhit;
+  wire [63:0] crednum;
   always @(negedge clock) begin
     if(!jtag_rbb_enable)begin
       trace_count = trace_count + 1;
@@ -161,6 +163,7 @@ module Testbench;
         end
         if (tohost & 1'b1) begin
           $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
+          $display("the hit rate of pec cache is %d/%d",credhit,crednum);
           trace_count = 0;
           if (fuzz) begin
             $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
@@ -194,7 +197,10 @@ module Testbench;
   CJ rtlfuzz (
     .clock(clock),
     .reset(reset|jtag_rbb_enable),
-    .tohost(tohost));
+    .tohost(tohost),
+    .crednum(crednum),
+    .credhit(credhit)
+  );
 
   // tty #(115200, 0) u0_tty(
   //  .STX(uart_rx),
