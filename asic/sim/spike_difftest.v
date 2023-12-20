@@ -27,7 +27,9 @@ import "DPI-C" function longint cosim_get_tohost();
 module CJ #(parameter harts=1, commits=2) (
     input clock,
     input reset,
-    output reg [63:0] tohost
+    output reg [63:0] tohost,
+    output reg [63:0] crednum,
+    output reg [63:0] credhit
 );
     string testcase;
     reg verbose = 1'b0;
@@ -41,6 +43,16 @@ module CJ #(parameter harts=1, commits=2) (
         end
         verbose = $test$plusargs("verbose");
         cosim_init(testcase, verbose);
+    end
+
+    always @(posedge clock) begin
+      if(reset)begin
+        credhit<=64'b0;
+        crednum<=64'b0;
+      end else begin
+        if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid&`CPU_TOP.pec_engine_cache_io_hit)credhit<=credhit+64'b1;
+        if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid)crednum<=crednum+64'b1;
+      end
     end
 
     always @(posedge clock) begin
@@ -58,7 +70,6 @@ module CJ #(parameter harts=1, commits=2) (
     end
 
 endmodule
-
 
 
 import "DPI-C" function longint unsigned cosim_randomizer_insn (
