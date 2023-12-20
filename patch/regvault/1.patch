@@ -1,6 +1,6 @@
 diff --git a/src/main/scala/rocc/PointerEncryption.scala b/src/main/scala/rocc/PointerEncryption.scala
 new file mode 100644
-index 000000000..42cd6427f
+index 000000000..d78cade54
 --- /dev/null
 +++ b/src/main/scala/rocc/PointerEncryption.scala
 @@ -0,0 +1,276 @@
@@ -133,7 +133,7 @@ index 000000000..42cd6427f
 +  with HasCoreParameters
 +{
 +  val pec_engine = Module(new QarmaMultiCycle(7))
-+  val cache = Module(new QarmaCache(16,"Stack"))
++  val cache = Module(new QarmaCache(8,"Stack"))
 +
 +  val keyval = Wire(Vec(outer.nRoCCCSRs,UInt(64.W)))
 +  for(i <- 0 until outer.nRoCCCSRs){
