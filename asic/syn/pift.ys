@@ -8,6 +8,8 @@ proc; opt
 pmuxtree; bmuxmap; opt
 memory_collect; opt
 
+tee -o build/rocket-chip/sink_summary.log tsink --verbose --top StarshipSimTop
+
 pift --ignore-ports clock,reset --verbose
 opt -purge
 tcov --verbose
