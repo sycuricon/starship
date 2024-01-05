@@ -191,13 +191,7 @@ TESTCASE_BIN	:= $(shell mktemp)
 TESTCASE_HEX	:= $(STARSHIP_TESTCASE).hex
 
 CHISEL_DEFINE 	:= +define+PRINTF_COND=$(TB_TOP).printf_cond	\
-			   	   +define+STOP_COND=!$(TB_TOP).reset			\
-				   +define+RANDOMIZE							\
-				   +define+RANDOMIZE_MEM_INIT					\
-				   +define+RANDOMIZE_REG_INIT					\
-				   +define+RANDOMIZE_GARBAGE_ASSIGN				\
-				   +define+RANDOMIZE_INVALID_ASSIGN				\
-				   +define+RANDOMIZE_DELAY=0.1
+			   	   +define+STOP_COND=!$(TB_TOP).reset
 
 SPIKE_DIR		:= $(SRC)/riscv-isa-sim
 SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.c")
