@@ -20,5 +20,6 @@ log*
 *.log
 *log.txt
 
-# verdi
+# Verdi
 novas.*
+*fsdb*Log/
