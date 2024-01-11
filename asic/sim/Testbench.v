@@ -77,6 +77,7 @@ module Testbench;
   reg [2047:0] vcdfile = 0;
 
   int taint_fd;
+  int event_fd;
 
   wire [63:0] tohost;
   wire printf_cond = verbose && !reset;
@@ -136,12 +137,47 @@ module Testbench;
 
     // taint
     taint_fd = $fopen({`TOP_DIR, "/wave/taint.csv"}, "w");
-    $fwrite(taint_fd,"time,taint_sum\n", `SOC_TOP.taint_sum);
+    $fwrite(taint_fd,"time,taint_sum\n");
+    event_fd = $fopen({`TOP_DIR, "/wave/event.log"}, "w");
   end
 
   always @(posedge clock) begin
-    if (!reset)
+    if (!reset) begin
       $fwrite(taint_fd,"%t, %d\n", $time, `SOC_TOP.taint_sum);
+
+      `define BOOM_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
+      `define BOOM_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
+      `define BOOM_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
+      `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
+      if (`BOOM_ROB_ENQ_ENABLE) begin
+        case (`BOOM_ROB_ENQ_INST)
+          32'h00002013: $fwrite(event_fd, "INFO_TRAIN_START, %t\n", $time);
+          32'h00102013: $fwrite(event_fd, "INFO_TRAIN_END, %t\n", $time);
+          32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
+          32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
+          32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
+          32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
+          32'h00602013: $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
+          32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
+          32'h00802013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
+          32'h00902013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
+        endcase
+      end
+      if (`BOOM_ROB_DEQ_ENABLE) begin
+        case (`BOOM_ROB_DEQ_INST)
+          32'h00002013: $fwrite(event_fd, "INFO_TRAIN_START_COMMIT, %t\n", $time);
+          32'h00102013: $fwrite(event_fd, "INFO_TRAIN_END_COMMIT, %t\n", $time);
+          32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
+          32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
+          32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
+          32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
+          32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
+          32'h00702013: $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
+          32'h00802013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
+          32'h00902013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
+        endcase
+      end
+    end
   end
 
   always @(negedge clock) begin
