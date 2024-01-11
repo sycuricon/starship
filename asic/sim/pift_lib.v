@@ -241,7 +241,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
             always @(*) begin
                 for (i = 0; i < RD_PORTS; i = i+1)
                     RD_DATA_taint[i*WIDTH +: WIDTH] = 
-                        (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | RD_ADDR_taint[i*ABITS +: ABITS]) |
+                        (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) |
                         RD_ARST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
             end
         end
@@ -258,12 +258,24 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 for (i = 0; i < RD_PORTS; i = i+1)
                     if (RD_CE_OVER_SRST[i])
                         RD_DATA_taint[i*WIDTH +: WIDTH] <= 
-                            (RD_EN[i] ? (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 0) |
-                            RD_EN_taint[i] ? {WIDTH{1'b1}} : (RD_EN[i] & RD_SRST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                            (RD_EN[i] ? 
+                                (RD_SRST[i] ? 
+                                    0 : 
+                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
+                                0) |
+                            RD_EN[i] & RD_EN_taint[i] ? 
+                                {WIDTH{1'b1}} : 
+                                (RD_EN[i] & RD_SRST[i] & RD_SRST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
                     else
                         RD_DATA_taint[i*WIDTH +: WIDTH] <= 
-                            (RD_SRST[i] ? 0 : (RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 0)) |
-                            RD_SRST_taint[i] ? {WIDTH{1'b1}} : (!RD_SRST[i] & RD_EN_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                            (RD_SRST[i] ? 
+                                0 : 
+                                (RD_EN[i] ? 
+                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 
+                                    0)) |
+                            RD_SRST[i] & RD_SRST_taint[i] ? 
+                                {WIDTH{1'b1}} : 
+                                (!RD_SRST[i] & RD_EN[i] & RD_EN_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
             end
         end
 
@@ -277,7 +289,10 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                     for (i = 0; i < WR_PORTS; i = i+1)
                             for (j = 0; j < WIDTH; j = j+1)
                                 if (WR_EN[i*WIDTH+j])
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = WR_DATA_taint[i*WIDTH+j] | |WR_ADDR_taint[i*ABITS +: ABITS] | |WR_EN_taint[i*WIDTH +: WIDTH];
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
+                                        WR_DATA_taint[i*WIDTH+j] |
+                                        |WR_ADDR_taint[i*ABITS +: ABITS] | 
+                                        WR_EN_taint[i*WIDTH+j];
                 end
             end
         end
@@ -298,7 +313,10 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                             for (j = 0; j < WIDTH; j = j+1)
                                 if (WR_EN[i*WIDTH+j])
                                     // use blocking assigment here, because verilator doesn't support non-blocking assignments in generate blocks
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = WR_DATA_taint[i*WIDTH+j] | |WR_ADDR_taint[i*ABITS +: ABITS] | |WR_EN_taint[i*WIDTH +: WIDTH];
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
+                                        WR_DATA_taint[i*WIDTH+j] | 
+                                        |WR_ADDR_taint[i*ABITS +: ABITS] | 
+                                        WR_EN_taint[i*WIDTH+j];
                 end
             end
         end
