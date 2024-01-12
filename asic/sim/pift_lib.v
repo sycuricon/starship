@@ -20,7 +20,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     parameter A_WIDTH = 0;
     parameter B_SIGNED = 0;
     parameter B_WIDTH = 0;
-    parameter TYPE = "add";
+    parameter TYPE = "default";
     parameter Y_WIDTH = 0;
 
     input [A_WIDTH-1:0] A;
@@ -39,18 +39,16 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     generate
         case (TYPE)
             "and": begin: genand
-                // assign Y_taint = A_taint | B_taint; 
-                // assign Y_taint = (A_taint & B_san) | (B_taint & A_san);
-                assign Y_taint = (A_taint & B_san) | (B_taint & A_san) | (A_taint & B_taint);
+                // assign Y_taint = (At_san & B_san) | (Bt_san & A_san);
+                assign Y_taint = (At_san & B_san) | (Bt_san & A_san) | (At_san & Bt_san);
             end
             "or": begin: genor
-                // assign Y_taint = A_taint | B_taint;
-                // assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san);
-                assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san) | (A_taint & B_taint);
+                // assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san);
+                assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
             end
             "eq", "ne": begin: geneq
-                // assign Y_taint = |{A_taint, B_taint};
-                assign Y_taint = ((A_san & ~(A_taint | B_taint)) == (B_san & ~(A_taint | B_taint))) & |{A_taint, B_taint};
+                // assign Y_taint = |{At_san, Bt_san};
+                assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san))) & |{At_san, Bt_san};
             end
             "shl": begin: genshl
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
