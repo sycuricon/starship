@@ -3,9 +3,9 @@
 
 STARSHIP_CORE	?= Rocket
 STARSHIP_FREQ	?= 100
-STARSHIP_TH 	?= starship.fpga.TestHarness
-STARSHIP_TOP	?= starship.fpga.StarshipFPGATop
-STARSHIP_CONFIG	?= starship.fpga.StarshipFPGADebugConfig
+STARSHIP_TH 	?= starship.axi4.TestHarness
+STARSHIP_TOP	?= starship.axi4.StarshipAxi4Top
+STARSHIP_CONFIG	?= starship.axi4.StarshipAxi4DebugConfig
 
 
 # FPGA Configuration
