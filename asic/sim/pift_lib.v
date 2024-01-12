@@ -2,7 +2,7 @@ module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
     parameter A_SIGNED = 0;
     parameter A_WIDTH = 0;
-    parameter TYPE = "not";
+    parameter TYPE = "default";
     parameter Y_WIDTH = 0;
 
     input [A_WIDTH-1:0] A;
@@ -10,7 +10,26 @@ module taintcell_1I1O(A, Y, A_taint, Y_taint);
     input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
-    assign Y_taint = A_taint;
+    wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
+    wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
+
+    generate
+        case (TYPE)
+            "logic_not", "reduce_or", "reduce_bool": begin: genreducenot
+                assign Y_taint = !(~At_san & A_san) & |At_san;
+            end
+            "reduce_and": begin: genreduceand
+                assign Y_taint = &(At_san | A_san) & |At_san;
+            end
+            "reduce_xor": begin: genreducexor
+                assign Y_taint = |At_san;
+            end
+            default: begin: gendefault
+                assign Y_taint = At_san;
+            end
+        endcase
+    endgenerate
 
 endmodule
 
@@ -63,7 +82,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
             end
             default: begin: gendefault
-                assign Y_taint = A_taint | B_taint;
+                assign Y_taint = At_san | Bt_san;
             end
         endcase
     endgenerate
