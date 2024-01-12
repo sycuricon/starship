@@ -30,9 +30,11 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
-    wire [A_WIDTH-1:0] A_san = $isunknown(A) ? {A_WIDTH{1'b0}} : A;
-    wire [B_WIDTH-1:0] B_san = $isunknown(B) ? {B_WIDTH{1'b0}} : B;
+    wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
+    wire [Y_WIDTH-1:0] B_san = $isunknown(B) ? {Y_WIDTH{1'b0}} : B_SIGNED ? $signed(B) : B;
     wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
+    wire [Y_WIDTH-1:0] Bt_san = B_SIGNED ? $signed(B_taint) : B_taint;
 
     generate
         case (TYPE)
@@ -46,9 +48,21 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
                 // assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san);
                 assign Y_taint = (A_taint & ~B_san) | (B_taint & ~A_san) | (A_taint & B_taint);
             end
-            "eq", "ne": begin
+            "eq", "ne": begin: geneq
                 // assign Y_taint = |{A_taint, B_taint};
                 assign Y_taint = ((A_san & ~(A_taint | B_taint)) == (B_san & ~(A_taint | B_taint))) & |{A_taint, B_taint};
+            end
+            "shl": begin: genshl
+                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
+            end
+            "sshl": begin: gensshl
+                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san <<< B_san;
+            end
+            "shr": begin: genshr
+                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >> B_san;
+            end
+            "sshr": begin: gensshr
+                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
             end
             default: begin: gendefault
                 assign Y_taint = A_taint | B_taint;
