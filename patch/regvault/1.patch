@@ -1,6 +1,6 @@
 diff --git a/src/main/scala/rocc/PointerEncryption.scala b/src/main/scala/rocc/PointerEncryption.scala
 new file mode 100644
-index 000000000..5ba67f45e
+index 000000000..60cbb0322
 --- /dev/null
 +++ b/src/main/scala/rocc/PointerEncryption.scala
 @@ -0,0 +1,276 @@
@@ -132,7 +132,7 @@ index 000000000..5ba67f45e
 +  extends LazyRoCCModuleImp(outer)
 +  with HasCoreParameters
 +{
-+  val pec_engine = Module(new QarmaMultiCycle(7,4))
++  val pec_engine = Module(new QarmaMultiCycle(7,3))
 +  val cache = Module(new QarmaCache(8,"Stack"))
 +
 +  val keyval = Wire(Vec(outer.nRoCCCSRs,UInt(64.W)))
