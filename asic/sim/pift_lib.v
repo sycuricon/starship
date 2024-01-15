@@ -81,6 +81,9 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
             "sshr": begin: gensshr
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
             end
+            "mul": begin: genmul
+                assign Y_taint = {Y_WIDTH{|{At_san, Bt_san}}};
+            end
             default: begin: gendefault
                 assign Y_taint = At_san | Bt_san;
             end
@@ -103,11 +106,10 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
     input S_taint;
     output [WIDTH-1:0] Y_taint;
 
-    // assign Y_taint = (S ? B_taint : A_taint) | (S_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
-
     wire [WIDTH-1:0] A_san = $isunknown(A) ? {WIDTH{1'b0}} : A;
     wire [WIDTH-1:0] B_san = $isunknown(B) ? {WIDTH{1'b0}} : B;
 
+    // assign Y_taint = (S ? B_taint : A_taint) | (S_taint ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
     assign Y_taint = (S ? B_taint : A_taint) | (S_taint ? A_san ^ B_san : {WIDTH{1'b0}});
 
 endmodule
