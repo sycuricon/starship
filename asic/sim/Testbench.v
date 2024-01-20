@@ -8,8 +8,13 @@
 `define SOC_TOP  Testbench.testHarness.ldut
 `define TILE_TOP `SOC_TOP.tile_prci_domain
 
+`define SOC_TOP_VNT  Testbench.testHarness_variant.ldut
+
 `define MEM_TOP  Testbench.testHarness.mem.srams.mem
-`define MEM_RPL  `MEM_TOP.mem_ext
+`define MEM_REG  `MEM_TOP.mem_ext
+
+`define MEM_TOP_VNT  Testbench.testHarness_variant.mem.srams.mem
+`define MEM_REG_VNT  `MEM_TOP_VNT.mem_ext
 
 `ifdef TARGET_BOOM
   `define CPU_TOP  `TILE_TOP.tile_reset_domain_boom_tile
@@ -61,6 +66,7 @@ module Testbench;
 
   int unsigned rand_value;
   string testcase;
+  string taintlog = "default";
   longint timer_result;
   
   reg [255:0] reason = "";
@@ -113,7 +119,7 @@ module Testbench;
         `define WAVE_ON     $dumpon;
         `define WAVE_CLOSE  $dumpoff;
         $dumpfile({`TOP_DIR, "/wave/starship.vcd"});
-        $dumpvars(0, testHarness);
+        $dumpvars(0, Testbench);
       `else
         `define WAVE_ON     ;
         `define WAVE_CLOSE  ;
@@ -131,19 +137,22 @@ module Testbench;
     #(`RESET_DELAY/2.0)
     if ($value$plusargs("testcase=%s", testcase)) begin
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
-      $readmemh({testcase, ".hex"}, `MEM_RPL.ram);
+      $readmemh({testcase, ".hex"}, `MEM_REG.ram);
+      $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
     end
     $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
 
     // taint
-    taint_fd = $fopen({`TOP_DIR, "/wave/taint.csv"}, "w");
-    $fwrite(taint_fd,"time,taint_sum\n");
-    event_fd = $fopen({`TOP_DIR, "/wave/event.log"}, "w");
+    $timeformat(-9,0,"",20);
+    $value$plusargs("taintlog=%s", taintlog);
+    taint_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.csv"}, "w");
+    $fwrite(taint_fd,"time,base,variant\n");
+    event_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.log"}, "w");
   end
 
   always @(posedge clock) begin
     if (!reset) begin
-      $fwrite(taint_fd,"%t, %d\n", $time, `SOC_TOP.taint_sum);
+      $fwrite(taint_fd,"%t, %d, %d\n", $time, `SOC_TOP.taint_sum, `SOC_TOP_VNT.taint_sum);
 
       `define BOOM_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
       `define BOOM_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
@@ -151,30 +160,26 @@ module Testbench;
       `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
       if (`BOOM_ROB_ENQ_ENABLE) begin
         case (`BOOM_ROB_ENQ_INST)
-          32'h00002013: $fwrite(event_fd, "INFO_TRAIN_START, %t\n", $time);
-          32'h00102013: $fwrite(event_fd, "INFO_TRAIN_END, %t\n", $time);
+          32'h00002013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
+          32'h00102013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
           32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
           32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
           32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
           32'h00602013: $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
           32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
-          32'h00802013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
-          32'h00902013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
         endcase
       end
       if (`BOOM_ROB_DEQ_ENABLE) begin
         case (`BOOM_ROB_DEQ_INST)
-          32'h00002013: $fwrite(event_fd, "INFO_TRAIN_START_COMMIT, %t\n", $time);
-          32'h00102013: $fwrite(event_fd, "INFO_TRAIN_END_COMMIT, %t\n", $time);
+          32'h00002013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
+          32'h00102013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
           32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
           32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
           32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
           32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
           32'h00702013: $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
-          32'h00802013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
-          32'h00902013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
         endcase
       end
     end
@@ -241,6 +246,15 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
+  TestHarness testHarness_variant(
+    .clock(clock),
+    .reset(reset),
+    .io_uart_tx(),
+    .io_uart_rx(1'b0)
+  // .io_uart_tx(uart_tx),
+  // .io_uart_rx(uart_rx)
+  );
+
 `ifdef COSIMULATION
   CJ rtlfuzz (
     .clock(clock),
@@ -272,7 +286,7 @@ module Testbench;
     `ifdef COVERAGE_SUMMARY
     if (coverage_collector(`COVERAGE_PROBE)) begin
       reset = 1;
-      $readmemh("./testcase.hex", `MEM_RPL.ram);
+      $readmemh("./testcase.hex", `MEM_REG.ram);
       cosim_reinit("./testcase.elf", verbose);
       $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
     end

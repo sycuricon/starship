@@ -18,11 +18,9 @@
 #define CMD_POWER_OFF           0xAF1B'608E'883B'0000ul
 
 
-
 int state = 0;
 
 extern "C" void parafuzz_probebuff_tick(unsigned long int data) {
-
     switch (data & CMD_MASK) {
         case CMD_SWITCH_STATE:
             state = data & OP_MASK;
@@ -51,3 +49,91 @@ extern "C" void parafuzz_probebuff_tick(unsigned long int data) {
             break;
     }
 }
+
+#include <string>
+#include <string.h>
+
+bool is_variant(const char* hierachy) {
+    return strstr(hierachy, "testHarness_variant");
+}
+
+std::string variant_scope(std::string base_scope) {
+    return base_scope.replace(
+            base_scope.find("testHarness"), 
+            sizeof("testHarness")-1,
+            "testHarness_variant"
+        );
+}
+
+std::string parent(std::string scope) {
+    return scope.substr(0, scope.find_last_of("."));
+}
+
+extern "C" void get_selection(char* select);
+extern "C" char xref_variant_mux(const char* hierachy) {
+    if (is_variant(hierachy)) {
+        return 0;
+    }
+    else {
+        char base_selection, variant_selection;
+        svSetScope(svGetScopeFromName(hierachy));
+        get_selection(&base_selection);
+
+        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
+        get_selection(&variant_selection);
+
+        return base_selection ^ variant_selection;
+    }
+}
+
+extern "C" void get_enable(char* enable);
+extern "C" char xref_variant_dffe(const char* hierachy) {
+    if (is_variant(hierachy)) {
+        return 0;
+    }
+    else {
+        char base_enable, variant_enable;
+        svSetScope(svGetScopeFromName(hierachy));
+        get_enable(&base_enable);
+
+        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
+        get_enable(&variant_enable);
+
+        return base_enable ^ variant_enable;
+    }
+}
+
+extern "C" void get_srst(char* srst);
+extern "C" char xref_variant_sdff(const char* hierachy) {
+    if (is_variant(hierachy)) {
+        return 0;
+    }
+    else {
+        char base_srst, variant_srst;
+        svSetScope(svGetScopeFromName(hierachy));
+        get_srst(&base_srst);
+
+        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
+        get_srst(&variant_srst);
+
+        return base_srst ^ variant_srst;
+    }
+}
+
+extern "C" void get_arst(char* arst);
+extern "C" char xref_variant_adff(const char* hierachy) {
+    if (is_variant(hierachy)) {
+        return 0;
+    }
+    else {
+        char base_arst, variant_arst;
+        svSetScope(svGetScopeFromName(hierachy));
+        get_arst(&base_arst);
+
+        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
+        get_arst(&variant_arst);
+
+        return base_arst ^ variant_arst;
+    }
+}
+

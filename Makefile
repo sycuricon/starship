@@ -239,7 +239,6 @@ VCS_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 
 VCS_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
-			   +define+INITIALIZE_MEMORY					\
 			   +define+CLOCK_PERIOD=1.0	   					\
 			   +define+DEBUG_FSDB							\
 			   +define+TARGET_$(STARSHIP_CORE)
@@ -255,7 +254,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
-VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF)
+VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VCS_SIM_OPTION += +verbose +dump +uart_tx=0
@@ -281,7 +280,7 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 
 vcs: $(VCS_TARGET) $(TESTCASE_HEX)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); \
+	cd $(VCS_BUILD); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 		$(VCS_SIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
@@ -322,7 +321,6 @@ VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 
 VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
 			   +define+TOP_DIR=\"$(VLT_BUILD)\"			\
-			   +define+INITIALIZE_MEMORY				\
 			   +define+CLOCK_PERIOD=1.0	   				\
 			   +define+DEBUG_VCD						\
 			   +define+TARGET_$(STARSHIP_CORE)
@@ -335,8 +333,8 @@ VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
-			   -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"
-VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF)
+			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"
+VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF)  +taintlog=$(notdir $(TESTCASE_ELF))
 
 vlt-wave: 		VLT_SIM_OPTION	+= +dump
 vlt-fuzz: 		VLT_SIM_OPTION	+= +fuzzing
@@ -348,10 +346,11 @@ $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $
 	$(MAKE) verilog-patch
 	mkdir -p $(VLT_BUILD) $(VLT_WAVE)
 	cd $(VLT_BUILD); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
-	make -C $(VLT_BUILD) -f V$(TB_TOP).mk $(TB_TOP)
+	make -C $(VLT_BUILD) -f V$(TB_TOP).mk $(TB_TOP) -j $(shell nproc)
 	
 vlt: $(VLT_TARGET) $(TESTCASE_HEX)
-	cd $(VLT_BUILD); ./$(TB_TOP) $(VLT_SIM_OPTION)
+	cd $(VLT_BUILD); time \
+	./$(TB_TOP) $(VLT_SIM_OPTION)
 
 vlt-wave: 		vlt
 vlt-fuzz: 		vlt
