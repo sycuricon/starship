@@ -21,7 +21,7 @@ def main():
     parse.add_argument("-s", "--source", dest="source", default="vcs", help="source of taint data")
     args = parse.parse_args()
 
-    source = args.source
+    source = "verilator" if args.source == "vlt" else args.source
     target_list = sorted(getTargetList(f'build/{source}/wave'))
 
     fig = make_subplots(rows=len(target_list), cols=1, shared_xaxes=True, subplot_titles=target_list)
@@ -90,7 +90,7 @@ def main():
         Taint Sum over Time
         <br><sup>{source}, {datetime.datetime.fromtimestamp(os.path.getctime(logfile))}<sup>
     """)
-    fig.write_html(file=f"build/{target_list[0]}.html", full_html=True, auto_open=True)
+    fig.write_html(file=f"build/{source}/{target_list[0]}.html", full_html=True, auto_open=True)
 
 if __name__ == "__main__":
     main()
