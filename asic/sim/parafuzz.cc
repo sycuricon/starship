@@ -53,8 +53,8 @@ extern "C" void parafuzz_probebuff_tick(unsigned long int data) {
 #include <string>
 #include <string.h>
 
-bool is_variant(const char* hierachy) {
-    return strstr(hierachy, "testHarness_variant");
+extern "C" char is_variant(const char* hierachy) {
+    return strstr(hierachy, "testHarness_variant") ? 1 : 0;
 }
 
 std::string variant_scope(std::string base_scope) {

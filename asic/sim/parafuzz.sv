@@ -1,6 +1,5 @@
-import "DPI-C" function void parafuzz_probebuff_tick (
-    input longint unsigned data
-);
+import "DPI-C" function void parafuzz_probebuff_tick (longint unsigned data);
+import "DPI-C" function byte is_variant(string hierarchy);
 
 module ProbeBufferBB (
     input clock,
@@ -11,12 +10,13 @@ module ProbeBufferBB (
 );
 
    always @(negedge clock) begin
-      if (!reset) begin
-        if (wen)
-            parafuzz_probebuff_tick(write);
-      end
+        if (!reset) begin
+            if (wen && !is_variant($sformatf("%m"))) begin
+                parafuzz_probebuff_tick(write);
+            end
+        end
    end
-  
+
   assign read = 0;
 
 endmodule
