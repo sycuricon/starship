@@ -266,7 +266,7 @@ vcs-jtag-debug: VCS_SIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
 $(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
 	$(MAKE) verilog-patch
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
+	cd $(VCS_OUTPUT); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
 		-f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
@@ -279,8 +279,7 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 	rm $(TESTCASE_BIN)
 
 vcs: $(VCS_TARGET) $(TESTCASE_HEX)
-	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_BUILD); time \
+	cd $(VCS_OUTPUT); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 		$(VCS_SIM_OPTION) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
 
@@ -302,8 +301,9 @@ verdi:
 #
 #######################################
 
-VLT_BUILD	:= $(BUILD)/verilator
-VLT_WAVE 	:= $(VLT_BUILD)/wave
+VLT_OUTPUT	:= $(BUILD)/verilator
+VLT_BUILD	:= $(VLT_OUTPUT)/build
+VLT_WAVE 	:= $(VLT_OUTPUT)/wave
 VLT_TARGET  := $(VLT_BUILD)/$(TB_TOP)
 
 VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
@@ -320,7 +320,7 @@ VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/parafuzz.sv
 
 VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
-			   +define+TOP_DIR=\"$(VLT_BUILD)\"			\
+			   +define+TOP_DIR=\"$(VLT_OUTPUT)\"		\
 			   +define+CLOCK_PERIOD=1.0	   				\
 			   +define+DEBUG_VCD						\
 			   +define+TARGET_$(STARSHIP_CORE)
@@ -345,12 +345,12 @@ vlt-jtag-debug: VLT_SIM_OPTION	+= +jtag_rbb_enable=1 +dump
 $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C) $(SPIKE_LIB) 
 	$(MAKE) verilog-patch
 	mkdir -p $(VLT_BUILD) $(VLT_WAVE)
-	cd $(VLT_BUILD); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
+	cd $(VLT_OUTPUT); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
 	make -C $(VLT_BUILD) -f V$(TB_TOP).mk $(TB_TOP) -j $(shell nproc)
 	
 vlt: $(VLT_TARGET) $(TESTCASE_HEX)
-	cd $(VLT_BUILD); time \
-	./$(TB_TOP) $(VLT_SIM_OPTION)
+	cd $(VLT_OUTPUT); time \
+	$(VLT_TARGET) $(VLT_SIM_OPTION)
 
 vlt-wave: 		vlt
 vlt-fuzz: 		vlt
