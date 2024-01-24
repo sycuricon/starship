@@ -23,7 +23,7 @@ index 0fc8931..69f4882 100644
 +      //      set_property -dict { PACKAGE_PIN V40  IOSTANDARD LVCMOS18  PULLUP TRUE } [get_ports {jtag_TDO}]
 +      //      create_clock -add -name JTCK        -period 100   -waveform {0 50} [get_ports {jtag_TCK}];"""
 +      //
-+      //           14 VCC   17 GPIO1 TDI   BB21
++      //  13 5V    14 3.3V  17 GPIO1 TDI   BB21
 +      //           16 GND   18 GPIO0 TMS   BA21
 +      //  17 DI    18 MS    19 GPIO3 TDO   BB24
 +      //  19 DO    20 CLK   20 GPIO2 TCLK  BB23
