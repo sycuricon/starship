@@ -22,6 +22,14 @@ def getTargetList(file_list):
         target.add(i.split('.')[0])
     return target
 
+def genHTMLOutputFileName(target, simulator):
+    return f"build/{simulator}/{target}.html"
+
+def genTaintLogFileName(target, simulator):
+    return f"build/{simulator}/wave/{target}.csv"
+
+def genEventLogFileName(target, simulator):
+    return f"build/{simulator}/wave/{target}.log"
 
 def main():
     parse = argparse.ArgumentParser(description="Taint Visualization")
@@ -30,22 +38,31 @@ def main():
     args = parse.parse_args()
 
     source = "verilator" if args.source == "vlt" else args.source
-    target_file_list = sorted(getTargetFileList(f'build/{source}/wave'))
+    target_file_list = getTargetFileList(f'build/{source}/wave')
 
-    targets = getTargetList(target_file_list)
+    targets = sorted(getTargetList(target_file_list))
     print(f"find targets: {targets}")
 
-    for t in targets:
-        print(f"processing {t}")
-        selected_file = [f for f in target_file_list if f.startswith(t)]
+    for target in targets:
+        print(f"processing {target}")
+        selected_rounds = [round for round in target_file_list if round.startswith(target)]
 
-        fig = make_subplots(rows=len(selected_file), cols=1, shared_xaxes=True, subplot_titles=selected_file)
+        output_file = genHTMLOutputFileName(target, source)
+        tlog_file_list = [genTaintLogFileName(round, source) for round in selected_rounds]
+        elog_file_list = [genEventLogFileName(round, source) for round in selected_rounds]
+       
+        if (os.path.exists(output_file)):
+            simulation_timestamp = [os.path.getmtime(file) for file in tlog_file_list]
+            if any(sim_time < os.path.getmtime(output_file) for sim_time in simulation_timestamp):
+                print("Already have output HTML, ignore")
+                continue
 
-        for i, f in enumerate(selected_file):
-            logfile = f'build/{source}/wave/{f}.csv'
+        fig = make_subplots(rows=len(selected_rounds), cols=1, shared_xaxes=True, subplot_titles=selected_rounds)
 
-            print(f"reading {logfile}")
-            data = pd.read_csv(logfile)
+        for i, (tlog, elog) in enumerate(zip(tlog_file_list, elog_file_list)):
+
+            print(f"reading {tlog}")
+            data = pd.read_csv(tlog)
             fig.add_trace(
                 go.Scatter(x=data['time'], y=data['base'], name="base"),
                 row=i + 1, col=1
@@ -54,11 +71,9 @@ def main():
                 go.Scatter(x=data['time'], y=data['variant'], name="vrnt"),
                 row=i + 1, col=1
             )
-
-            annofile = f'build/{source}/wave/{f}.log'
             
-            print(f"reading {annofile}")
-            with open(annofile, 'r') as file:
+            print(f"reading {elog}")
+            with open(elog, 'r') as file:
                 for line in file:
                     values = line.strip().split(',')
                     type = values[0].strip()
@@ -102,10 +117,9 @@ def main():
 
         fig.update_layout(title_text=f"""
             Taint Sum over Time
-            <br><sup>{source}, {datetime.datetime.fromtimestamp(os.path.getctime(logfile))}<sup>
+            <br><sup>{source}, {datetime.datetime.fromtimestamp(os.path.getctime(tlog))}<sup>
         """)
 
-        output_file = f"build/{source}/{t}.html"
         print(f"saving {output_file}")
         fig.write_html(file=output_file, full_html=True, auto_open=not args.quite)
 
