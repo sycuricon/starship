@@ -38,7 +38,7 @@ def main():
     args = parse.parse_args()
 
     source = "verilator" if args.source == "vlt" else args.source
-    target_file_list = getTargetFileList(f'build/{source}/wave')
+    target_file_list = sorted(getTargetFileList(f'build/{source}/wave'))
 
     targets = sorted(getTargetList(target_file_list))
     print(f"find targets: {targets}")
