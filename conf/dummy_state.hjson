@@ -1,0 +1,319 @@
+{
+    xreg: [
+        /* x1  */ 0x0
+        /* x2  */ 0x0
+        /* x3  */ 0x0
+        /* x4  */ 0x0
+        /* x5  */ 0x0
+        /* x6  */ 0x0
+        /* x7  */ 0x0
+        /* x8  */ 0x0
+        /* x9  */ 0x0
+        /* x10 */ 0x0
+        /* x11 */ 0x0
+        /* x12 */ 0x0
+        /* x13 */ 0x0
+        /* x14 */ 0x0
+        /* x15 */ 0x0
+        /* x16 */ 0x0
+        /* x17 */ 0x0
+        /* x18 */ 0x0
+        /* x19 */ 0x0
+        /* x20 */ 0x0
+        /* x21 */ 0x0
+        /* x22 */ 0x0
+        /* x23 */ 0x0
+        /* x24 */ 0x0
+        /* x25 */ 0x0
+        /* x26 */ 0x0
+        /* x27 */ 0x0
+        /* x28 */ 0x0
+        /* x29 */ 0x0
+        /* x30 */ 0x0
+        /* x31 */ 0x0
+    ]
+    freg: [
+        /* f0  */ 0x0
+        /* f1  */ 0x0
+        /* f2  */ 0x0
+        /* f3  */ 0x0
+        /* f4  */ 0x0
+        /* f5  */ 0x0
+        /* f6  */ 0x0
+        /* f7  */ 0x0
+        /* f8  */ 0x0
+        /* f9  */ 0x0
+        /* f10 */ 0x0
+        /* f11 */ 0x0
+        /* f12 */ 0x0
+        /* f13 */ 0x0
+        /* f14 */ 0x0
+        /* f15 */ 0x0
+        /* f16 */ 0x0
+        /* f17 */ 0x0
+        /* f18 */ 0x0
+        /* f19 */ 0x0
+        /* f20 */ 0x0
+        /* f21 */ 0x0
+        /* f22 */ 0x0
+        /* f23 */ 0x0
+        /* f24 */ 0x0
+        /* f25 */ 0x0
+        /* f26 */ 0x0
+        /* f27 */ 0x0
+        /* f28 */ 0x0
+        /* f29 */ 0x0
+        /* f30 */ 0x0
+        /* f31 */ 0x0
+    ]
+    csr: {
+		mepc: {
+			EPC: 0x80000000
+		}
+		sepc: {
+			EPC: 0x80000000
+		}
+        mstatus: {
+			SIE:    0b0
+			MIE:    0b0
+			SPIE:   0b0
+			UBE:    0b0
+			MPIE:   0b1
+			SPP:    0b0
+			VS:     0b00
+			MPP:    0b00
+			FS:     0b11
+			XS:     0b00
+			MPRV:   0b0
+			SUM:    0b0
+			MXR:    0b0
+			TVM:    0b0
+			TW:     0b0
+			TSR:    0b0
+			UXL:    0b10
+			SXL:    0b10
+			SBE:    0b0
+			MBE:    0b0
+			SD:     0b1
+		}
+        misa: {
+			A:      0b1
+			B:      0b0
+			C:      0b1
+			D:      0b1
+			E:      0b0
+			F:      0b1
+			H:      0b0
+			I:      0b1
+			J:      0b0
+			M:      0b1
+			N:      0b0
+			P:      0b0
+			Q:      0b0
+			S:      0b1
+			U:      0b1
+			V:      0b0
+			X:      0b0
+			MXL:    0b10
+		}
+        mie: {
+			USI:    0b0
+			SSI:    0b0
+			HSI:    0b0
+			MSI:    0b1
+			UTI:    0b0
+			STI:    0b0
+			HTI:    0b0
+			MTI:    0b0
+			UEI:    0b0
+			SEI:    0b0
+			HEI:    0b0
+			MEI:    0b0
+		}
+        mideleg: {
+			USI:    0b0
+			SSI:    0b1
+			HSI:    0b0
+			MSI:    0b0
+			UTI:    0b0
+			STI:    0b1
+			HTI:    0b0
+			MTI:    0b0
+			UEI:    0b0
+			SEI:    0b1
+			HEI:    0b0
+			MEI:    0b0
+		}
+        medeleg: {
+			Inst_Addr_Misalign:     0b1
+			Inst_Access_Fault:      0b0
+			Illegal_Inst:           0b0
+			Breakpoint:             0b1
+			Load_Addr_Misalign:     0b0
+			Load_Access_Fault:      0b0
+			Store_Addr_Misalign:    0b0
+			Store_Access_Fault:     0b0
+			Ecall_U:                0b1
+			Ecall_S:                0b0
+			Ecall_H:                0b0
+			Ecall_M:                0b0
+			Inst_Page_Fault:        0b1
+			Load_Page_Fault:        0b1
+			Store_Page_Fault:       0b1
+		}
+		mcounteren: {
+			CY:		0b1
+			TM:		0b1
+			IR:		0b1
+			HPM3:	0b1
+			HPM4:	0b1
+			HPM5:	0b1
+			HPM6:	0b1
+			HPM7:	0b1
+			HPM8:	0b1
+			HPM9:	0b1
+			HPM10:	0b1
+			HPM11:	0b1
+			HPM12:	0b1
+			HPM13:	0b1
+			HPM14:	0b1
+			HPM15:	0b1
+			HPM16:	0b1
+			HPM17:	0b1
+			HPM18:	0b1
+			HPM19:	0b1
+			HPM20:	0b1
+			HPM21:	0b1
+			HPM22:	0b1
+			HPM23:	0b1
+			HPM24:	0b1
+			HPM25:	0b1
+			HPM26:	0b1
+			HPM27:	0b1
+			HPM28:	0b1
+			HPM29:	0b1
+			HPM30:	0b1
+			HPM31:	0b1
+		}
+		scounteren: {
+			CY:		0b1
+			TM:		0b1
+			IR:		0b1
+			HPM3:	0b1
+			HPM4:	0b1
+			HPM5:	0b1
+			HPM6:	0b1
+			HPM7:	0b1
+			HPM8:	0b1
+			HPM9:	0b1
+			HPM10:	0b1
+			HPM11:	0b1
+			HPM12:	0b1
+			HPM13:	0b1
+			HPM14:	0b1
+			HPM15:	0b1
+			HPM16:	0b1
+			HPM17:	0b1
+			HPM18:	0b1
+			HPM19:	0b1
+			HPM20:	0b1
+			HPM21:	0b1
+			HPM22:	0b1
+			HPM23:	0b1
+			HPM24:	0b1
+			HPM25:	0b1
+			HPM26:	0b1
+			HPM27:	0b1
+			HPM28:	0b1
+			HPM29:	0b1
+			HPM30:	0b1
+			HPM31:	0b1
+		}
+		mtvec: {
+			BASE:	0x0000000080000004
+			MODE:	0b00
+		}
+		stvec: {
+			BASE:	0x0
+			MODE:	0b00
+		}
+		satp: {
+			PPN:	0x0
+			ASID:	0x0
+			MODE:	0x0
+		}
+		mscratch: {
+			SCRATCH: 0x0
+		}
+		sscratch: {
+			SCRATCH: 0x0
+		}
+    }
+	pmp: {
+		pmp0: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		OFF
+			L:		0b0
+			ADDR:	0x0000000080000000
+		}
+		pmp1: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		TOR
+			L:		0b0
+			ADDR:	0x0000000080001000
+		},
+		pmp2: {
+			R:		0b1
+			W:		0b1
+			X:		0b1
+			A:		NAPOT
+			L:		0b0
+			ADDR:	0x0000000080001000
+			RANGE:	0x1000
+		}
+		pmp3: {
+			R:		0b1
+			W:		0b1
+			X:		0b1
+			A:		NA4
+			L:		0b0
+			ADDR:	0x0000000080002000
+		}
+		pmp4: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		OFF
+			L:		0b0
+			ADDR:	0x0000000000000000
+		}
+		pmp5: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		OFF
+			L:		0b0
+			ADDR:	0x0000000000000000
+		}
+		pmp6: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		OFF
+			L:		0b0
+			ADDR:	0x0000000000000000
+		}
+		pmp7: {
+			R:		0b0
+			W:		0b0
+			X:		0b0
+			A:		OFF
+			L:		0b0
+			ADDR:	0x0000000000000000
+		}
+	}
+}

@@ -69,7 +69,8 @@ std::string parent(std::string scope) {
     return scope.substr(0, scope.find_last_of("."));
 }
 
-extern "C" void get_selection(char* select);
+extern "C" void get_selection(char* select) __attribute__((weak));
+extern "C" void get_selection(char* select) {}
 extern "C" char xref_variant_mux(const char* hierachy) {
     if (is_variant(hierachy)) {
         return 0;
@@ -86,7 +87,8 @@ extern "C" char xref_variant_mux(const char* hierachy) {
     }
 }
 
-extern "C" void get_enable(char* enable);
+extern "C" void get_enable(char* enable) __attribute__((weak));
+extern "C" void get_enable(char* enable) {}
 extern "C" char xref_variant_dffe(const char* hierachy) {
     if (is_variant(hierachy)) {
         return 0;
@@ -103,7 +105,8 @@ extern "C" char xref_variant_dffe(const char* hierachy) {
     }
 }
 
-extern "C" void get_srst(char* srst);
+extern "C" void get_srst(char* srst) __attribute__((weak));
+extern "C" void get_srst(char* srst) {}
 extern "C" char xref_variant_sdff(const char* hierachy) {
     if (is_variant(hierachy)) {
         return 0;
@@ -120,7 +123,8 @@ extern "C" char xref_variant_sdff(const char* hierachy) {
     }
 }
 
-extern "C" void get_arst(char* arst);
+extern "C" void get_arst(char* arst) __attribute__((weak));
+extern "C" void get_arst(char* arst) {}
 extern "C" char xref_variant_adff(const char* hierachy) {
     if (is_variant(hierachy)) {
         return 0;

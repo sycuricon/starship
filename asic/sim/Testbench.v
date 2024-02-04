@@ -138,7 +138,7 @@ module Testbench;
     if ($value$plusargs("testcase=%s", testcase)) begin
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `MEM_REG.ram);
-      $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
+      // $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
     end
     $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
 
@@ -150,40 +150,40 @@ module Testbench;
     event_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.log"}, "w");
   end
 
-  always @(posedge clock) begin
-    if (!reset) begin
-      $fwrite(taint_fd,"%t, %d, %d\n", $time, `SOC_TOP.taint_sum, `SOC_TOP_VNT.taint_sum);
+  // always @(posedge clock) begin
+  //   if (!reset) begin
+  //     $fwrite(taint_fd,"%t, %d, %d\n", $time, `SOC_TOP.taint_sum, `SOC_TOP_VNT.taint_sum);
 
-      `define BOOM_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
-      `define BOOM_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
-      `define BOOM_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
-      `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
-      if (`BOOM_ROB_ENQ_ENABLE) begin
-        case (`BOOM_ROB_ENQ_INST)
-          32'h00002013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
-          32'h00102013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
-          32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
-          32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
-          32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
-          32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
-          32'h00602013: $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
-          32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
-        endcase
-      end
-      if (`BOOM_ROB_DEQ_ENABLE) begin
-        case (`BOOM_ROB_DEQ_INST)
-          32'h00002013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
-          32'h00102013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
-          32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
-          32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
-          32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
-          32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
-          32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
-          32'h00702013: $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
-        endcase
-      end
-    end
-  end
+  //     `define BOOM_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
+  //     `define BOOM_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
+  //     `define BOOM_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
+  //     `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
+  //     if (`BOOM_ROB_ENQ_ENABLE) begin
+  //       case (`BOOM_ROB_ENQ_INST)
+  //         32'h00002013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
+  //         32'h00102013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
+  //         32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
+  //         32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
+  //         32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
+  //         32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
+  //         32'h00602013: $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
+  //         32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
+  //       endcase
+  //     end
+  //     if (`BOOM_ROB_DEQ_ENABLE) begin
+  //       case (`BOOM_ROB_DEQ_INST)
+  //         32'h00002013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
+  //         32'h00102013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
+  //         32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
+  //         32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
+  //         32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
+  //         32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
+  //         32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
+  //         32'h00702013: $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
+  //       endcase
+  //     end
+  //   end
+  // end
 
   always @(negedge clock) begin
     if(!jtag_rbb_enable) begin
@@ -246,14 +246,14 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
-  TestHarness testHarness_variant(
-    .clock(clock),
-    .reset(reset),
-    .io_uart_tx(),
-    .io_uart_rx(1'b0)
-  // .io_uart_tx(uart_tx),
-  // .io_uart_rx(uart_rx)
-  );
+  // TestHarness testHarness_variant(
+  //   .clock(clock),
+  //   .reset(reset),
+  //   .io_uart_tx(),
+  //   .io_uart_rx(1'b0)
+  // // .io_uart_tx(uart_tx),
+  // // .io_uart_rx(uart_rx)
+  // );
 
 `ifdef COSIMULATION
   CJ rtlfuzz (
