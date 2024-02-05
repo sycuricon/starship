@@ -59,7 +59,7 @@ class StarshipStateInitConfig extends Config(
     case ExtMem => up(ExtMem, site).map(x => x.copy(master = x.master.copy(size = 0x40000L)))
     case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
       val path = System.getProperty("user.dir")
-      val gen_loader = s"""python3 firmware/rvsnap/src/generator.py \
+      val gen_loader = s"""python3 firmware/rvsnap/src/generator.py
         --input conf/dummy_state.hjson --format hex,32 --output build/firmware/rvsnap --pmp 4"""
       val make_loader = s"make -C firmware/rvsnap/src/loader ROOT_DIR=${path} img"
       println("[Leaving rocketchip] " + gen_loader)
