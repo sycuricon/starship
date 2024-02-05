@@ -332,7 +332,8 @@ VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
-			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"
+			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"			\
+			   -LDFLAGS "-ldl"
 VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
 
 vlt-wave: 		VLT_SIM_OPTION	+= +dump
