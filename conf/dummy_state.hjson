@@ -78,10 +78,10 @@
 			MIE:    0b0
 			SPIE:   0b0
 			UBE:    0b0
-			MPIE:   0b1
+			MPIE:   0b0
 			SPP:    0b0
 			VS:     0b00
-			MPP:    0b00
+			MPP:    0b11
 			FS:     0b11
 			XS:     0b00
 			MPRV:   0b0
@@ -94,7 +94,7 @@
 			SXL:    0b10
 			SBE:    0b0
 			MBE:    0b0
-			SD:     0b1
+			SD:     0b0
 		}
         misa: {
 			A:      0b1
@@ -262,7 +262,7 @@
 			R:		0b0
 			W:		0b0
 			X:		0b0
-			A:		TOR
+			A:		OFF
 			L:		0b0
 			ADDR:	0x0000000080001000
 		},
@@ -270,7 +270,7 @@
 			R:		0b1
 			W:		0b1
 			X:		0b1
-			A:		NAPOT
+			A:		OFF
 			L:		0b0
 			ADDR:	0x0000000080001000
 			RANGE:	0x1000
@@ -279,41 +279,9 @@
 			R:		0b1
 			W:		0b1
 			X:		0b1
-			A:		NA4
+			A:		OFF
 			L:		0b0
 			ADDR:	0x0000000080002000
-		}
-		pmp4: {
-			R:		0b0
-			W:		0b0
-			X:		0b0
-			A:		OFF
-			L:		0b0
-			ADDR:	0x0000000000000000
-		}
-		pmp5: {
-			R:		0b0
-			W:		0b0
-			X:		0b0
-			A:		OFF
-			L:		0b0
-			ADDR:	0x0000000000000000
-		}
-		pmp6: {
-			R:		0b0
-			W:		0b0
-			X:		0b0
-			A:		OFF
-			L:		0b0
-			ADDR:	0x0000000000000000
-		}
-		pmp7: {
-			R:		0b0
-			W:		0b0
-			X:		0b0
-			A:		OFF
-			L:		0b0
-			ADDR:	0x0000000000000000
 		}
 	}
 }
