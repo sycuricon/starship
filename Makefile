@@ -139,19 +139,24 @@ verilog-debug: $(VERILOG_SRC)
 
 verilog-patch: $(VERILOG_SRC)
 	# sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
+	# sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
+	# sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
+	# sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 	sed -i "s/_covMap\[initvar\] = _RAND/_covMap\[initvar\] = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 
+YOSYS_TOP = $(lastword $(subst ., ,$(STARSHIP_TOP)))
+YOSYS_CONFIG = $(lastword $(subst ., ,$(STARSHIP_CONFIG)))
+export YOSYS_TOP YOSYS_CONFIG
+
 verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
 	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
-	$(MAKE) verilog-patch
+	$(MAKE) verilog-patch 
 	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
-	yosys -s asic/syn/pift.ys
+	# yosys -s asic/syn/pift.ys
+	yosys -c asic/syn/pift.tcl
 	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
 #######################################
@@ -410,3 +415,4 @@ clean:
 
 clean-all:
 	rm -rf $(BUILD) $(SBT_BUILD)
+
