@@ -416,3 +416,19 @@ clean:
 clean-all:
 	rm -rf $(BUILD) $(SBT_BUILD)
 
+#######################################
+#
+#               Fuzz
+#
+#######################################
+
+RVSNAP_SRC		=	$(FIRMWARE_SRC)/rvsnap
+RVSNAP_BUILD	= 	$(FIRMWARE_BUILD)/rvsnap
+DUMMY_INIT_HEX	=	default.hex
+DUMMY_INIT_DATA	=	$(RVSNAP_BUILD)/$(DUMMY_INIT_HEX)
+
+$(DUMMY_INIT_DATA):$(RVSNAP_SRC)
+	mkdir -p $(RVSNAP_BUILD)
+	python $(RVSNAP_SRC)/src/generator.py --input $(CONFIG)/dummy_state.hjson --output $(RVSNAP_BUILD) --format hex,32 --pmp 4
+
+dummy_init:$(DUMMY_INIT_DATA)
