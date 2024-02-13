@@ -19,3 +19,6 @@
 [submodule "firmware/rvsnap"]
 	path = firmware/rvsnap
 	url = https://github.com/sycuricon/rvsnap.git
+[submodule "repo/InstGenerator"]
+	path = repo/InstGenerator
+	url = https://github.com/sycuricon/InstGenerator.git
