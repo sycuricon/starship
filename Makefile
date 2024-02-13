@@ -422,10 +422,35 @@ clean-all:
 #
 #######################################
 
+FUZZ_SRC	=	$(SRC)/InstGenerator
+FUZZ_BUILD	=	$(BUILD)/fuzz_code
+
 RVSNAP_SRC		=	$(FIRMWARE_SRC)/rvsnap
 RVSNAP_BUILD	= 	$(FIRMWARE_BUILD)/rvsnap
 DUMMY_INIT_HEX	=	default.hex
 DUMMY_INIT_DATA	=	$(RVSNAP_BUILD)/$(DUMMY_INIT_HEX)
+
+FUZZ_CODE	=	$(FUZZ_BUILD)/Testbench
+FUZZ_SYMBOL =	$(FUZZ_BUILD)/System.map
+
+REG_INIT_HEX = reg_init.hex
+REG_INIT_DATA = $(FUZZ_BUILD)/$(REG_INIT_HEX)
+
+$(FUZZ_CODE):$(FUZZ_SRC)
+	cd $(FUZZ_SRC); \
+	python DistributeManager.py -I mem_init.hjson -O $(FUZZ_BUILD) -V
+	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
+
+$(FUZZ_SYMBOL):$(FUZZ_CODE)
+	nm $< > $@
+
+$(REG_INIT_DATA):$(FUZZ_SYMBOL)
+	cd $(FUZZ_SRC); \
+	python RegInit.py -I $(CONFIG)/dummy_state.hjson -S $(FUZZ_BUILD)/System.map -O $(FUZZ_BUILD)/reg_init.hjson -V
+	cd $(RVSNAP_SRC); \
+	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(FUZZ_BUILD) --image $(REG_INIT_HEX) --format hex,32 --pmp 4
+
+fuzz:$(REG_INIT_DATA) $(FUZZ_CODE)
 
 $(DUMMY_INIT_DATA):$(RVSNAP_SRC)
 	mkdir -p $(RVSNAP_BUILD)
