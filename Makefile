@@ -138,10 +138,10 @@ verilog: $(VERILOG_SRC)
 verilog-debug: $(VERILOG_SRC)
 
 verilog-patch: $(VERILOG_SRC)
-	# sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
-	# sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
-	# sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
-	# sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
+	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
 	sed -i "s/_covMap\[initvar\] = _RAND/_covMap\[initvar\] = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
@@ -424,40 +424,31 @@ clean-all:
 
 FUZZ_SRC	=	$(SRC)/InstGenerator
 FUZZ_BUILD	=	$(BUILD)/fuzz_code
+FUZZ_REG_INIT	=	$(FUZZ_BUILD)/reg_init.hjson
 
 RVSNAP_SRC		=	$(FIRMWARE_SRC)/rvsnap
 RVSNAP_BUILD	= 	$(FIRMWARE_BUILD)/rvsnap
-DUMMY_INIT_HEX	=	default.hex
-DUMMY_INIT_DATA	=	$(RVSNAP_BUILD)/$(DUMMY_INIT_HEX)
+RVSNAP_REG_INIT	=	$(RVSNAP_BUILD)/init.S
 
 FUZZ_CODE	=	$(FUZZ_BUILD)/Testbench
 FUZZ_SYMBOL =	$(FUZZ_BUILD)/System.map
 
-REG_INIT_HEX = reg_init.hex
-REG_INIT_DATA = $(RVSNAP_BUILD)/init.hex
-
 FUZZ_MODE = 
 
-$(FUZZ_CODE):$(FUZZ_SRC)
+$(FUZZ_REG_INIT):$(FUZZ_SRC)
+	mkdir -p $(FUZZ_BUILD)
 	cd $(FUZZ_SRC); \
-	python DistributeManager.py -I mem_init.hjson -O $(FUZZ_BUILD) $(FUZZ_MODE)
+	python RegInit.py -I $(CONFIG)/dummy_state.hjson -O $(FUZZ_BUILD)/reg_init.hjson $(FUZZ_MODE)
+
+$(RVSNAP_REG_INIT):$(FUZZ_REG_INIT) $(RVSNAP_SRC)
+	mkdir -p $(RVSNAP_BUILD)
+	cd $(RVSNAP_SRC); \
+	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --format asm,64 --pmp 4 --image default.h
+
+$(FUZZ_CODE):$(FUZZ_SRC) $(RVSNAP_REG_INIT)
+	mkdir -p $(FUZZ_BUILD)
+	cd $(FUZZ_SRC); \
+	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) --init $(RVSNAP_BUILD) $(FUZZ_MODE)
 	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
 
-$(FUZZ_SYMBOL):$(FUZZ_CODE)
-	nm $< > $@
-
-$(REG_INIT_DATA):$(FUZZ_SYMBOL)
-	cd $(FUZZ_SRC); \
-	python RegInit.py -I $(CONFIG)/dummy_state.hjson -S $(FUZZ_BUILD)/System.map -O $(FUZZ_BUILD)/reg_init.hjson $(FUZZ_MODE)
-	cd $(RVSNAP_SRC); \
-	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --image $(REG_INIT_HEX) --format bin,32 --pmp 4 --image default.bin
-	make -C $(RVSNAP_SRC)/src/loader ROOT_DIR=${TOP} hex
-
-fuzz:$(REG_INIT_DATA) $(FUZZ_CODE)
-
-$(DUMMY_INIT_DATA):$(RVSNAP_SRC)
-	mkdir -p $(RVSNAP_BUILD)
-	python $(RVSNAP_SRC)/src/generator.py --input $(CONFIG)/dummy_state.hjson --output $(RVSNAP_BUILD) --format bin,32 --pmp 4 --image default.bin
-	make -C $(RVSNAP_SRC)/src/loader ROOT_DIR=${TOP} hex
-
-dummy_init:$(DUMMY_INIT_DATA)
+fuzz:$(FUZZ_CODE)
