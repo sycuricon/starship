@@ -435,6 +435,8 @@ FUZZ_SYMBOL =	$(FUZZ_BUILD)/System.map
 
 FUZZ_MODE = 
 
+fuzz-virtual: FUZZ_MODE+=-V
+
 $(FUZZ_REG_INIT):$(FUZZ_SRC)
 	mkdir -p $(FUZZ_BUILD)
 	cd $(FUZZ_SRC); \
@@ -452,3 +454,5 @@ $(FUZZ_CODE):$(FUZZ_SRC) $(RVSNAP_REG_INIT)
 	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
 
 fuzz:$(FUZZ_CODE)
+fuzz-physics:fuzz
+fuzz-virtual:fuzz
