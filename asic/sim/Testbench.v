@@ -277,6 +277,8 @@ module Testbench;
     .tohost(tohost),
     .interrupt(interrupt)
   );
+`else
+    assign interrupt = 0;
 `endif
 
   task fuzz_manager;
