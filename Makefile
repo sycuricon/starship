@@ -445,7 +445,7 @@ $(FUZZ_REG_INIT):$(FUZZ_SRC)
 $(RVSNAP_REG_INIT):$(FUZZ_REG_INIT) $(RVSNAP_SRC)
 	mkdir -p $(RVSNAP_BUILD)
 	cd $(RVSNAP_SRC); \
-	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --format asm,64 --pmp 4 --image default.h
+	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --format asm,64 --pmp 4 --image reg_init.h
 
 $(FUZZ_CODE):$(FUZZ_SRC) $(RVSNAP_REG_INIT)
 	mkdir -p $(FUZZ_BUILD)
