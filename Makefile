@@ -447,12 +447,11 @@ $(RVSNAP_REG_INIT):$(FUZZ_REG_INIT) $(RVSNAP_SRC)
 	cd $(RVSNAP_SRC); \
 	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --format asm,64 --pmp 4 --image reg_init.h
 
-$(FUZZ_CODE):$(FUZZ_SRC) $(RVSNAP_REG_INIT)
+fuzz:$(FUZZ_SRC) $(RVSNAP_REG_INIT)
 	mkdir -p $(FUZZ_BUILD)
 	cd $(FUZZ_SRC); \
 	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) --init $(RVSNAP_BUILD) $(FUZZ_MODE)
 	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
 
-fuzz:$(FUZZ_CODE)
 fuzz-physics:fuzz
 fuzz-virtual:fuzz
