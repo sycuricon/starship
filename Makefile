@@ -333,7 +333,7 @@ vlt-fuzz:		VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 vlt-fuzz-debug:	VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 
 VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
-			   --timescale 1ns/10ps --trace --timing										\
+			   --timescale 1ns/10ps --trace --timing 										\
 			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
@@ -454,6 +454,7 @@ fuzz:$(FUZZ_SRC) $(RVSNAP_REG_INIT)
 	cd $(FUZZ_SRC); \
 	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) --init $(RVSNAP_BUILD) $(FUZZ_MODE)
 	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
+	cd $(FUZZ_BUILD); riscv64-unknown-elf-objdump -D Testbench > Testbench.asm
 
 fuzz-physics:fuzz
 fuzz-virtual:fuzz
