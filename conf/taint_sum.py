@@ -45,7 +45,7 @@ def main():
 
     for target in targets:
         print(f"processing {target}")
-        selected_rounds = [round for round in target_file_list if round.startswith(target)]
+        selected_rounds = [round for round in target_file_list if round.startswith(target + '.')]
 
         output_file = genHTMLOutputFileName(target, source)
         tlog_file_list = [genTaintLogFileName(round, source) for round in selected_rounds]
