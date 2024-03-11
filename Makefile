@@ -424,14 +424,8 @@ clean-all:
 
 FUZZ_SRC	=	$(SRC)/InstGenerator
 FUZZ_BUILD	=	$(BUILD)/fuzz_code
-FUZZ_REG_INIT	=	$(FUZZ_BUILD)/reg_init.hjson
-
-RVSNAP_SRC		=	$(FIRMWARE_SRC)/rvsnap
-RVSNAP_BUILD	= 	$(FIRMWARE_BUILD)/rvsnap
-RVSNAP_REG_INIT	=	$(RVSNAP_BUILD)/init.S
 
 FUZZ_CODE	=	$(FUZZ_BUILD)/Testbench
-FUZZ_SYMBOL =	$(FUZZ_BUILD)/System.map
 
 FUZZ_MODE = 
 
@@ -439,20 +433,10 @@ fuzz-virtual: FUZZ_MODE += -V
 fuzz-do-physics: FUZZ_MODE += --fuzz
 fuzz-do-virtual: FUZZ_MODE += -V --fuzz
 
-$(FUZZ_REG_INIT):$(FUZZ_SRC)
+fuzz:$(FUZZ_SRC)
 	mkdir -p $(FUZZ_BUILD)
 	cd $(FUZZ_SRC); \
-	python RegInit.py -I $(CONFIG)/dummy_state.hjson -O $(FUZZ_BUILD)/reg_init.hjson $(FUZZ_MODE)
-
-$(RVSNAP_REG_INIT):$(FUZZ_REG_INIT) $(RVSNAP_SRC)
-	mkdir -p $(RVSNAP_BUILD)
-	cd $(RVSNAP_SRC); \
-	python src/generator.py --input $(FUZZ_BUILD)/reg_init.hjson --output $(RVSNAP_BUILD) --format asm,64 --pmp 4 --image reg_init.h
-
-fuzz:$(FUZZ_SRC) $(RVSNAP_REG_INIT)
-	mkdir -p $(FUZZ_BUILD)
-	cd $(FUZZ_SRC); \
-	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) --init $(RVSNAP_BUILD) $(FUZZ_MODE)
+	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) $(FUZZ_MODE)
 	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
 	cd $(FUZZ_BUILD); riscv64-unknown-elf-objdump -D Testbench > Testbench.asm
 
