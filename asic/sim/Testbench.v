@@ -160,26 +160,58 @@ module Testbench;
       `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
       if (`BOOM_ROB_ENQ_ENABLE) begin
         case (`BOOM_ROB_ENQ_INST)
-          32'h00002013: $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
+          32'h00002013: begin
+            $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] victim_begin `date +%s.%3N` \033[0m\"");
+          end
           32'h00102013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
           32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
           32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
           32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
-          32'h00602013: $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
+          32'h00602013: begin
+            $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] leak_end `date +%s.%3N` \033[0m\"");
+          end
           32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
+          32'h00802013: begin
+            $fwrite(event_fd, "INFO_INIT_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] init_start `date +%s.%3N` \033[0m\"");
+          end
+          32'h00902013: $fwrite(event_fd, "INFO_INIT_END, %t\n", $time);
+          32'h00a02013: begin
+            $fwrite(event_fd, "INFO_BIM_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] bim_start `date +%s.%3N` \033[0m\"");
+          end
+          32'h00b02013: $fwrite(event_fd, "INFO_BIM_END, %t\n", $time);
         endcase
       end
       if (`BOOM_ROB_DEQ_ENABLE) begin
         case (`BOOM_ROB_DEQ_INST)
           32'h00002013: $fwrite(event_fd, "INFO_VCTM_START_COMMIT, %t\n", $time);
-          32'h00102013: $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
+          32'h00102013: begin
+            $fwrite(event_fd, "INFO_VCTM_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] vicitm_end `date +%s.%3N` \033[0m\"");
+          end
           32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
           32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
           32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
           32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
-          32'h00702013: $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
+          32'h00702013: begin
+            $fwrite(event_fd, "INFO_LEAK_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] leak_end `date +%s.%3N` \033[0m\"");
+          end
+          32'h00802013: $fwrite(event_fd, "INFO_INIT_START_COMMIT, %t\n", $time);
+          32'h00902013: begin
+            $fwrite(event_fd, "INFO_INIT_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] init_end `date +%s.%3N` \033[0m\"");
+          end
+          32'h00a02013: $fwrite(event_fd, "INFO_BIM_START_COMMIT, %t\n", $time);
+          32'h00b02013: begin
+            $fwrite(event_fd, "INFO_BIM_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] bim_end `date +%s.%3N` \033[0m\"");
+          end
         endcase
       end
     end
