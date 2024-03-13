@@ -196,6 +196,62 @@ extern "C" char xref_merge_dff_taint(unsigned int idx) {
     return dut_tainted | vnt_tainted;
 }
 
+extern "C" void get_mem_rd_en(unsigned int index, char* en);
+extern "C" char xref_diff_mem_rd_en(unsigned int idx, unsigned int index) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_en, vnt_en;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mem_rd_en(index, &dut_en);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mem_rd_en(index, &vnt_en);
+
+    return dut_en ^ vnt_en;
+}
+
+extern "C" void get_mem_wt_en(unsigned int index, char* en);
+extern "C" char xref_diff_mem_wt_en(unsigned int idx, unsigned int index) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_en, vnt_en;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mem_wt_en(index, &dut_en);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mem_wt_en(index, &vnt_en);
+
+    return dut_en ^ vnt_en;
+}
+
+extern "C" void get_mem_rd_srst(unsigned int index, char* srst);
+extern "C" char xref_diff_mem_rd_srst(unsigned int idx, unsigned int index) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_srst, vnt_srst;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mem_rd_srst(index, &dut_srst);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mem_rd_srst(index, &vnt_srst);
+
+    return dut_srst ^ vnt_srst;
+}
+
+extern "C" void get_mem_rd_arst(unsigned int index, char* arst);
+extern "C" char xref_diff_mem_rd_arst(unsigned int idx, unsigned int index) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_arst, vnt_arst;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mem_rd_srst(index, &dut_arst);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mem_rd_srst(index, &vnt_arst);
+
+    return dut_arst ^ vnt_arst;
+}
+
 extern "C" void get_mem_taint(unsigned int index, char* tainted);
 extern "C" char xref_merge_mem_taint(unsigned int idx, unsigned int index) {
     Reference h = refMap.at(group_idx(idx));

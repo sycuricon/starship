@@ -197,7 +197,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     endfunction
 
     reg en_diff, srst_diff, arst_diff;
-    always @(negedge `SOC_TOP.clock) begin
+    always @(negedge Testbench.clock) begin
         en_diff = xref_diff_dff_en(ref_id);
         srst_diff = xref_diff_dff_srst(ref_id);
         arst_diff = xref_diff_dff_arst(ref_id);
@@ -353,44 +353,57 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
             memory_taint[i] = 0;
     end
 
-    // import "DPI-C" function byte xref_diff_mem_rd_en(int unsigned ref_id, int index);
-    // import "DPI-C" function byte xref_diff_mem_wt_en(int unsigned ref_id, int index);
-    // import "DPI-C" function byte xref_diff_mem_rd_srst(int unsigned ref_id, int index);
-    // import "DPI-C" function byte xref_diff_mem_rd_arst(int unsigned ref_id, int index);
+    import "DPI-C" function byte xref_diff_mem_rd_en(int unsigned ref_id, int index);
+    import "DPI-C" function byte xref_diff_mem_wt_en(int unsigned ref_id, int index);
+    import "DPI-C" function byte xref_diff_mem_rd_srst(int unsigned ref_id, int index);
+    import "DPI-C" function byte xref_diff_mem_rd_arst(int unsigned ref_id, int index);
     import "DPI-C" function byte xref_merge_mem_taint(int unsigned ref_id, int index);
-    // export "DPI-C" function get_mem_rd_en;
-    // export "DPI-C" function get_mem_wt_en;
-    // export "DPI-C" function get_mem_rd_srst;
-    // export "DPI-C" function get_mem_rd_arst;
+    export "DPI-C" function get_mem_rd_en;
+    export "DPI-C" function get_mem_wt_en;
+    export "DPI-C" function get_mem_rd_srst;
+    export "DPI-C" function get_mem_rd_arst;
     export "DPI-C" function get_mem_taint;
-    // function void get_mem_rd_en();
-    //     output byte en;
-    //     en = pos_en;
-    // endfunction
-    // function void get_mem_wt_en();
-    //     output byte en;
-    //     en = pos_en;
-    // endfunction
-    // function void get_mem_rd_srst();
-    //     output byte srst;
-    //     srst = pos_arst;
-    // endfunction
-    // function void get_mem_rd_arst();
-    //     output byte arst;
-    //     arst = pos_arst;
-    // endfunction
+    function void get_mem_rd_en();
+        input int unsigned index;
+        output byte en;
+        en = RD_EN[index];
+    endfunction
+    function void get_mem_wt_en();
+        input int unsigned index;
+        output byte en;
+        en = WR_EN[index];
+    endfunction
+    function void get_mem_rd_srst();
+        input int unsigned index;
+        output byte srst;
+        srst = RD_SRST[index];
+    endfunction
+    function void get_mem_rd_arst();
+        input int unsigned index;
+        output byte arst;
+        arst = RD_ARST[index];
+    endfunction
     function void get_mem_taint();
         input int unsigned index;
         output byte tainted;
         tainted = |memory_taint[index];
     endfunction
 
-    // reg en_diff, srst_diff, arst_diff;
-    // always @(negedge `SOC_TOP.clock) begin
-    //     en_diff = xref_diff_dff_en(ref_id, Testbench.smon.sync);
-    //     srst_diff = xref_diff_dff_srst(ref_id, Testbench.smon.sync);
-    //     arst_diff = xref_diff_dff_arst(ref_id, Testbench.smon.sync);
-    // end
+    reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
+    reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
+
+    always @(negedge Testbench.clock) begin
+        for (i = 0; i < RD_PORTS; i = i+1) begin
+            rd_en_diff[i] = xref_diff_mem_rd_en(ref_id, i);
+            rd_srst_diff[i] = xref_diff_mem_rd_srst(ref_id, i);
+            rd_arst_diff[i] = xref_diff_mem_rd_arst(ref_id, i);
+        end
+        for (i = 0; i < WR_PORTS; i = i+1) begin
+            for (j = 0; j < WIDTH; j = j+1) begin
+                wt_en_diff[i*WIDTH + j] = xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
+            end
+        end
+    end
 
     generate
         reg query_taint;
@@ -412,7 +425,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 for (i = 0; i < RD_PORTS; i = i+1)
                     memory_rd_taint[i*WIDTH +: WIDTH] = 
                         (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) |
-                        RD_ARST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
+                        RD_ARST_taint[i] & rd_arst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
             end
         end
         else if (&RD_CLK_ENABLE != 1) begin: mix_read
@@ -428,23 +441,18 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                     if (RD_CE_OVER_SRST[i])
                         memory_rd_taint[i*WIDTH +: WIDTH] <= 
                             (RD_EN[i] ? 
-                                (RD_SRST[i] ? 
-                                    0 : 
-                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
+                                (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
                                 0) |
-                            RD_EN[i] & RD_EN_taint[i] ? 
+                            RD_EN_taint[i] & rd_en_diff[i] ? 
                                 {WIDTH{1'b1}} : 
-                                (RD_EN[i] & RD_SRST[i] & RD_SRST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_SRST_taint[i] & rd_srst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
                     else
                         memory_rd_taint[i*WIDTH +: WIDTH] <= 
                             (RD_SRST[i] ? 
-                                0 : 
-                                (RD_EN[i] ? 
-                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 
-                                    0)) |
-                            RD_SRST[i] & RD_SRST_taint[i] ? 
+                                0 : (RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 0)) |
+                            RD_SRST_taint[i] & rd_srst_diff[i] ? 
                                 {WIDTH{1'b1}} : 
-                                (!RD_SRST[i] & RD_EN[i] & RD_EN_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_EN_taint[i] & rd_en_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
             end
         end
 
@@ -461,7 +469,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
                                         WR_DATA_taint[i*WIDTH+j] |
                                         |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j];
+                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
                 end
             end
         end
@@ -484,7 +492,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
                                         WR_DATA_taint[i*WIDTH+j] | 
                                         |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j];
+                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
                 end
             end
         end
