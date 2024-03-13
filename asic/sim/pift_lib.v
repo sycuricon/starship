@@ -210,10 +210,12 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         //     end
         // end
 
+        assign taint_sum = |register_taint;
+
         case (TYPE)
             "dff": begin: gendff
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= D_taint;
@@ -221,7 +223,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "sdff": begin: gensdff
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_srst ? 0 : D_taint) |
@@ -230,7 +232,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "adff": begin: genadff
                 always @(posedge pos_clk, posedge pos_arst) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_arst ? 0 : D_taint) | 
@@ -239,7 +241,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "dffe": begin: gendffe
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_en ? D_taint : register_taint) | 
@@ -248,7 +250,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "sdffe": begin: gensdffe
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_srst ? 0 : (pos_en ? D_taint : register_taint)) | 
@@ -258,7 +260,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "adffe": begin: genadffe
                 always @(posedge pos_clk, posedge pos_arst) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_arst ? 0 : (pos_en ? D_taint : register_taint)) | 
@@ -268,7 +270,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
             "sdffce": begin: gensdffce
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
+                    if (Testbench.reset)
                         register_taint <= 0;
                     else
                         register_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : register_taint) |
@@ -281,9 +283,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 initial $error("Unknown dff type %s at %m", TYPE);
             end
         endcase
-
-        assign taint_sum = |register_taint;
-
     endgenerate
 endmodule
 
@@ -331,6 +330,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     input [WR_PORTS*WIDTH-1:0] WR_DATA;
     input [WR_PORTS*WIDTH-1:0] WR_DATA_taint;
 
+    wire pos_rd_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
+    wire pos_wt_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
+
     output reg [ABITS:0] taint_sum;
 
     integer i, j;
@@ -342,6 +344,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     end
 
     generate
+        always @(negedge Testbench.clock) begin
+            taint_sum = 0;
+            for (i = 0; i < SIZE; i = i+1)
+                taint_sum = taint_sum + |memory_taint[i];
+        end
+
         if (RD_CLK_ENABLE == 0) begin: async_read
             always @(*) begin
                 for (i = 0; i < RD_PORTS; i = i+1)
@@ -358,8 +366,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 initial $error("Transparency and collision masks are not supported: %s at %m", MEMID);
             if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
                 initial $error("Mixed read clock polarities are not supported: %s at %m", MEMID);
-            wire pos_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
-            always @(posedge pos_clk) begin
+            always @(posedge pos_rd_clk) begin
                 for (i = 0; i < RD_PORTS; i = i+1)
                     if (RD_CE_OVER_SRST[i])
                         RD_DATA_taint[i*WIDTH +: WIDTH] <= 
@@ -386,7 +393,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
 
         if (WR_CLK_ENABLE == 0) begin: async_write
             always @(*) begin
-                if (`SOC_TOP.reset) begin
+                if (Testbench.reset) begin
                     for (i = 0; i < SIZE; i = i+1)
                         memory_taint[i] = 0;
                 end
@@ -407,9 +414,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
         else begin: sync_write
             if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
                 initial $error("Mixed write clock polarities are not supported: %s at %m", MEMID);
-            wire pos_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
-            always @(posedge pos_clk) begin
-                if (`SOC_TOP.reset) begin
+            always @(posedge pos_wt_clk) begin
+                if (Testbench.reset) begin
                     for (i = 0; i < SIZE; i = i+1)
                         memory_taint[i] = 0;
                 end
@@ -425,13 +431,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 end
             end
         end
-
-        always @(*) begin
-            taint_sum = 0;
-            for (i = 0; i < SIZE; i = i+1)
-                taint_sum = taint_sum + |memory_taint[i];
-        end
-
     endgenerate
 
 endmodule
