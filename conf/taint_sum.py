@@ -64,11 +64,11 @@ def main():
             print(f"reading {tlog}")
             data = pd.read_csv(tlog)
             fig.add_trace(
-                go.Scatter(x=data['time'], y=data['base'], name="base"),
+                go.Scatter(x=data['time'], y=data['base'], name="dut"),
                 row=i + 1, col=1
             )
             fig.add_trace(
-                go.Scatter(x=data['time'], y=data['variant'], name="vrnt"),
+                go.Scatter(x=data['time'], y=data['variant'], name="vnt"),
                 row=i + 1, col=1
             )
             
