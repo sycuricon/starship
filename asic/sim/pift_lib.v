@@ -1,3 +1,5 @@
+import "DPI-C" function int register_reference(string hierarchy);
+
 module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
     parameter A_SIGNED = 0;
@@ -109,16 +111,21 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
     wire [WIDTH-1:0] A_san = $isunknown(A) ? {WIDTH{1'b0}} : A;
     wire [WIDTH-1:0] B_san = $isunknown(B) ? {WIDTH{1'b0}} : B;
 
-    import "DPI-C" function byte xref_variant_mux(string hierarchy);
-    export "DPI-C" function get_selection;
-    function void get_selection();
+    int unsigned ref_id;
+    initial begin
+        ref_id = register_reference($sformatf("%m"));
+    end
+
+    import "DPI-C" function byte xref_diff_mux_sel(int unsigned ref_id, byte sync);
+    export "DPI-C" function get_mux_sel;
+    function void get_mux_sel();
         output byte select;
         select = S;
     endfunction
 
     reg S_diff;
     always @(negedge `SOC_TOP.clock) begin
-        S_diff = xref_variant_mux($sformatf("%m"));
+        S_diff = xref_diff_mux_sel(ref_id, Testbench.smon.sync);
     end
 
     assign Y_taint = (S ? B_taint : A_taint) | (S_taint & S_diff ? A_san ^ B_san : {WIDTH{1'b0}});
@@ -142,8 +149,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     input [WIDTH-1:0] Q;
     input SRST_taint, ARST_taint, EN_taint;
     input [WIDTH-1:0] D_taint;
-    output reg [WIDTH-1:0] Q_taint;
+    output [WIDTH-1:0] Q_taint;
     output taint_sum;
+
+    reg [WIDTH-1:0] register_taint;
+    assign Q_taint = register_taint & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -153,76 +163,95 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
-    import "DPI-C" function byte xref_variant_dffe(string hierarchy);
-    import "DPI-C" function byte xref_variant_sdff(string hierarchy);
-    import "DPI-C" function byte xref_variant_adff(string hierarchy);
-    export "DPI-C" function get_enable;
-    export "DPI-C" function get_srst;
-    export "DPI-C" function get_arst;
-    function void get_enable();
-        output byte enable;
-        enable = pos_en;
+    int unsigned ref_id;
+    initial begin
+        ref_id = register_reference($sformatf("%m"));
+        #(`RESET_DELAY) register_taint = 0;
+    end
+
+    import "DPI-C" function byte xref_diff_dff_en(int unsigned ref_id, byte sync);
+    import "DPI-C" function byte xref_diff_dff_srst(int unsigned ref_id, byte sync);
+    import "DPI-C" function byte xref_diff_dff_arst(int unsigned ref_id, byte sync);
+    import "DPI-C" function byte xref_merge_dff_taint(int unsigned ref_id);
+    export "DPI-C" function get_dff_en;
+    export "DPI-C" function get_dff_srst;
+    export "DPI-C" function get_dff_arst;
+    export "DPI-C" function get_dff_taint;
+    function void get_dff_en();
+        output byte en;
+        en = pos_en;
     endfunction
-    function void get_srst();
+    function void get_dff_srst();
         output byte srst;
         srst = pos_arst;
     endfunction
-    function void get_arst();
+    function void get_dff_arst();
         output byte arst;
         arst = pos_arst;
+    endfunction
+    function void get_dff_taint();
+        output byte tainted;
+        tainted = |register_taint;
     endfunction
 
     reg en_diff, srst_diff, arst_diff;
     always @(negedge `SOC_TOP.clock) begin
-        en_diff = xref_variant_dffe($sformatf("%m"));
-        srst_diff = xref_variant_sdff($sformatf("%m"));
-        arst_diff = xref_variant_adff($sformatf("%m"));
-            end
+        en_diff = xref_diff_dff_en(ref_id, Testbench.smon.sync);
+        srst_diff = xref_diff_dff_srst(ref_id, Testbench.smon.sync);
+        arst_diff = xref_diff_dff_arst(ref_id, Testbench.smon.sync);
+    end
 
     generate
-        initial #(`RESET_DELAY) Q_taint = 0;
+        // reg merged_taint;
+        // always @(negedge pos_clk) begin
+        //     if (Testbench.smon.vnt_done | Testbench.smon.dut_done) begin
+        //         merged_taint = xref_merge_dff_taint(ref_id);
+        //         register_taint <= {WIDTH{merged_taint}};
+        //     end
+        // end
+
         case (TYPE)
             "dff": begin: gendff
                 always @(posedge pos_clk) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= D_taint;
+                        register_taint <= D_taint;
                 end
             end
             "sdff": begin: gensdff
                 always @(posedge pos_clk) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_srst ? 0 : D_taint) |
+                        register_taint <= (pos_srst ? 0 : D_taint) |
                                    (SRST_taint & srst_diff ? SRST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "adff": begin: genadff
                 always @(posedge pos_clk, posedge pos_arst) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_arst ? 0 : D_taint) | 
+                        register_taint <= (pos_arst ? 0 : D_taint) | 
                                    (ARST_taint & arst_diff ? ARST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "dffe": begin: gendffe
                 always @(posedge pos_clk) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? D_taint : Q_taint) | 
+                        register_taint <= (pos_en ? D_taint : register_taint) | 
                                    (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}});
                 end
             end
             "sdffe": begin: gensdffe
                 always @(posedge pos_clk) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_srst ? 0 : (pos_en ? D_taint : Q_taint)) | 
+                        register_taint <= (pos_srst ? 0 : (pos_en ? D_taint : register_taint)) | 
                             (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : 
                                 (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
@@ -230,9 +259,9 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "adffe": begin: genadffe
                 always @(posedge pos_clk, posedge pos_arst) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_arst ? 0 : (pos_en ? D_taint : Q_taint)) | 
+                        register_taint <= (pos_arst ? 0 : (pos_en ? D_taint : register_taint)) | 
                             (ARST_taint & arst_diff ? ARST_VALUE ^ Q_san : 
                                 (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
@@ -240,10 +269,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "sdffce": begin: gensdffce
                 always @(posedge pos_clk) begin
                     if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : Q_taint) |
-                            (EN_taint & en_diff ? (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : D_san ^ Q_san) : 
+                        register_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : register_taint) |
+                            (EN_taint & en_diff ? 
+                                (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : D_san ^ Q_san) : 
                                 {WIDTH{1'b0}});
                 end
             end
@@ -252,7 +282,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
         endcase
 
-        assign taint_sum = |Q_taint;
+        assign taint_sum = |register_taint;
 
     endgenerate
 endmodule

@@ -278,6 +278,8 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 	od -v -An -tx8 $(TESTCASE_BIN) > $@
 	rm $(TESTCASE_BIN)
 
+vcs-dummy: $(VCS_TARGET)
+
 vcs: $(VCS_TARGET) $(TESTCASE_HEX)
 	cd $(VCS_OUTPUT); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
@@ -347,7 +349,9 @@ $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $
 	mkdir -p $(VLT_BUILD) $(VLT_WAVE)
 	cd $(VLT_OUTPUT); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
 	make -C $(VLT_BUILD) -f V$(TB_TOP).mk $(TB_TOP) -j $(shell nproc)
-	
+
+vlt-dummy: $(VLT_TARGET)
+
 vlt: $(VLT_TARGET) $(TESTCASE_HEX)
 	cd $(VLT_OUTPUT); time \
 	$(VLT_TARGET) $(VLT_SIM_OPTION)

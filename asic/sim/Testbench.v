@@ -237,6 +237,11 @@ module Testbench;
     end
   end
 
+  SyncMonitor smon(
+    .clock(clock),
+    .reset(reset)    
+  );
+
   TestHarness testHarness(
     .clock(clock),
     .reset(reset),

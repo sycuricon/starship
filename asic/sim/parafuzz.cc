@@ -52,88 +52,151 @@ extern "C" void parafuzz_probebuff_tick(unsigned long int data) {
 
 #include <string>
 #include <string.h>
+#include <map>
 
-extern "C" char is_variant(const char* hierachy) {
+struct Reference {
+    std::string dut_str;
+    std::string vnt_str;
+    Reference(std::string raw) {
+        bool is_variant = raw.find("testHarness_variant") != std::string::npos ? true : false;
+        if (!is_variant) {
+            dut_str = raw;
+            vnt_str = dut_str;
+            vnt_str.replace(
+                vnt_str.find("testHarness"),
+                sizeof("testHarness")-1,
+                "testHarness_variant");
+        } else {
+            vnt_str = raw;
+            dut_str = vnt_str;
+            dut_str.replace(
+                dut_str.find("testHarness_variant"),
+                sizeof("testHarness_variant")-1,
+                "testHarness");
+        }
+    }
+
+    Reference(const Reference& other) : dut_str(other.dut_str), vnt_str(other.vnt_str) {}
+
+    Reference& operator=(const Reference& other) {
+        if (this != &other) {
+            dut_str = other.dut_str;
+            vnt_str = other.vnt_str;
+        }
+        return *this;
+    }
+
+    const char* dut() {
+        return dut_str.c_str();
+    }
+
+    const char* vnt() {
+        return vnt_str.c_str();
+    }
+};
+
+extern "C" char is_variant_hierachy(const char* hierachy) {
     return strstr(hierachy, "testHarness_variant") ? 1 : 0;
 }
 
-std::string variant_scope(std::string base_scope) {
-    return base_scope.replace(
-            base_scope.find("testHarness"), 
-            sizeof("testHarness")-1,
-            "testHarness_variant"
-        );
+#define MAX_VARIANT 2
+
+unsigned int total_ref = 0;
+std::map<std::string, int> idxMap;
+std::map<unsigned int, Reference> refMap;
+
+inline unsigned int group_idx(unsigned int idx) {
+    return idx / MAX_VARIANT;
 }
 
-std::string parent(std::string scope) {
-    return scope.substr(0, scope.find_last_of("."));
+inline bool is_variant_idx(unsigned int idx) {
+    return (idx % MAX_VARIANT) != 0;
 }
 
-extern "C" void get_selection(char* select);
-extern "C" char xref_variant_mux(const char* hierachy) {
-    if (is_variant(hierachy)) {
-        return 0;
-    }
-    else {
-        char base_selection, variant_selection;
-        svSetScope(svGetScopeFromName(hierachy));
-        get_selection(&base_selection);
+#define XREF_PROLOGUE                           \
+    if (!sync)                                  \
+        return 1;                               \
+    Reference h = refMap.at(group_idx(idx));
 
-        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
-        get_selection(&variant_selection);
+extern "C" int register_reference(const char* hierarchy) {
+    if (idxMap.find(hierarchy) == idxMap.end()) {
+        Reference ref(hierarchy);
+        idxMap[ref.dut()] = total_ref;
+        idxMap[ref.vnt()] = total_ref + 1;
+        refMap.insert(std::pair<unsigned int, Reference>(group_idx(total_ref), ref));
 
-        return base_selection ^ variant_selection;
+        total_ref += 2;
     }
+
+    return idxMap[hierarchy];
 }
 
-extern "C" void get_enable(char* enable);
-extern "C" char xref_variant_dffe(const char* hierachy) {
-    if (is_variant(hierachy)) {
-        return 0;
-    }
-    else {
-        char base_enable, variant_enable;
-        svSetScope(svGetScopeFromName(hierachy));
-        get_enable(&base_enable);
+extern "C" void get_mux_sel(char* select);
+extern "C" char xref_diff_mux_sel(unsigned int idx, char sync) {
+    XREF_PROLOGUE;
 
-        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
-        get_enable(&variant_enable);
+    char dut_sel, vnt_sel;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mux_sel(&dut_sel);
 
-        return base_enable ^ variant_enable;
-    }
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mux_sel(&vnt_sel);
+
+    return dut_sel ^ vnt_sel;
 }
 
-extern "C" void get_srst(char* srst);
-extern "C" char xref_variant_sdff(const char* hierachy) {
-    if (is_variant(hierachy)) {
-        return 0;
-    }
-    else {
-        char base_srst, variant_srst;
-        svSetScope(svGetScopeFromName(hierachy));
-        get_srst(&base_srst);
+extern "C" void get_dff_en(char* en);
+extern "C" char xref_diff_dff_en(unsigned int idx, char sync) {
+    XREF_PROLOGUE;
 
-        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
-        get_srst(&variant_srst);
+    char dut_en, vnt_en;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_dff_en(&dut_en);
 
-        return base_srst ^ variant_srst;
-    }
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_dff_en(&vnt_en);
+
+    return dut_en ^ vnt_en;
 }
 
-extern "C" void get_arst(char* arst);
-extern "C" char xref_variant_adff(const char* hierachy) {
-    if (is_variant(hierachy)) {
-        return 0;
-    }
-    else {
-        char base_arst, variant_arst;
-        svSetScope(svGetScopeFromName(hierachy));
-        get_arst(&base_arst);
+extern "C" void get_dff_srst(char* srst);
+extern "C" char xref_diff_dff_srst(unsigned int idx, char sync) {
+    XREF_PROLOGUE;
 
-        svSetScope(svGetScopeFromName(variant_scope(hierachy).c_str()));
-        get_arst(&variant_arst);
+    char dut_srst, vnt_srst;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_dff_srst(&dut_srst);
 
-        return base_arst ^ variant_arst;
-    }
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_dff_srst(&vnt_srst);
+
+    return dut_srst ^ vnt_srst;
 }
 
+extern "C" void get_dff_arst(char* arst);
+extern "C" char xref_diff_dff_arst(unsigned int idx, char sync) {
+    XREF_PROLOGUE;
+
+    char dut_arst, vnt_arst;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_dff_arst(&dut_arst);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_dff_arst(&vnt_arst);
+
+    return dut_arst ^ vnt_arst;
+}
+
+extern "C" void get_dff_taint(char* tainted);
+extern "C" char xref_merge_dff_taint(unsigned int idx) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_tainted, vnt_tainted;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_dff_taint(&dut_tainted);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_dff_taint(&vnt_tainted);
+
+    return dut_tainted | vnt_tainted;
+}
