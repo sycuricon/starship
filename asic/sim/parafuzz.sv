@@ -26,11 +26,6 @@ module SyncMonitor (
     input reset
 );
 
-    `define DUT_BPD_REQ_VALID Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.frontend.bpd.io_f0_req_valid
-    `define DUT_BPD_REQ_PC    Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.frontend.bpd.io_f0_req_bits_pc
-    `define VNT_BPD_REQ_VALID Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.frontend.bpd.io_f0_req_valid
-    `define VNT_BPD_REQ_PC    Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.frontend.bpd.io_f0_req_bits_pc
-
     `define DUT_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
     `define DUT_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
     `define VNT_ROB_ENQ_ENABLE Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
@@ -43,17 +38,12 @@ module SyncMonitor (
 
     reg dut_done = 0;
     reg vnt_done = 0;
-
     reg sync = 1'b1;
 
     always @(posedge clock) begin
         if (reset) begin
             sync <= 1'b1;
         end else begin
-            // if (Testbench.testHarness.ldut.taint_sum != Testbench.testHarness_variant.ldut.taint_sum) begin 
-            //     sync <= 1'b0;
-            // end
-
             if (`DUT_ROB_ENQ_ENABLE != `VNT_ROB_ENQ_ENABLE) begin
                 sync <= 1'b0;
             end else begin
@@ -61,15 +51,6 @@ module SyncMonitor (
                     sync <= 1'b0;
                 end
             end
-                
-            if (`DUT_BPD_REQ_VALID != `VNT_BPD_REQ_VALID) begin
-                sync <= 1'b0;
-            end else begin
-                if (`DUT_BPD_REQ_PC != `VNT_BPD_REQ_PC) begin
-                    sync <= 1'b0;
-                end
-            end
-
         end
     end
 

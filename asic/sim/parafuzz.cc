@@ -113,11 +113,6 @@ inline bool is_variant_idx(unsigned int idx) {
     return (idx % MAX_VARIANT) != 0;
 }
 
-#define XREF_PROLOGUE                           \
-    if (!sync)                                  \
-        return 1;                               \
-    Reference h = refMap.at(group_idx(idx));
-
 extern "C" int register_reference(const char* hierarchy) {
     if (idxMap.find(hierarchy) == idxMap.end()) {
         Reference ref(hierarchy);
@@ -132,8 +127,8 @@ extern "C" int register_reference(const char* hierarchy) {
 }
 
 extern "C" void get_mux_sel(char* select);
-extern "C" char xref_diff_mux_sel(unsigned int idx, char sync) {
-    XREF_PROLOGUE;
+extern "C" char xref_diff_mux_sel(unsigned int idx) {
+    Reference h = refMap.at(group_idx(idx));
 
     char dut_sel, vnt_sel;
     svSetScope(svGetScopeFromName(h.dut()));
@@ -146,8 +141,8 @@ extern "C" char xref_diff_mux_sel(unsigned int idx, char sync) {
 }
 
 extern "C" void get_dff_en(char* en);
-extern "C" char xref_diff_dff_en(unsigned int idx, char sync) {
-    XREF_PROLOGUE;
+extern "C" char xref_diff_dff_en(unsigned int idx) {
+    Reference h = refMap.at(group_idx(idx));
 
     char dut_en, vnt_en;
     svSetScope(svGetScopeFromName(h.dut()));
@@ -160,8 +155,8 @@ extern "C" char xref_diff_dff_en(unsigned int idx, char sync) {
 }
 
 extern "C" void get_dff_srst(char* srst);
-extern "C" char xref_diff_dff_srst(unsigned int idx, char sync) {
-    XREF_PROLOGUE;
+extern "C" char xref_diff_dff_srst(unsigned int idx) {
+    Reference h = refMap.at(group_idx(idx));
 
     char dut_srst, vnt_srst;
     svSetScope(svGetScopeFromName(h.dut()));
@@ -174,8 +169,8 @@ extern "C" char xref_diff_dff_srst(unsigned int idx, char sync) {
 }
 
 extern "C" void get_dff_arst(char* arst);
-extern "C" char xref_diff_dff_arst(unsigned int idx, char sync) {
-    XREF_PROLOGUE;
+extern "C" char xref_diff_dff_arst(unsigned int idx) {
+    Reference h = refMap.at(group_idx(idx));
 
     char dut_arst, vnt_arst;
     svSetScope(svGetScopeFromName(h.dut()));
@@ -197,6 +192,20 @@ extern "C" char xref_merge_dff_taint(unsigned int idx) {
 
     svSetScope(svGetScopeFromName(h.vnt()));
     get_dff_taint(&vnt_tainted);
+
+    return dut_tainted | vnt_tainted;
+}
+
+extern "C" void get_mem_taint(unsigned int index, char* tainted);
+extern "C" char xref_merge_mem_taint(unsigned int idx, unsigned int index) {
+    Reference h = refMap.at(group_idx(idx));
+
+    char dut_tainted, vnt_tainted;
+    svSetScope(svGetScopeFromName(h.dut()));
+    get_mem_taint(index, &dut_tainted);
+
+    svSetScope(svGetScopeFromName(h.vnt()));
+    get_mem_taint(index, &vnt_tainted);
 
     return dut_tainted | vnt_tainted;
 }
