@@ -154,6 +154,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     reg [WIDTH-1:0] register_taint;
     assign Q_taint = register_taint;
+    // disable taint mask
     // & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     wire pos_clk = CLK == CLK_POLARITY;
@@ -328,6 +329,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
 
     reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
     assign RD_DATA_taint = memory_rd_taint;
+    // disable taint mask
     // & {RD_PORTS*WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     input [WR_PORTS-1:0] WR_CLK;
@@ -394,15 +396,16 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
     reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
 
+    // disable variant rule
     always @(negedge Testbench.clock) begin
         for (i = 0; i < RD_PORTS; i = i+1) begin
-            rd_en_diff[i] = xref_diff_mem_rd_en(ref_id, i);
-            rd_srst_diff[i] = xref_diff_mem_rd_srst(ref_id, i);
-            rd_arst_diff[i] = xref_diff_mem_rd_arst(ref_id, i);
+            rd_en_diff[i] = 1; // xref_diff_mem_rd_en(ref_id, i);
+            rd_srst_diff[i] = 1; // xref_diff_mem_rd_srst(ref_id, i);
+            rd_arst_diff[i] = 1; // xref_diff_mem_rd_arst(ref_id, i);
         end
         for (i = 0; i < WR_PORTS; i = i+1) begin
             for (j = 0; j < WIDTH; j = j+1) begin
-                wt_en_diff[i*WIDTH + j] = xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
+                wt_en_diff[i*WIDTH + j] = 1; // xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
             end
         end
     end
