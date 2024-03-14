@@ -1,4 +1,4 @@
-import "DPI-C" function int register_reference(string hierarchy);
+import "DPI-C" function int unsigned register_reference(string hierarchy);
 
 module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
@@ -116,7 +116,7 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
         ref_id = register_reference($sformatf("%m"));
     end
 
-    import "DPI-C" function byte xref_diff_mux_sel(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_mux_sel(int unsigned ref_id);
     export "DPI-C" function get_mux_sel;
     function void get_mux_sel();
         output byte select;
@@ -153,7 +153,8 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     output taint_sum;
 
     reg [WIDTH-1:0] register_taint;
-    assign Q_taint = register_taint & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
+    assign Q_taint = register_taint;
+    // & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -171,28 +172,28 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         #(`RESET_DELAY) register_taint = 0;
     end
 
-    import "DPI-C" function byte xref_diff_dff_en(int unsigned ref_id);
-    import "DPI-C" function byte xref_diff_dff_srst(int unsigned ref_id);
-    import "DPI-C" function byte xref_diff_dff_arst(int unsigned ref_id);
-    import "DPI-C" function byte xref_merge_dff_taint(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_en(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_srst(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_arst(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_merge_dff_taint(int unsigned ref_id);
     export "DPI-C" function get_dff_en;
     export "DPI-C" function get_dff_srst;
     export "DPI-C" function get_dff_arst;
     export "DPI-C" function get_dff_taint;
     function void get_dff_en();
-        output byte en;
+        output byte unsigned en;
         en = pos_en;
     endfunction
     function void get_dff_srst();
-        output byte srst;
+        output byte unsigned srst;
         srst = pos_arst;
     endfunction
     function void get_dff_arst();
-        output byte arst;
+        output byte unsigned arst;
         arst = pos_arst;
     endfunction
     function void get_dff_taint();
-        output byte tainted;
+        output byte unsigned tainted;
         tainted = |register_taint;
     endfunction
 
@@ -208,7 +209,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         always @(negedge pos_clk) begin
             if (!mergerd & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
                 query_taint = xref_merge_dff_taint(ref_id);
-                register_taint = {WIDTH{query_taint}};
+                register_taint <= {WIDTH{query_taint}};
                 mergerd = 1;
             end
         end
@@ -326,7 +327,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     output [RD_PORTS*WIDTH-1:0] RD_DATA_taint;
 
     reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
-    assign RD_DATA_taint = memory_rd_taint & {RD_PORTS*WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
+    assign RD_DATA_taint = memory_rd_taint;
+    // & {RD_PORTS*WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     input [WR_PORTS-1:0] WR_CLK;
     input [WR_PORTS*WIDTH-1:0] WR_EN;
@@ -353,11 +355,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
             memory_taint[i] = 0;
     end
 
-    import "DPI-C" function byte xref_diff_mem_rd_en(int unsigned ref_id, int index);
-    import "DPI-C" function byte xref_diff_mem_wt_en(int unsigned ref_id, int index);
-    import "DPI-C" function byte xref_diff_mem_rd_srst(int unsigned ref_id, int index);
-    import "DPI-C" function byte xref_diff_mem_rd_arst(int unsigned ref_id, int index);
-    import "DPI-C" function byte xref_merge_mem_taint(int unsigned ref_id, int index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_merge_mem_taint(int unsigned ref_id, int unsigned index);
     export "DPI-C" function get_mem_rd_en;
     export "DPI-C" function get_mem_wt_en;
     export "DPI-C" function get_mem_rd_srst;
@@ -365,27 +367,27 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     export "DPI-C" function get_mem_taint;
     function void get_mem_rd_en();
         input int unsigned index;
-        output byte en;
+        output byte unsigned en;
         en = RD_EN[index];
     endfunction
     function void get_mem_wt_en();
         input int unsigned index;
-        output byte en;
+        output byte unsigned en;
         en = WR_EN[index];
     endfunction
     function void get_mem_rd_srst();
         input int unsigned index;
-        output byte srst;
+        output byte unsigned srst;
         srst = RD_SRST[index];
     endfunction
     function void get_mem_rd_arst();
         input int unsigned index;
-        output byte arst;
+        output byte unsigned arst;
         arst = RD_ARST[index];
     endfunction
     function void get_mem_taint();
         input int unsigned index;
-        output byte tainted;
+        output byte unsigned tainted;
         tainted = |memory_taint[index];
     endfunction
 
