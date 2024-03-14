@@ -1,3 +1,5 @@
+import "DPI-C" function int unsigned register_reference(string hierarchy);
+
 module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
     parameter A_SIGNED = 0;
@@ -109,16 +111,21 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
     wire [WIDTH-1:0] A_san = $isunknown(A) ? {WIDTH{1'b0}} : A;
     wire [WIDTH-1:0] B_san = $isunknown(B) ? {WIDTH{1'b0}} : B;
 
-    import "DPI-C" function byte xref_variant_mux(string hierarchy);
-    export "DPI-C" function get_selection;
-    function void get_selection();
+    int unsigned ref_id;
+    initial begin
+        ref_id = register_reference($sformatf("%m"));
+    end
+
+    import "DPI-C" function byte unsigned xref_diff_mux_sel(int unsigned ref_id);
+    export "DPI-C" function get_mux_sel;
+    function void get_mux_sel();
         output byte select;
         select = S;
     endfunction
 
     reg S_diff;
     always @(negedge `SOC_TOP.clock) begin
-        S_diff = xref_variant_mux($sformatf("%m"));
+        S_diff = xref_diff_mux_sel(ref_id);
     end
 
     assign Y_taint = (S ? B_taint : A_taint) | (S_taint & S_diff ? A_san ^ B_san : {WIDTH{1'b0}});
@@ -142,8 +149,13 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     input [WIDTH-1:0] Q;
     input SRST_taint, ARST_taint, EN_taint;
     input [WIDTH-1:0] D_taint;
-    output reg [WIDTH-1:0] Q_taint;
+    output [WIDTH-1:0] Q_taint;
     output taint_sum;
+
+    reg [WIDTH-1:0] register_taint;
+    assign Q_taint = register_taint;
+    // disable taint mask
+    // & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -153,97 +165,122 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
-    import "DPI-C" function byte xref_variant_dffe(string hierarchy);
-    import "DPI-C" function byte xref_variant_sdff(string hierarchy);
-    import "DPI-C" function byte xref_variant_adff(string hierarchy);
-    export "DPI-C" function get_enable;
-    export "DPI-C" function get_srst;
-    export "DPI-C" function get_arst;
-    function void get_enable();
-        output byte enable;
-        enable = pos_en;
+    reg mergerd = 0;
+    int unsigned ref_id;
+    initial begin
+        mergerd = 0;
+        ref_id = register_reference($sformatf("%m"));
+        #(`RESET_DELAY) register_taint = 0;
+    end
+
+    import "DPI-C" function byte unsigned xref_diff_dff_en(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_srst(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_arst(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_merge_dff_taint(int unsigned ref_id);
+    export "DPI-C" function get_dff_en;
+    export "DPI-C" function get_dff_srst;
+    export "DPI-C" function get_dff_arst;
+    export "DPI-C" function get_dff_taint;
+    function void get_dff_en();
+        output byte unsigned en;
+        en = pos_en;
     endfunction
-    function void get_srst();
-        output byte srst;
+    function void get_dff_srst();
+        output byte unsigned srst;
         srst = pos_arst;
     endfunction
-    function void get_arst();
-        output byte arst;
+    function void get_dff_arst();
+        output byte unsigned arst;
         arst = pos_arst;
+    endfunction
+    function void get_dff_taint();
+        output byte unsigned tainted;
+        tainted = |register_taint;
     endfunction
 
     reg en_diff, srst_diff, arst_diff;
-    always @(negedge `SOC_TOP.clock) begin
-        en_diff = xref_variant_dffe($sformatf("%m"));
-        srst_diff = xref_variant_sdff($sformatf("%m"));
-        arst_diff = xref_variant_adff($sformatf("%m"));
-            end
+    always @(negedge Testbench.clock) begin
+        en_diff = xref_diff_dff_en(ref_id);
+        srst_diff = xref_diff_dff_srst(ref_id);
+        arst_diff = xref_diff_dff_arst(ref_id);
+    end
 
     generate
-        initial #(`RESET_DELAY) Q_taint = 0;
+        reg query_taint;
+        always @(negedge pos_clk) begin
+            if (!mergerd & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+                query_taint = xref_merge_dff_taint(ref_id);
+                register_taint <= {WIDTH{query_taint}};
+                mergerd = 1;
+            end
+        end
+
+        assign taint_sum = |register_taint;
+
         case (TYPE)
             "dff": begin: gendff
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= D_taint;
+                        register_taint <= D_taint;
                 end
             end
             "sdff": begin: gensdff
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_srst ? 0 : D_taint) |
+                        register_taint <= (pos_srst ? 0 : D_taint) |
                                    (SRST_taint & srst_diff ? SRST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "adff": begin: genadff
                 always @(posedge pos_clk, posedge pos_arst) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_arst ? 0 : D_taint) | 
+                        register_taint <= (pos_arst ? 0 : D_taint) | 
                                    (ARST_taint & arst_diff ? ARST_VALUE ^ D_san : {WIDTH{1'b0}});
                 end
             end
             "dffe": begin: gendffe
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? D_taint : Q_taint) | 
+                        register_taint <= (pos_en ? D_taint : register_taint) | 
                                    (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}});
                 end
             end
             "sdffe": begin: gensdffe
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_srst ? 0 : (pos_en ? D_taint : Q_taint)) | 
+                        register_taint <= (pos_srst ? 0 : (pos_en ? D_taint : register_taint)) | 
                             (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : 
                                 (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "adffe": begin: genadffe
                 always @(posedge pos_clk, posedge pos_arst) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_arst ? 0 : (pos_en ? D_taint : Q_taint)) | 
+                        register_taint <= (pos_arst ? 0 : (pos_en ? D_taint : register_taint)) | 
                             (ARST_taint & arst_diff ? ARST_VALUE ^ Q_san : 
                                 (EN_taint & en_diff ? D_san ^ Q_san : {WIDTH{1'b0}}));
                 end
             end
             "sdffce": begin: gensdffce
                 always @(posedge pos_clk) begin
-                    if (`SOC_TOP.reset)
-                        Q_taint <= 0;
+                    if (Testbench.reset)
+                        register_taint <= 0;
                     else
-                        Q_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : Q_taint) |
-                            (EN_taint & en_diff ? (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : D_san ^ Q_san) : 
+                        register_taint <= (pos_en ? (pos_srst ? 0 : D_taint) : register_taint) |
+                            (EN_taint & en_diff ? 
+                                (SRST_taint & srst_diff ? SRST_VALUE ^ Q_san : D_san ^ Q_san) : 
                                 {WIDTH{1'b0}});
                 end
             end
@@ -251,9 +288,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 initial $error("Unknown dff type %s at %m", TYPE);
             end
         endcase
-
-        assign taint_sum = |Q_taint;
-
     endgenerate
 endmodule
 
@@ -291,7 +325,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     input [RD_PORTS*ABITS-1:0] RD_ADDR;
     input [RD_PORTS*ABITS-1:0] RD_ADDR_taint;
     input [RD_PORTS*WIDTH-1:0] RD_DATA;
-    output reg [RD_PORTS*WIDTH-1:0] RD_DATA_taint;
+    output [RD_PORTS*WIDTH-1:0] RD_DATA_taint;
+
+    reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
+    assign RD_DATA_taint = memory_rd_taint;
+    // disable taint mask
+    // & {RD_PORTS*WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
 
     input [WR_PORTS-1:0] WR_CLK;
     input [WR_PORTS*WIDTH-1:0] WR_EN;
@@ -303,21 +342,95 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
 
     output reg [ABITS:0] taint_sum;
 
-    integer i, j;
+    int i, j;
+    wire pos_rd_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
+    wire pos_wt_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
+
+    reg mergerd = 0;
+    int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [SIZE-1:0];
     initial begin
+        mergerd = 0;
+        ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY)
         for (i = 0; i < SIZE; i = i+1)
             memory_taint[i] = 0;
     end
 
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_merge_mem_taint(int unsigned ref_id, int unsigned index);
+    export "DPI-C" function get_mem_rd_en;
+    export "DPI-C" function get_mem_wt_en;
+    export "DPI-C" function get_mem_rd_srst;
+    export "DPI-C" function get_mem_rd_arst;
+    export "DPI-C" function get_mem_taint;
+    function void get_mem_rd_en();
+        input int unsigned index;
+        output byte unsigned en;
+        en = RD_EN[index];
+    endfunction
+    function void get_mem_wt_en();
+        input int unsigned index;
+        output byte unsigned en;
+        en = WR_EN[index];
+    endfunction
+    function void get_mem_rd_srst();
+        input int unsigned index;
+        output byte unsigned srst;
+        srst = RD_SRST[index];
+    endfunction
+    function void get_mem_rd_arst();
+        input int unsigned index;
+        output byte unsigned arst;
+        arst = RD_ARST[index];
+    endfunction
+    function void get_mem_taint();
+        input int unsigned index;
+        output byte unsigned tainted;
+        tainted = |memory_taint[index];
+    endfunction
+
+    reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
+    reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
+
+    // disable variant rule
+    always @(negedge Testbench.clock) begin
+        for (i = 0; i < RD_PORTS; i = i+1) begin
+            rd_en_diff[i] = 1; // xref_diff_mem_rd_en(ref_id, i);
+            rd_srst_diff[i] = 1; // xref_diff_mem_rd_srst(ref_id, i);
+            rd_arst_diff[i] = 1; // xref_diff_mem_rd_arst(ref_id, i);
+        end
+        for (i = 0; i < WR_PORTS; i = i+1) begin
+            for (j = 0; j < WIDTH; j = j+1) begin
+                wt_en_diff[i*WIDTH + j] = 1; // xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
+            end
+        end
+    end
+
     generate
+        reg query_taint;
+        always @(negedge Testbench.clock) begin
+            if (!mergerd & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+                for (i = 0; i < SIZE; i = i+1) begin
+                    query_taint = xref_merge_mem_taint(ref_id, i);
+                    memory_taint[i] = {WIDTH{query_taint}};
+                end
+                mergerd = 1;
+            end
+            taint_sum = 0;
+            for (i = 0; i < SIZE; i = i+1)
+                taint_sum = taint_sum + |memory_taint[i];
+        end
+
         if (RD_CLK_ENABLE == 0) begin: async_read
             always @(*) begin
                 for (i = 0; i < RD_PORTS; i = i+1)
-                    RD_DATA_taint[i*WIDTH +: WIDTH] = 
+                    memory_rd_taint[i*WIDTH +: WIDTH] = 
                         (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) |
-                        RD_ARST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
+                        RD_ARST_taint[i] & rd_arst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
             end
         end
         else if (&RD_CLK_ENABLE != 1) begin: mix_read
@@ -328,35 +441,29 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 initial $error("Transparency and collision masks are not supported: %s at %m", MEMID);
             if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
                 initial $error("Mixed read clock polarities are not supported: %s at %m", MEMID);
-            wire pos_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
-            always @(posedge pos_clk) begin
+            always @(posedge pos_rd_clk) begin
                 for (i = 0; i < RD_PORTS; i = i+1)
                     if (RD_CE_OVER_SRST[i])
-                        RD_DATA_taint[i*WIDTH +: WIDTH] <= 
+                        memory_rd_taint[i*WIDTH +: WIDTH] <= 
                             (RD_EN[i] ? 
-                                (RD_SRST[i] ? 
-                                    0 : 
-                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
+                                (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
                                 0) |
-                            RD_EN[i] & RD_EN_taint[i] ? 
+                            RD_EN_taint[i] & rd_en_diff[i] ? 
                                 {WIDTH{1'b1}} : 
-                                (RD_EN[i] & RD_SRST[i] & RD_SRST_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_SRST_taint[i] & rd_srst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
                     else
-                        RD_DATA_taint[i*WIDTH +: WIDTH] <= 
+                        memory_rd_taint[i*WIDTH +: WIDTH] <= 
                             (RD_SRST[i] ? 
-                                0 : 
-                                (RD_EN[i] ? 
-                                    memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 
-                                    0)) |
-                            RD_SRST[i] & RD_SRST_taint[i] ? 
+                                0 : (RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 0)) |
+                            RD_SRST_taint[i] & rd_srst_diff[i] ? 
                                 {WIDTH{1'b1}} : 
-                                (!RD_SRST[i] & RD_EN[i] & RD_EN_taint[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_EN_taint[i] & rd_en_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
             end
         end
 
         if (WR_CLK_ENABLE == 0) begin: async_write
             always @(*) begin
-                if (`SOC_TOP.reset) begin
+                if (Testbench.reset) begin
                     for (i = 0; i < SIZE; i = i+1)
                         memory_taint[i] = 0;
                 end
@@ -367,7 +474,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
                                         WR_DATA_taint[i*WIDTH+j] |
                                         |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j];
+                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
                 end
             end
         end
@@ -377,9 +484,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
         else begin: sync_write
             if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
                 initial $error("Mixed write clock polarities are not supported: %s at %m", MEMID);
-            wire pos_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
-            always @(posedge pos_clk) begin
-                if (`SOC_TOP.reset) begin
+            always @(posedge pos_wt_clk) begin
+                if (Testbench.reset) begin
                     for (i = 0; i < SIZE; i = i+1)
                         memory_taint[i] = 0;
                 end
@@ -391,17 +497,10 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
                                         WR_DATA_taint[i*WIDTH+j] | 
                                         |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j];
+                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
                 end
             end
         end
-
-        always @(*) begin
-            taint_sum = 0;
-            for (i = 0; i < SIZE; i = i+1)
-                taint_sum = taint_sum + |memory_taint[i];
-        end
-
     endgenerate
 
 endmodule

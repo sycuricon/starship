@@ -1,5 +1,5 @@
 import "DPI-C" function void parafuzz_probebuff_tick (longint unsigned data);
-import "DPI-C" function byte is_variant(string hierarchy);
+import "DPI-C" function byte is_variant_hierachy(string hierarchy);
 
 module ProbeBufferBB (
     input clock,
@@ -11,7 +11,7 @@ module ProbeBufferBB (
 
    always @(negedge clock) begin
         if (!reset) begin
-            if (wen && !is_variant($sformatf("%m"))) begin
+            if (wen && !is_variant_hierachy($sformatf("%m"))) begin
                 parafuzz_probebuff_tick(write);
             end
         end
@@ -21,45 +21,56 @@ module ProbeBufferBB (
 
 endmodule
 
-// module TaintSource (
-//   input         clock,
-//   input         reset,
-//   input         mem_axi4_0_ar_ready,
-//   input         mem_axi4_0_ar_valid,
-//   input  [3:0]  mem_axi4_0_ar_bits_id,
-//   input  [31:0] mem_axi4_0_ar_bits_addr,
-//   input         mem_axi4_0_r_ready,
-//   input         mem_axi4_0_r_valid,
-//   input  [3:0]  mem_axi4_0_r_bits_id,
-//   output [63:0] mem_axi4_0_r_bits_data_taint_0
-// );
+module SyncMonitor (
+    input clock,
+    input reset
+);
 
-//     reg [31:0] last_addr;
-//     reg [3:0] last_id;
-//     always @(posedge clock) begin
-//         if (reset) begin
-//             last_addr <= 0;
-//             last_id <= 0;
-//         end else begin
-//             if (mem_axi4_0_ar_valid && mem_axi4_0_ar_ready) begin
-//                 last_addr <= mem_axi4_0_ar_bits_addr;
-//                 last_id <= mem_axi4_0_ar_bits_id;
-//             end
-//         end
-//     end
+    `define DUT_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
+    `define DUT_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
+    `define VNT_ROB_ENQ_ENABLE Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
+    `define VNT_ROB_ENQ_INST   Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
 
-//     reg [63:0] taint_source;
-//     always @(*) begin
-//         taint_source = 0;
-//         if (mem_axi4_0_r_valid && mem_axi4_0_r_ready) begin
-//             if (mem_axi4_0_r_bits_id == last_id && 
-//                 last_addr >= 32'h80004000 &&
-//                 last_addr < 32'h80005000) begin
-//                 taint_source = -1;
-//             end
-//         end
-//     end
+    `define DUT_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
+    `define DUT_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
+    `define VNT_ROB_DEQ_ENABLE Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
+    `define VNT_ROB_DEQ_INST   Testbench.testHarness_variant.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
 
-//     assign mem_axi4_0_r_bits_data_taint_0 = taint_source;
+    reg dut_done = 0;
+    reg vnt_done = 0;
+    reg sync = 1'b1;
 
-// endmodule
+    always @(posedge clock) begin
+        if (reset) begin
+            sync <= 1'b1;
+        end else begin
+            if (`DUT_ROB_ENQ_ENABLE != `VNT_ROB_ENQ_ENABLE) begin
+                sync <= 1'b0;
+            end else begin
+                if (`DUT_ROB_ENQ_INST != `VNT_ROB_ENQ_INST) begin
+                    sync <= 1'b0;
+                end
+            end
+        end
+    end
+
+    always @(negedge clock) begin
+        if (reset) begin
+            dut_done <= 0;
+            vnt_done <= 0;
+        end
+
+        if (!sync) begin
+            if (`DUT_ROB_DEQ_ENABLE) begin
+                if (`DUT_ROB_DEQ_INST == 32'h00302013) begin
+                    dut_done <= 1;
+                end
+            end
+            if (`VNT_ROB_DEQ_ENABLE) begin
+                if (`VNT_ROB_DEQ_INST == 32'h00302013) begin
+                    vnt_done <= 1;
+                end
+            end        
+        end
+    end
+endmodule
