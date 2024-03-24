@@ -184,6 +184,11 @@ module Testbench;
             $system("echo -e \"\033[31m[>] bim_start `date +%s.%3N` \033[0m\"");
           end
           32'h00b02013: $fwrite(event_fd, "INFO_BIM_END, %t\n", $time);
+          32'h00c02013: begin
+            $fwrite(event_fd, "INFO_TRAIN_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] train_start `date +%s.%3N` \033[0m\"");
+          end
+          32'h00d02013: $fwrite(event_fd, "INFO_TRAIN_END, %t\n", $time);
         endcase
       end
       if (`BOOM_ROB_DEQ_ENABLE) begin
@@ -211,6 +216,11 @@ module Testbench;
           32'h00b02013: begin
             $fwrite(event_fd, "INFO_BIM_END_COMMIT, %t\n", $time);
             $system("echo -e \"\033[31m[>] bim_end `date +%s.%3N` \033[0m\"");
+          end
+          32'h00c02013: $fwrite(event_fd, "INFO_TRAIN_START_COMMIT, %t\n", $time);
+          32'h00d02013: begin
+            $fwrite(event_fd, "INFO_TRAIN_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] train_end `date +%s.%3N` \033[0m\"");
           end
         endcase
       end
