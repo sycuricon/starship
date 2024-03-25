@@ -165,10 +165,10 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
-    reg mergerd = 0;
+    reg merged = 0;
     int unsigned ref_id;
     initial begin
-        mergerd = 0;
+        merged = 0;
         ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY) register_taint = 0;
     end
@@ -200,18 +200,18 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     reg en_diff, srst_diff, arst_diff;
     always @(negedge Testbench.clock) begin
-        en_diff = xref_diff_dff_en(ref_id);
-        srst_diff = xref_diff_dff_srst(ref_id);
-        arst_diff = xref_diff_dff_arst(ref_id);
+        #0.1 en_diff = xref_diff_dff_en(ref_id);
+        #0.1 srst_diff = xref_diff_dff_srst(ref_id);
+        #0.1 arst_diff = xref_diff_dff_arst(ref_id);
     end
 
     generate
         reg query_taint;
         always @(negedge pos_clk) begin
-            if (!mergerd & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+            if (!merged & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
                 query_taint = xref_merge_dff_taint(ref_id);
-                register_taint <= {WIDTH{query_taint}};
-                mergerd = 1;
+                #0.1 register_taint <= {WIDTH{query_taint}};
+                merged = 1;
             end
         end
 
@@ -346,11 +346,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     wire pos_rd_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
     wire pos_wt_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
 
-    reg mergerd = 0;
+    reg merged = 0;
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [SIZE-1:0];
     initial begin
-        mergerd = 0;
+        merged = 0;
         ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY)
         for (i = 0; i < SIZE; i = i+1)
@@ -413,12 +413,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     generate
         reg query_taint;
         always @(negedge Testbench.clock) begin
-            if (!mergerd & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+            if (!merged & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
                 for (i = 0; i < SIZE; i = i+1) begin
                     query_taint = xref_merge_mem_taint(ref_id, i);
                     memory_taint[i] = {WIDTH{query_taint}};
                 end
-                mergerd = 1;
+                merged = 1;
             end
             taint_sum = 0;
             for (i = 0; i < SIZE; i = i+1)
