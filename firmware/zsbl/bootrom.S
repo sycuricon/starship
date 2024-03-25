@@ -1,4 +1,4 @@
-#define ROM_BASE 0x20000
+#define ROM_BASE 0x30000000
 
 .section .text.start, "ax", @progbits
 .globl _start
