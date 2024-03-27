@@ -440,8 +440,7 @@ fuzz-do-virtual: FUZZ_MODE += -V --fuzz
 fuzz:$(FUZZ_SRC)
 	mkdir -p $(FUZZ_BUILD)
 	cd $(FUZZ_SRC); \
-	python DistributeManager.py -I $(FUZZ_SRC)/mem_init.hjson -O $(FUZZ_BUILD) $(FUZZ_MODE)
-	make -C $(FUZZ_SRC) BUILD_PATH=$(FUZZ_BUILD)
+	PYTHONPATH=`pwd` python3 razzle/main.py -I $(FUZZ_SRC)/config/testcase/mem_init.hjson -O $(FUZZ_BUILD) $(FUZZ_MODE)
 	cd $(FUZZ_BUILD); riscv64-unknown-elf-objdump -D Testbench > Testbench.asm
 
 fuzz-physics:fuzz
