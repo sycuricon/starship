@@ -155,7 +155,6 @@ verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
 	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
 	$(MAKE) verilog-patch 
 	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
-	# yosys -s asic/syn/pift.ys
 	yosys -c asic/syn/pift.tcl
 	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
@@ -419,31 +418,3 @@ clean:
 
 clean-all:
 	rm -rf $(BUILD) $(SBT_BUILD)
-
-#######################################
-#
-#               Fuzz
-#
-#######################################
-
-FUZZ_SRC	=	$(SRC)/InstGenerator
-FUZZ_BUILD	=	$(BUILD)/fuzz_code
-
-FUZZ_CODE	=	$(FUZZ_BUILD)/Testbench
-
-FUZZ_MODE = 
-
-fuzz-virtual: FUZZ_MODE += -V
-fuzz-do-physics: FUZZ_MODE += --fuzz
-fuzz-do-virtual: FUZZ_MODE += -V --fuzz
-
-fuzz:$(FUZZ_SRC)
-	mkdir -p $(FUZZ_BUILD)
-	cd $(FUZZ_SRC); \
-	PYTHONPATH=`pwd` python3 razzle/main.py -I $(FUZZ_SRC)/config/testcase/mem_init.hjson -O $(FUZZ_BUILD) $(FUZZ_MODE)
-	cd $(FUZZ_BUILD); riscv64-unknown-elf-objdump -D Testbench > Testbench.asm
-
-fuzz-physics:fuzz
-fuzz-virtual:fuzz
-fuzz-do-physics:fuzz
-fuzz-do-virtual:fuzz

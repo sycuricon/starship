@@ -17,8 +17,7 @@ STARSHIP_BOARD	?= vc707
 # Simulation Configuration
 ##########################
 
-STARSHIP_TESTCASE	?= $(BUILD)/fuzz_code/Testbench
-# STARSHIP_TESTCASE	?= $(TOP)/riscv-tests-parafuzz/build/benchmarks/spectre-v1.guess101.riscv
+STARSHIP_TESTCASE	?= $(BUILD)/starship-dummy-testcase
 
 EXTRA_SIM_ARGS		?= 
 

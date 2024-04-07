@@ -13,7 +13,6 @@ import freechips.rocketchip.devices.tilelink._
 
 import sifive.blocks.devices.uart._
 
-import sys.process._
 
 class WithPeripherals extends Config((site, here, up) => {
   case PeripheryUARTKey => List(
