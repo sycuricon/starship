@@ -16,6 +16,3 @@
 [submodule "repo/rocket-chip-fpga-shells"]
 	path = repo/rocket-chip-fpga-shells
 	url = https://github.com/chipsalliance/rocket-chip-fpga-shells.git
-[submodule "repo/InstGenerator"]
-	path = repo/InstGenerator
-	url = https://github.com/sycuricon/InstGenerator.git
