@@ -210,12 +210,17 @@ SIM_SRC_C		:= $(SIM_DIR)/timer.cc				\
 				   $(SIM_DIR)/probebuffer.cc
 SIM_SRC_V		:= $(SIM_DIR)/tty.v					\
 				   $(SIM_DIR)/probebuffer.v
+SIM_DEFINE		:= +define+MODEL=$(STARSHIP_TH)			\
+			   	   +define+CLOCK_PERIOD=1.0	   			\
+				   +define+TARGET_$(STARSHIP_CORE)
+
 
 ifeq ($(SIMULATION_MODE),cosim)
 SIM_SRC_C		+= $(SIM_DIR)/spike_difftest.cc		\
 				   $(SPIKE_LIB)
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.v			\
 				   $(SIM_DIR)/spike_difftest.v
+SIM_DEFINE		+= +define+COVERAGE_SUMMARY +define+COSIMULATION
 else ifeq ($(SIMULATION_MODE),variant)
 SIM_SRC_C		+= $(SIM_DIR)/parafuzz.cc
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.variant.v	\
@@ -253,15 +258,9 @@ VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 
 VCS_SRC_C	:= $(SIM_SRC_C)
 VCS_SRC_V	:= $(SIM_SRC_V)
-
-VCS_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
+VCS_DEFINE	:= $(SIM_DEFINE)								\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
-			   +define+CLOCK_PERIOD=1.0	   					\
-			   +define+DEBUG_FSDB							\
-			   +define+TARGET_$(STARSHIP_CORE)
-
-vcs-fuzz:		VCS_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
-vcs-fuzz-debug:	VCS_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
+			   +define+DEBUG_FSDB
 
 VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
 VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
@@ -329,11 +328,9 @@ VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VLT_SRC_C	:= $(SIM_SRC_C)
 VLT_SRC_V	:= $(SIM_SRC_V)
 
-VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
+VLT_DEFINE	:= $(SIM_DEFINE)							\
 			   +define+TOP_DIR=\"$(VLT_OUTPUT)\"		\
-			   +define+CLOCK_PERIOD=1.0	   				\
-			   +define+DEBUG_VCD						\
-			   +define+TARGET_$(STARSHIP_CORE)
+			   +define+DEBUG_VCD
 
 vlt-fuzz:		VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 vlt-fuzz-debug:	VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
