@@ -206,8 +206,7 @@ SPIKE_LIB		:= $(addprefix $(SPIKE_BUILD)/,libcosim.a libriscv.a libdisasm.a libs
 SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
 				   $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
 
-SIM_SRC_C		:= $(SIM_DIR)/timer.cc				\
-				   $(SIM_DIR)/probebuffer.cc
+SIM_SRC_C		:= $(SIM_DIR)/probebuffer.cc
 SIM_SRC_V		:= $(SIM_DIR)/tty.v					\
 				   $(SIM_DIR)/probebuffer.v
 SIM_DEFINE		:= +define+MODEL=$(STARSHIP_TH)			\

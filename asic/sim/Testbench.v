@@ -7,9 +7,6 @@
 
 `define SOC_TOP     Testbench.testHarness.ldut
 `define TILE_TOP    `SOC_TOP.tile_prci_domain
-
-`define SOC_TOP_VNT Testbench.testHarness_variant.ldut
-
 `define MEM_TOP     Testbench.testHarness.mem.srams.mem
 `define MEM_REG     `MEM_TOP.mem_ext
 
@@ -19,7 +16,7 @@
 `ifdef TARGET_BOOM
   `define CPU_TOP   `TILE_TOP.tile_reset_domain_boom_tile
   `define PIPELINE  `CPU_TOP.core
-  `defien INTERRUPT `PIPELINE.io_interrupts_msip
+  `define INTERRUPT `PIPELINE.io_interrupts_msip
 `elsif TARGET_CVA6
   `define CPU_TOP   `TILE_TOP.tile_reset_domain_cva6_tile
   `define PIPELINE  `CPU_TOP.core.i_ariane.i_cva6
@@ -45,8 +42,6 @@
   );
   import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
 `endif
-
-import "DPI-C" function longint timer_stop();
 
 
 module Testbench;
