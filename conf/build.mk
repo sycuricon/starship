@@ -1,7 +1,7 @@
 # Verilog Generation Configuration
 ##################################
 
-STARSHIP_CORE	?= BOOM
+STARSHIP_CORE	?= XiangShan
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= starship.asic.TestHarness
 STARSHIP_TOP	?= starship.asic.StarshipSimTop
@@ -17,9 +17,17 @@ STARSHIP_BOARD	?= vc707
 # Simulation Configuration
 ##########################
 
+SIMULATION_MODE		:= normal
+EXTRA_SIM_ARGS		?=
+
 STARSHIP_TESTCASE	?= $(BUILD)/starship-dummy-testcase
 
-EXTRA_SIM_ARGS		?= 
+# Out of Project Configuration
+
+XS_REPO_DIR		?=
+CVA6_REPO_DIR	?=
+
+export XS_REPO_DIR CVA6_REPO_DIR
 
 $(BUILD)/starship-dummy-testcase:
 	mkdir -p $(BUILD)

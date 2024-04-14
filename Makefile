@@ -61,6 +61,8 @@ ROCKET_TH_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).testharness.f
 ROCKET_TOP_MEMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.top.conf
 ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
+export JAVA_OPTS	:= -Xmx5G
+
 verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 
 $(ROCKET_FIRRTL) $(ROCKET_DTS) $(ROCKET_ROMCONF) $(ROCKET_ANNO)&: $(ROCKET_SRCS)
@@ -202,7 +204,26 @@ SPIKE_SRC		:= $(shell find $(SPIKE_DIR) -name "*.cc" -o -name "*.h" -o -name "*.
 SPIKE_BUILD		:= $(BUILD)/spike
 SPIKE_LIB		:= $(addprefix $(SPIKE_BUILD)/,libcosim.a libriscv.a libdisasm.a libsoftfloat.a libfesvr.a libfdt.a)
 SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/fesvr \
-			       $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
+				   $(SPIKE_DIR)/riscv $(SPIKE_DIR)/softfloat $(SPIKE_BUILD)
+
+SIM_SRC_C		:= $(SIM_DIR)/timer.cc				\
+				   $(SIM_DIR)/probebuffer.cc
+SIM_SRC_V		:= $(SIM_DIR)/tty.v					\
+				   $(SIM_DIR)/probebuffer.v
+
+ifeq ($(SIMULATION_MODE),cosim)
+SIM_SRC_C		+= $(SIM_DIR)/spike_difftest.cc		\
+				   $(SPIKE_LIB)
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.v			\
+				   $(SIM_DIR)/spike_difftest.v
+else ifeq ($(SIMULATION_MODE),variant)
+SIM_SRC_C		+= $(SIM_DIR)/parafuzz.cc
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.variant.v	\
+				   $(SIM_DIR)/pift_lib.v			\
+				   $(SIM_DIR)/parafuzz.sv
+else
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.v
+endif
 
 export LD_LIBRARY_PATH=$(SPIKE_BUILD)
 
@@ -230,16 +251,8 @@ VCS_TARGET	:= $(VCS_BUILD)/$(TB_TOP)
 VCS_INCLUDE	:= $(ROCKET_BUILD)+$(SIM_DIR)
 VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 
-VCS_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
-			   $(SPIKE_LIB) \
-			   $(SIM_DIR)/timer.cc  \
-			   $(SIM_DIR)/parafuzz.cc
-
-VCS_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
-			   $(SIM_DIR)/spike_difftest.v \
-			   $(SIM_DIR)/tty.v \
-			   $(SIM_DIR)/pift_lib.v \
-			   $(SIM_DIR)/parafuzz.sv
+VCS_SRC_C	:= $(SIM_SRC_C)
+VCS_SRC_V	:= $(SIM_SRC_V)
 
 VCS_DEFINE	:= +define+MODEL=$(STARSHIP_TH)					\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
@@ -267,7 +280,7 @@ vcs-fuzz-debug:	VCS_SIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
 vcs-jtag: 		VCS_SIM_OPTION += +jtag_rbb_enable=1 +verbose +uart_tx=0
 vcs-jtag-debug: VCS_SIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
 
-$(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) $(SPIKE_LIB)
+$(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_OUTPUT); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
 		-f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
@@ -313,16 +326,8 @@ VLT_TARGET  := $(VLT_BUILD)/$(TB_TOP)
 
 VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 
-VLT_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
-			   $(SPIKE_LIB) \
-			   $(SIM_DIR)/timer.cc \
-			   $(SIM_DIR)/parafuzz.cc
-
-VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
-			   $(SIM_DIR)/spike_difftest.v \
-			   $(SIM_DIR)/tty.v \
-			   $(SIM_DIR)/pift_lib.v \
-			   $(SIM_DIR)/parafuzz.sv
+VLT_SRC_C	:= $(SIM_SRC_C)
+VLT_SRC_V	:= $(SIM_SRC_V)
 
 VLT_DEFINE	:= +define+MODEL=$(STARSHIP_TH)				\
 			   +define+TOP_DIR=\"$(VLT_OUTPUT)\"		\
@@ -349,7 +354,7 @@ vlt-fuzz-debug: VLT_SIM_OPTION	+= +fuzzing +verbose +dump
 vlt-jtag: 		VLT_SIM_OPTION	+= +jtag_rbb_enable=1
 vlt-jtag-debug: VLT_SIM_OPTION	+= +jtag_rbb_enable=1 +dump
 
-$(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C) $(SPIKE_LIB)
+$(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
 	mkdir -p $(VLT_BUILD) $(VLT_WAVE)
 	cd $(VLT_OUTPUT); verilator $(VLT_OPTION) -f $(ROCKET_INCLUDE) $(VLT_SRC_V) $(VLT_SRC_C)
 	make -C $(VLT_BUILD) -f V$(TB_TOP).mk $(TB_TOP) -j $(shell nproc)
