@@ -80,7 +80,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
             "shr": begin: genshr
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >> B_san;
             end
-            "sshr": begin: gensshr
+            "sshr", "shift", "shiftx": begin: gensshr
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
             end
             "mul": begin: genmul
@@ -124,7 +124,7 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
     endfunction
 
     reg S_diff;
-    always @(negedge `SOC_TOP.clock) begin
+    always @(negedge Testbench.clock) begin
         S_diff = xref_diff_mux_sel(ref_id);
     end
 
