@@ -191,7 +191,7 @@ class XSTileModuleImp(outer: XSTile) extends BaseTileModuleImp(outer) {
   // mem.a.bits.echo(DirtyKey) := core.io.auto_l2top_memory_port_out_a_bits_echo_blockisdirty
   mem.a.bits.mask := core.io.auto_l2top_memory_port_out_a_bits_mask
   mem.a.bits.data := core.io.auto_l2top_memory_port_out_a_bits_data
-  mem.a.bits.corrupt := core.io.auto_l2top_memory_port_out_a_bits_corrupt
+  // mem.a.bits.corrupt := core.io.auto_l2top_memory_port_out_a_bits_corrupt
   
   // B channel
   mem.b.ready := core.io.auto_l2top_memory_port_out_bready
@@ -214,7 +214,7 @@ class XSTileModuleImp(outer: XSTile) extends BaseTileModuleImp(outer) {
   mem.c.bits.address := core.io.auto_l2top_memory_port_out_c_bits_address
   // mem.c.bits.echo(DirtyKey) := core.io.auto_l2top_memory_port_out_c_bits_echo_blockisdirty
   mem.c.bits.data := core.io.auto_l2top_memory_port_out_c_bits_data
-  mem.c.bits.corrupt := core.io.auto_l2top_memory_port_out_c_bits_corrupt
+  // mem.c.bits.corrupt := core.io.auto_l2top_memory_port_out_c_bits_corrupt
 
   // D channel
   mem.d.ready := core.io.auto_l2top_memory_port_out_d_ready
@@ -241,26 +241,26 @@ class XSTileModuleImp(outer: XSTile) extends BaseTileModuleImp(outer) {
   core.io.auto_l2top_mmio_port_out_a_ready := mmio.a.ready
   mmio.a.valid := core.io.auto_l2top_mmio_port_out_a_valid
   mmio.a.bits.opcode := core.io.auto_l2top_mmio_port_out_a_bits_opcode
-  mmio.a.bits.param := core.io.auto_l2top_mmio_port_out_a_bits_param
+  // mmio.a.bits.param := core.io.auto_l2top_mmio_port_out_a_bits_param
   mmio.a.bits.size := core.io.auto_l2top_mmio_port_out_a_bits_size
   mmio.a.bits.source := core.io.auto_l2top_mmio_port_out_a_bits_source
   mmio.a.bits.address := core.io.auto_l2top_mmio_port_out_a_bits_address
   mmio.a.bits.mask := core.io.auto_l2top_mmio_port_out_a_bits_mask
   mmio.a.bits.data := core.io.auto_l2top_mmio_port_out_a_bits_data
-  mmio.a.bits.corrupt := core.io.auto_l2top_mmio_port_out_a_bits_corrupt
+  // mmio.a.bits.corrupt := core.io.auto_l2top_mmio_port_out_a_bits_corrupt
 
   // D channel
   mmio.d.ready := core.io.auto_l2top_mmio_port_out_d_ready
   core.io.auto_l2top_mmio_port_out_d_valid := mmio.d.valid
 
   core.io.auto_l2top_mmio_port_out_d_bits_opcode := mmio.d.bits.opcode
-  core.io.auto_l2top_mmio_port_out_d_bits_param := mmio.d.bits.param
+  // core.io.auto_l2top_mmio_port_out_d_bits_param := mmio.d.bits.param
   core.io.auto_l2top_mmio_port_out_d_bits_size := mmio.d.bits.size
   core.io.auto_l2top_mmio_port_out_d_bits_source := mmio.d.bits.source
-  core.io.auto_l2top_mmio_port_out_d_bits_sink := mmio.d.bits.sink
-  core.io.auto_l2top_mmio_port_out_d_bits_denied := mmio.d.bits.denied
+  // core.io.auto_l2top_mmio_port_out_d_bits_sink := mmio.d.bits.sink
+  // core.io.auto_l2top_mmio_port_out_d_bits_denied := mmio.d.bits.denied
   core.io.auto_l2top_mmio_port_out_d_bits_data := mmio.d.bits.data
-  core.io.auto_l2top_mmio_port_out_d_bits_corrupt := mmio.d.bits.corrupt
+  // core.io.auto_l2top_mmio_port_out_d_bits_corrupt := mmio.d.bits.corrupt
 
   outer.connectXSInterrupts(
     core.io.auto_l2top_debug_int_in_0, 

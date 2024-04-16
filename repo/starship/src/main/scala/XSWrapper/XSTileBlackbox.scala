@@ -3,7 +3,7 @@ package starship.xiangshan
 import chisel3._
 import chisel3.util._
 
-// make verilog CONFIG=MinimalConfig MFC=1 WITH_CONSTANTIN=0 NO_ZSTD_COMPRESSION=1 IMAGE_GZ_COMPRESS=0 WITH_CHISELDB=0 EMU_TRACE=vcd NO_DIFF=1 XSTOP_PREFIX=XS_ RELEASE=1
+// make verilog CONFIG=MinimalConfig WITH_CONSTANTIN=0 NO_ZSTD_COMPRESSION=1 IMAGE_GZ_COMPRESS=0 WITH_CHISELDB=0 EMU_TRACE=vcd NO_DIFF=1 RELEASE=1
 
 class XS_XSTile(
   tlSizeWidth: Int = 3,
@@ -37,25 +37,25 @@ class XS_XSTile(
     val auto_l2top_mmio_port_out_a_ready = Input(Bool())
     val auto_l2top_mmio_port_out_a_valid = Output(Bool())
     val auto_l2top_mmio_port_out_a_bits_opcode = Output(UInt(3.W))
-    val auto_l2top_mmio_port_out_a_bits_param = Output(UInt(3.W))
+    // val auto_l2top_mmio_port_out_a_bits_param = Output(UInt(3.W))
     val auto_l2top_mmio_port_out_a_bits_size = Output(UInt(tlSizeWidth.W))
     val auto_l2top_mmio_port_out_a_bits_source = Output(UInt(tlMMIOSourceWidth.W))
     val auto_l2top_mmio_port_out_a_bits_address = Output(UInt(tlAddrWidth.W))
     val auto_l2top_mmio_port_out_a_bits_mask = Output(UInt((tlMMIODataWidth/8).W))
     val auto_l2top_mmio_port_out_a_bits_data = Output(UInt(tlMMIODataWidth.W))
-    val auto_l2top_mmio_port_out_a_bits_corrupt = Output(Bool())
+    // val auto_l2top_mmio_port_out_a_bits_corrupt = Output(Bool())
 
     // mmio D channel
     val auto_l2top_mmio_port_out_d_ready = Output(Bool())
     val auto_l2top_mmio_port_out_d_valid = Input(Bool())
     val auto_l2top_mmio_port_out_d_bits_opcode = Input(UInt(3.W))
-    val auto_l2top_mmio_port_out_d_bits_param = Input(UInt(2.W))
+    // val auto_l2top_mmio_port_out_d_bits_param = Input(UInt(2.W))
     val auto_l2top_mmio_port_out_d_bits_size = Input(UInt(tlSizeWidth.W))
     val auto_l2top_mmio_port_out_d_bits_source = Input(UInt(tlMMIOSourceWidth.W))
-    val auto_l2top_mmio_port_out_d_bits_sink = Input(UInt(tlMMIOSinkWidth.W))
-    val auto_l2top_mmio_port_out_d_bits_denied = Input(Bool())
+    // val auto_l2top_mmio_port_out_d_bits_sink = Input(UInt(tlMMIOSinkWidth.W))
+    // val auto_l2top_mmio_port_out_d_bits_denied = Input(Bool())
     val auto_l2top_mmio_port_out_d_bits_data = Input(UInt(tlMMIODataWidth.W))
-    val auto_l2top_mmio_port_out_d_bits_corrupt = Input(Bool())
+    // val auto_l2top_mmio_port_out_d_bits_corrupt = Input(Bool())
 
     // memory A channel
     val auto_l2top_memory_port_out_a_ready = Input(Bool())
@@ -65,10 +65,10 @@ class XS_XSTile(
     val auto_l2top_memory_port_out_a_bits_size = Output(UInt(tlSizeWidth.W))
     val auto_l2top_memory_port_out_a_bits_source = Output(UInt(tlMemSourceWidth.W))
     val auto_l2top_memory_port_out_a_bits_address = Output(UInt(tlAddrWidth.W))
-    val auto_l2top_memory_port_out_a_bits_echo_blockisdirty = Output(Bool())
+    // val auto_l2top_memory_port_out_a_bits_echo_blockisdirty = Output(Bool())
     val auto_l2top_memory_port_out_a_bits_mask = Output(UInt((tlMemDataWidth/8).W))
     val auto_l2top_memory_port_out_a_bits_data = Output(UInt(tlMemDataWidth.W))
-    val auto_l2top_memory_port_out_a_bits_corrupt = Output(Bool())
+    // val auto_l2top_memory_port_out_a_bits_corrupt = Output(Bool())
 
     // memory B channel
     val auto_l2top_memory_port_out_bready = Output(Bool())
@@ -91,7 +91,7 @@ class XS_XSTile(
     val auto_l2top_memory_port_out_c_bits_address = Output(UInt(tlAddrWidth.W))
     val auto_l2top_memory_port_out_c_bits_echo_blockisdirty = Output(Bool())
     val auto_l2top_memory_port_out_c_bits_data = Output(UInt(tlMemDataWidth.W))
-    val auto_l2top_memory_port_out_c_bits_corrupt = Output(Bool())
+    // val auto_l2top_memory_port_out_c_bits_corrupt = Output(Bool())
 
     // memory D channel
     val auto_l2top_memory_port_out_d_ready = Output(Bool())
