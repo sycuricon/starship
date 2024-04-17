@@ -140,25 +140,21 @@ verilog: $(VERILOG_SRC)
 verilog-debug: $(VERILOG_SRC)
 
 verilog-patch: $(VERILOG_SRC)
+	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
+ifeq ($(STARSHIP_CORE),BOOM)
+	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
+else ifeq ($(STARSHIP_CORE),CVA6)
+	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
+else ifeq ($(STARSHIP_CORE),Rocket)
 	sed -i "s/s2_pc <= 42'h10000/s2_pc <= 42'h80000000/g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/s2_pc <= 40'h10000/s2_pc <= 40'h80000000/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/core_boot_addr_i = 64'h10000/core_boot_addr_i = 64'h80000000/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
-	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
+endif
+ifeq ($(SIMULATION_MODE),cosim)
 	sed -i "s/_covMap\[initvar\] = _RAND/_covMap\[initvar\] = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
+endif
 
-YOSYS_TOP = $(lastword $(subst ., ,$(STARSHIP_TOP)))
-YOSYS_CONFIG = $(lastword $(subst ., ,$(STARSHIP_CONFIG)))
-export YOSYS_TOP YOSYS_CONFIG
-
-verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
-	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
-	$(MAKE) verilog-patch 
-	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
-	yosys -c asic/syn/pift.tcl
-	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
 #######################################
 #
@@ -224,7 +220,7 @@ else ifeq ($(SIMULATION_MODE),variant)
 SIM_SRC_C		+= $(SIM_DIR)/parafuzz.cc
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.variant.v	\
 				   $(SIM_DIR)/pift_lib.v			\
-				   $(SIM_DIR)/parafuzz.sv
+				   $(SIM_DIR)/parafuzz.v
 else
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.v
 endif
@@ -382,19 +378,29 @@ gtkwave:
 #
 #######################################
 
-DC_TOP		:= $(lastword $(subst ., ,$(STARSHIP_TH)))
-DC_SRC		:= $(ASIC)/scripts/syn
-DC_OUTPUT	:= $(BUILD)/syn
-DC_BUILD	:= $(DC_OUTPUT)/build
-DC_LOG		:= $(DC_OUTPUT)/log
-DC_NETLIST	:= $(DC_OUTPUT)/netlist
-
 #######################################
 #
 #              Yosys
 #
 #######################################
 
+YOSYS_SRC	:= $(ASIC)/ift
+YOSYS_TOP = $(lastword $(subst ., ,$(STARSHIP_TOP)))
+YOSYS_CONFIG = $(lastword $(subst ., ,$(STARSHIP_CONFIG)))
+export YOSYS_TOP YOSYS_CONFIG
+
+verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
+	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
+	$(MAKE) verilog-patch 
+	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
+ifeq ($(STARSHIP_CORE),BOOM)
+	yosys -c $(YOSYS_SRC)/boom_ift.tcl | tee $(ROCKET_BUILD)/yosys_ift.boom.log
+else ifeq ($(STARSHIP_CORE),XiangShan)
+	# sv2v -D SYNTHESIS --top XS_XSTile $(XS_REPO_DIR)/build/rtl/XSTop.v > $(XS_REPO_DIR)/build/rtl/XSTop.sv2v.v
+	yosys -c $(YOSYS_SRC)/xiangshan_ift.tcl | tee $(ROCKET_BUILD)/yosys_ift.xiangshan.log
+	sed -i "/XSList.f/d" $(ROCKET_INCLUDE)
+endif
+	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
 #######################################
 #
