@@ -1,8 +1,8 @@
 yosys read_verilog -sv build/rocket-chip/BOOM.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).top.v.untainted
-yosys read_verilog -sv asic/syn/blackbox.v
+yosys read_verilog -sv asic/ift/blackbox.v
 yosys read_verilog -sv build/rocket-chip/BOOM.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).behav_srams.top.v
 
-yosys hierarchy
+yosys hierarchy -top $::env(YOSYS_TOP)
 
 yosys proc
 yosys opt
