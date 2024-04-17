@@ -349,7 +349,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     reg merged = 0;
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [SIZE-1:0];
+    reg [WIDTH-1:0] cell_old_taint;
+    reg [WIDTH-1:0] cell_new_taint;
     initial begin
+        cell_old_taint = 0;
+        cell_new_taint = 0;
+        taint_sum = 0;
         merged = 0;
         ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY)
@@ -393,22 +398,22 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
         tainted = |memory_taint[index];
     endfunction
 
-    reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
-    reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
+    // reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
+    // reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
 
-    // disable variant rule
-    always @(negedge Testbench.clock) begin
-        for (i = 0; i < RD_PORTS; i = i+1) begin
-            rd_en_diff[i] = 1; // xref_diff_mem_rd_en(ref_id, i);
-            rd_srst_diff[i] = 1; // xref_diff_mem_rd_srst(ref_id, i);
-            rd_arst_diff[i] = 1; // xref_diff_mem_rd_arst(ref_id, i);
-        end
-        for (i = 0; i < WR_PORTS; i = i+1) begin
-            for (j = 0; j < WIDTH; j = j+1) begin
-                wt_en_diff[i*WIDTH + j] = 1; // xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
-            end
-        end
-    end
+    // disable variant rule for performance optimization
+    // always @(negedge Testbench.clock) begin
+    //     for (i = 0; i < RD_PORTS; i = i+1) begin
+    //         rd_en_diff[i] = xref_diff_mem_rd_en(ref_id, i);
+    //         rd_srst_diff[i] = xref_diff_mem_rd_srst(ref_id, i);
+    //         rd_arst_diff[i] = xref_diff_mem_rd_arst(ref_id, i);
+    //     end
+    //     for (i = 0; i < WR_PORTS; i = i+1) begin
+    //         for (j = 0; j < WIDTH; j = j+1) begin
+    //             wt_en_diff[i*WIDTH + j] = xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
+    //         end
+    //     end
+    // end
 
     generate
         reg query_taint;
@@ -420,9 +425,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 end
                 merged = 1;
             end
-            taint_sum = 0;
-            for (i = 0; i < SIZE; i = i+1)
-                taint_sum = taint_sum + |memory_taint[i];
+            // taint_sum = 0;
+            // for (i = 0; i < SIZE; i = i+1)
+            //     taint_sum = taint_sum + |memory_taint[i];
         end
 
         if (RD_CLK_ENABLE == 0) begin: async_read
@@ -430,7 +435,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                 for (i = 0; i < RD_PORTS; i = i+1)
                     memory_rd_taint[i*WIDTH +: WIDTH] = 
                         (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) |
-                        RD_ARST_taint[i] & rd_arst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
+                        RD_ARST_taint[i] /* & rd_arst_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
             end
         end
         else if (&RD_CLK_ENABLE != 1) begin: mix_read
@@ -448,16 +453,16 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                             (RD_EN[i] ? 
                                 (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
                                 0) |
-                            RD_EN_taint[i] & rd_en_diff[i] ? 
+                            RD_EN_taint[i] /* & rd_en_diff[i] */ ? 
                                 {WIDTH{1'b1}} : 
-                                (RD_SRST_taint[i] & rd_srst_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_SRST_taint[i] /* & rd_srst_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
                     else
                         memory_rd_taint[i*WIDTH +: WIDTH] <= 
                             (RD_SRST[i] ? 
                                 0 : (RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 0)) |
-                            RD_SRST_taint[i] & rd_srst_diff[i] ? 
+                            RD_SRST_taint[i] /* & rd_srst_diff[i] */ ? 
                                 {WIDTH{1'b1}} : 
-                                (RD_EN_taint[i] & rd_en_diff[i] ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                                (RD_EN_taint[i] /* & rd_en_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
             end
         end
 
@@ -468,13 +473,24 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                         memory_taint[i] = 0;
                 end
                 else begin
-                    for (i = 0; i < WR_PORTS; i = i+1)
-                            for (j = 0; j < WIDTH; j = j+1)
-                                if (WR_EN[i*WIDTH+j])
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
-                                        WR_DATA_taint[i*WIDTH+j] |
-                                        |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
+                    for (i = 0; i < WR_PORTS; i = i+1) begin
+                        cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                        for (j = 0; j < WIDTH; j = j+1) begin
+                            if (WR_EN[i*WIDTH+j]) begin
+                                memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
+                                    WR_DATA_taint[i*WIDTH+j] |
+                                    |WR_ADDR_taint[i*ABITS +: ABITS] | 
+                                    WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
+                            end
+                        end
+                        cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                        if (cell_old_taint ^ cell_new_taint) begin
+                            if (cell_new_taint)
+                                taint_sum = taint_sum + 1;
+                            else
+                                taint_sum = taint_sum - 1;
+                        end
+                    end
                 end
             end
         end
@@ -490,14 +506,25 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
                         memory_taint[i] = 0;
                 end
                 else begin
-                    for (i = 0; i < WR_PORTS; i = i+1)
-                            for (j = 0; j < WIDTH; j = j+1)
-                                if (WR_EN[i*WIDTH+j])
-                                    // use blocking assigment here, because verilator doesn't support non-blocking assignments in generate blocks
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
-                                        WR_DATA_taint[i*WIDTH+j] | 
-                                        |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                                        WR_EN_taint[i*WIDTH+j] & wt_en_diff[i*WIDTH+j];
+                    for (i = 0; i < WR_PORTS; i = i+1) begin
+                        cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                        for (j = 0; j < WIDTH; j = j+1) begin
+                            if (WR_EN[i*WIDTH+j]) begin
+                                // use blocking assigment here, because verilator doesn't support non-blocking assignments in generate blocks
+                                memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
+                                    WR_DATA_taint[i*WIDTH+j] | 
+                                    |WR_ADDR_taint[i*ABITS +: ABITS] | 
+                                    WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
+                            end
+                        end
+                        cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                        if (cell_old_taint ^ cell_new_taint) begin
+                            if (cell_new_taint)
+                                taint_sum = taint_sum + 1;
+                            else
+                                taint_sum = taint_sum - 1;
+                        end
+                    end
                 end
             end
         end
