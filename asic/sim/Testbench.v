@@ -10,9 +10,6 @@
 `define MEM_TOP     Testbench.testHarness.mem.srams.mem
 `define MEM_REG     `MEM_TOP.mem_ext
 
-`define MEM_TOP_VNT  Testbench.testHarness_variant.mem.srams.mem
-`define MEM_REG_VNT `MEM_TOP_VNT.mem_ext
-
 `ifdef TARGET_BOOM
   `define CPU_TOP   `TILE_TOP.tile_reset_domain_boom_tile
   `define PIPELINE  `CPU_TOP.core
