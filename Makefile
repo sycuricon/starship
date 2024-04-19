@@ -123,7 +123,9 @@ $(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
 
 $(ROCKET_TH_SRAM): $(ROCKET_TH_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) > $(ROCKET_TH_SRAM)
+	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) --swap > $(ROCKET_TH_SRAM)
+
+th_sram:$(ROCKET_TH_SRAM)
 
 $(ROCKET_ROM_HEX): $(ROCKET_DTS)
 	mkdir -p $(FSBL_BUILD)
