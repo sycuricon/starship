@@ -332,7 +332,7 @@ vlt-fuzz-debug:	VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 
 VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   --timescale 1ns/10ps --trace --timing 										\
-			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ 							\
+			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -O3						\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
 			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"			\

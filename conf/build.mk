@@ -17,14 +17,14 @@ STARSHIP_BOARD	?= vc707
 # Simulation Configuration
 ##########################
 
-SIMULATION_MODE		:= normal
+SIMULATION_MODE		:= variant
 EXTRA_SIM_ARGS		?=
 
-STARSHIP_TESTCASE	?= $(BUILD)/starship-dummy-testcase
+STARSHIP_TESTCASE	?= /home/phantom/work/InstGenerator/build/Testbench
 
 # Out of Project Configuration
 
-XS_REPO_DIR		?=
+XS_REPO_DIR		?= /home/phantom/work/XiangShan
 CVA6_REPO_DIR	?=
 
 export XS_REPO_DIR CVA6_REPO_DIR

@@ -9,6 +9,9 @@
 #include <string.h>
 #include <map>
 
+// TODO: delete this
+bool no_variant = true;
+
 inline unsigned int group_idx(unsigned int idx) {
     return idx / 2;
 }
@@ -57,6 +60,9 @@ struct Reference {
     }
 
     bool has_cache() {
+        // TODO: delete this
+        if (no_variant)
+            return true;
         return cached;
     }
 
