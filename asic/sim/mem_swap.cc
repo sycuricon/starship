@@ -9,37 +9,33 @@
 #include <vector>
 
 static const size_t PAGE_SIZE = 0x1000;
+void do_mem_swap(unsigned char idx, size_t swap_index);
 extern "C" void swap_memory_initial(const char* bin_dist);
-extern "C" unsigned long int swap_memory_read_bitmap(unsigned char idx);
-extern "C" void swap_memory_write_bitmap(unsigned char idx, unsigned long int data);
 extern "C" void swap_memory_write_byte(unsigned char idx, unsigned long int addr,unsigned char data);
 extern "C" unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr);
 
 class SwapMem{
-    struct SwapPair{
-        uint8_t* swap_mem_pair[2];
-        size_t swap_mem_begin;
-        size_t swap_mem_len;
-        SwapPair();
-        SwapPair(uint8_t* swap_mem_0, uint8_t* swap_mem_1, size_t swap_mem_begin, size_t swap_mem_len);
+    struct SwapBlock{
+        uint8_t* swap_block;
+        size_t swap_block_begin;
+        size_t swap_block_len;
+        SwapBlock();
+        SwapBlock(uint8_t* swap_block, size_t swap_block_begin, size_t swap_block_len);
     };
 
         uint8_t** mem_page_array;
         size_t mem_begin;
         size_t mem_len;
 
-        uint64_t swap_bitmap;
-        static const size_t swap_pair_max_len = 12;
-        std::vector<SwapPair> swap_pair;
+        static const size_t swap_block_max_len = 256;
+        std::vector<SwapBlock> swap_block_array;
 
     public:
         SwapMem(size_t mem_begin, size_t mem_end);
         ~SwapMem();
         static uint8_t* malloc_mem_block(size_t block_len, std::string* file_name);
         void register_mem(uint8_t* mem_block, size_t block_begin, size_t block_end);
-        void register_swap_mem(uint8_t* mem_block_0, uint8_t* mem_block_1, size_t mem_begin, size_t mem_end);
-        uint64_t read_swap_bitmap();
-        void write_swap_bitmap(uint64_t data);
+        void register_swap_block(uint8_t* mem_block, size_t mem_begin, size_t mem_end);
         void do_mem_swap(size_t swap_index);
         void write_byte(size_t addr, uint8_t data);
         uint8_t read_byte(size_t addr);
@@ -59,18 +55,15 @@ void except_examine_func(bool judge_result, const char* comment, const char* fil
 }
 
 
-SwapMem::SwapPair::SwapPair(){
-    swap_mem_pair[0] = NULL;
-    swap_mem_pair[1] = NULL;
-    swap_mem_begin = 0;
-    swap_mem_len = 0;
+SwapMem::SwapBlock::SwapBlock(){
+    swap_block = NULL;
+    swap_block_begin = 0;
+    swap_block_len = 0;
 }
 
-SwapMem::SwapPair::SwapPair(uint8_t* swap_mem_0, uint8_t* swap_mem_1, size_t swap_mem_begin, size_t swap_mem_len){
-    this->swap_mem_pair[0] = swap_mem_0;
-    this->swap_mem_pair[1] = swap_mem_1;
-    this->swap_mem_begin = swap_mem_begin;
-    this->swap_mem_len = swap_mem_len;
+SwapMem::SwapBlock::SwapBlock(uint8_t* swap_block, size_t swap_block_begin, size_t swap_block_len):
+    swap_block(swap_block),swap_block_begin(swap_block_begin),swap_block_len(swap_block_len){
+    ;
 }
 
 #define UpPage(addr) (((addr) + PAGE_SIZE - 1)&~0xfff)
@@ -84,7 +77,6 @@ SwapMem::SwapMem(size_t mem_begin, size_t mem_len){
     size_t array_entry_num = mem_len/PAGE_SIZE;
     this->mem_page_array = new uint8_t*[array_entry_num];
     std::memset(mem_page_array, 0, sizeof(uint8_t*)*array_entry_num);
-    this->swap_bitmap = 0;
 }
 
 SwapMem::~SwapMem(){
@@ -122,40 +114,17 @@ void SwapMem::register_mem(uint8_t* mem_block, size_t block_begin, size_t block_
     }
 }
 
-void SwapMem::register_swap_mem(uint8_t* mem_block_0, uint8_t* mem_block_1, size_t mem_begin, size_t mem_len){
-    except_examine(swap_pair.size() < this->swap_pair_max_len, "the swap block is full");
-    except_examine(mem_block_0 && mem_block_1, "the memory bound is mepty");
-    size_t swap_pair_index =  swap_pair.size();
-    swap_pair.push_back(SwapPair(mem_block_0, mem_block_1, mem_begin, mem_len));
-
-    bool swap_index = this->swap_bitmap & (1<<swap_pair_index);
-    register_mem((swap_pair[swap_pair_index]).swap_mem_pair[swap_index], mem_begin, mem_len);
-}
-
-uint64_t SwapMem::read_swap_bitmap(){
-    return this->swap_bitmap;
-}
-
-void SwapMem::write_swap_bitmap(uint64_t data){
-    data = data & ((1<<swap_pair.size())-1);
-    uint64_t xor_result = data ^ this->swap_bitmap;
-    this->swap_bitmap = data;
-    size_t swap_index = 0;
-    while(xor_result){
-        if(xor_result&1){
-            do_mem_swap(swap_index);
-        }
-        xor_result >>= 1;
-        swap_index += 1;
-    }
+void SwapMem::register_swap_block(uint8_t* mem_block, size_t mem_begin, size_t mem_end){
+    except_examine(swap_block_array.size() < this->swap_block_max_len, "the swap block is full");
+    except_examine(mem_block, "the memory bound is mepty");
+    swap_block_array.push_back(SwapBlock(mem_block, mem_begin, mem_len));
 }
 
 void SwapMem::do_mem_swap(size_t swap_index){
-    bool swap_pair_index = this->swap_bitmap & (1<<swap_index);
-    SwapPair& swap_pair = this->swap_pair[swap_index];
-    uint8_t* mem_block = swap_pair.swap_mem_pair[swap_pair_index];
-    size_t block_begin = swap_pair.swap_mem_begin - mem_begin;
-    size_t block_end = swap_pair.swap_mem_len + block_begin;
+    SwapBlock& swap_block = this->swap_block_array[swap_index];
+    uint8_t* mem_block = swap_block.swap_block;
+    size_t block_begin = swap_block.swap_block_begin - mem_begin;
+    size_t block_end = swap_block.swap_block_len + block_begin;
     block_end /= PAGE_SIZE;
     block_begin /= PAGE_SIZE;
     for(int i = block_begin; i < block_end; i++){
@@ -197,13 +166,12 @@ void SwapMem::print_swap_mem(){
         }
     }
     std::cout << std::endl;
-    std::cout << "swap_page_pair_info" << std::endl;
+    std::cout << "swap_block_info" << std::endl;
     int i=0;
-    for(auto p=swap_pair.begin();p!=swap_pair.end();p++,i++){
-        std::cout << '\t' << "swap_begin: " << std::hex << p->swap_mem_begin << std::endl;
-        std::cout << '\t' << "swap_end: " << std::hex << p->swap_mem_begin + p->swap_mem_len << std::endl;
-        std::cout << '\t' << "swap_mem: " << std::hex<< (uint64_t)p->swap_mem_pair[0] << ' ' << std::hex << (uint64_t)p->swap_mem_pair[1] << std::endl;
-        std::cout << '\t' << "the chosen one: " << std::hex << (uint64_t)((swap_bitmap & (1<<i))?p->swap_mem_pair[1]:p->swap_mem_pair[0]) << std::endl;
+    for(auto p=swap_block_array.begin();p!=swap_block_array.end();p++,i++){
+        std::cout << '\t' << "swap_begin: " << std::hex << p->swap_block_begin << std::endl;
+        std::cout << '\t' << "swap_end: " << std::hex << p->swap_block_begin + p->swap_block_len << std::endl;
+        std::cout << '\t' << "swap_mem: " << std::hex<< (uint64_t)p->swap_block << std::endl;
         std::cout << std::endl;
     }
     std::cout << std::endl;
@@ -214,7 +182,6 @@ void SwapMem::print_swap_mem(){
 extern "C" void swap_memory_initial(const char* bin_dist){
     std::ifstream bin_dist_file(bin_dist);
     uint64_t mem_begin, mem_len;
-    uint64_t xor_num, shared_num, swap_num, uninitial_num;
     bin_dist_file >> std::hex >> mem_begin >> std::hex >> mem_len;
     except_examine(mem_len > 0, "the memory bound is smaller than one block");
     origin_mem = new SwapMem(mem_begin, mem_len);
@@ -259,37 +226,25 @@ extern "C" void swap_memory_initial(const char* bin_dist){
             origin_mem->register_mem(shared_mem_block, block_begin, block_len);
             variant_mem->register_mem(shared_mem_block, block_begin, block_len);
         }else if(block_kind == "swap"){
-            std::string train_swap_file_name, nop_swap_file_name;
-            std::string* train_swap_file_name_ptr = nullptr;
-            std::string* nop_swap_file_name_ptr = nullptr;
+            std::string swap_file_name;
+            std::string* swap_file_name_ptr = nullptr;
             if(do_init){
-                bin_dist_file >> train_swap_file_name >> nop_swap_file_name;
-                train_swap_file_name_ptr = &train_swap_file_name;
-                nop_swap_file_name_ptr = &nop_swap_file_name;
+                bin_dist_file >> swap_file_name;
+                swap_file_name_ptr = &swap_file_name;
             }
-            uint8_t* train_mem_block = SwapMem::malloc_mem_block(block_len, train_swap_file_name_ptr);
-            uint8_t* nop_mem_block = SwapMem::malloc_mem_block(block_len, nop_swap_file_name_ptr);
-            origin_mem->register_swap_mem(nop_mem_block, train_mem_block, block_begin, block_len);
-            variant_mem->register_swap_mem(nop_mem_block, train_mem_block, block_begin, block_len);
+            uint8_t* swap_block = SwapMem::malloc_mem_block(block_len, swap_file_name_ptr);
+            origin_mem->register_swap_block(swap_block, block_begin, block_len);
         }else{
             except_examine(false, "the block_kind is invalid");
         }
     }
 }
 
-extern "C" unsigned long int swap_memory_read_bitmap(unsigned char idx){
+extern "C" void do_mem_swap(unsigned char idx, size_t swap_index){
     if(idx&1){
-        return variant_mem->read_swap_bitmap();
+        variant_mem->do_mem_swap(swap_index);
     }else{
-        return origin_mem->read_swap_bitmap();
-    }
-}
-
-extern "C" void swap_memory_write_bitmap(unsigned char idx, unsigned long int data){
-    if(idx&1){
-        return variant_mem->write_swap_bitmap(data);
-    }else{
-        return origin_mem->write_swap_bitmap(data);
+        origin_mem->do_mem_swap(swap_index);
     }
 }
 

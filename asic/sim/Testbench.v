@@ -40,6 +40,7 @@ import "DPI-C" function void cosim_reinit(
     input reg verbose
 );
 import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
+import "DPI-C" function void memory_swap_initial(input string bin_dist);
 
 module Testbench;
   
@@ -138,40 +139,48 @@ module Testbench;
     if ($value$plusargs("testcase=%s", testcase)) begin
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `MEM_REG.ram);
-      $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
+      // $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
     end
     $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
 
     // taint
     $timeformat(-9,0,"",20);
     $value$plusargs("taintlog=%s", taintlog);
-    taint_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.csv"}, "w");
-    $fwrite(taint_fd,"time,base,variant\n");
+    // taint_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.csv"}, "w");
+    // $fwrite(taint_fd,"time,base,variant\n");
     event_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.log"}, "w");
   end
 
   always @(posedge clock) begin
     if (!reset) begin
-      $fwrite(taint_fd,"%t, %d, %d\n", $time, `SOC_TOP.taint_sum, `SOC_TOP_VNT.taint_sum);
+      // $fwrite(taint_fd,"%t, %d, %d\n", $time, `SOC_TOP.taint_sum, `SOC_TOP_VNT.taint_sum);
 
       `define BOOM_ROB_ENQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_valids_0
       `define BOOM_ROB_DEQ_ENABLE Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_valids_0
       `define BOOM_ROB_ENQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_inst
+      `define BOOM_ROB_ENQ_PC     Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_enq_uops_0_debug_pc
       `define BOOM_ROB_DEQ_INST   Testbench.testHarness.ldut.tile_prci_domain.tile_reset_domain_boom_tile.core.rob.io_commit_uops_0_debug_inst
       if (`BOOM_ROB_ENQ_ENABLE) begin
         case (`BOOM_ROB_ENQ_INST)
           32'h00002013: begin
             $fwrite(event_fd, "INFO_VCTM_START, %t\n", $time);
-            $system("echo -e \"\033[31m[>] victim_begin `date +%s.%3N` \033[0m\"");
+            $system("echo -e \"\033[31m[>] victim_start `date +%s.%3N` \033[0m\"");
           end
           32'h00102013: $fwrite(event_fd, "INFO_VCTM_END, %t\n", $time);
-          32'h00202013: $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
+          32'h00202013: begin
+            $fwrite(event_fd, "INFO_DELAY_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] delay_start `date +%s.%3N` \033[0m\"");
+          end
           32'h00302013: $fwrite(event_fd, "INFO_DELAY_END, %t\n", $time);
-          32'h00402013: $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
+          32'h00402013: begin
+            $fwrite(event_fd, "INFO_TEXE_START, %t\n", $time);
+            $system("echo -e \"\033[31m[>] texe_start `date +%s.%3N` \033[0m\"");
+            $display("texe_pc = %x", `BOOM_ROB_ENQ_PC);
+          end
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END, %t\n", $time);
           32'h00602013: begin
             $fwrite(event_fd, "INFO_LEAK_START, %t\n", $time);
-            $system("echo -e \"\033[31m[>] leak_end `date +%s.%3N` \033[0m\"");
+            $system("echo -e \"\033[31m[>] leak_start `date +%s.%3N` \033[0m\"");
           end
           32'h00702013: $fwrite(event_fd, "INFO_LEAK_END, %t\n", $time);
           32'h00802013: begin
@@ -199,7 +208,10 @@ module Testbench;
             $system("echo -e \"\033[31m[>] vicitm_end `date +%s.%3N` \033[0m\"");
           end
           32'h00202013: $fwrite(event_fd, "INFO_DELAY_START_COMMIT, %t\n", $time);
-          32'h00302013: $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
+          32'h00302013: begin
+            $fwrite(event_fd, "INFO_DELAY_END_COMMIT, %t\n", $time);
+            $system("echo -e \"\033[31m[>] delay_end `date +%s.%3N` \033[0m\"");
+          end
           32'h00402013: $fwrite(event_fd, "INFO_TEXE_START_COMMIT, %t\n", $time);
           32'h00502013: $fwrite(event_fd, "INFO_TEXE_END_COMMIT, %t\n", $time);
           32'h00602013: $fwrite(event_fd, "INFO_LEAK_START_COMMIT, %t\n", $time);
@@ -279,10 +291,10 @@ module Testbench;
     end
   end
 
-  SyncMonitor smon(
-    .clock(clock),
-    .reset(reset)    
-  );
+  // SyncMonitor smon(
+  //   .clock(clock),
+  //   .reset(reset)    
+  // );
 
   TestHarness testHarness(
     .clock(clock),
@@ -301,6 +313,12 @@ module Testbench;
   // .io_uart_tx(uart_tx),
   // .io_uart_rx(uart_rx)
   );
+
+  string bin_dist;
+  initial begin
+    void'($value$plusargs("bin_dist=%s", bin_dist));
+    memory_swap_initial(bin_dist);
+  end
 
 `ifdef COSIMULATION
   CJ rtlfuzz (

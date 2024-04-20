@@ -17,10 +17,19 @@
 
 #define CMD_POWER_OFF           0xAF1B'608E'883B'0000ul
 
+#define CMD_SWAP_BLOCK          0xAF1B'608E'883C'0000ul
+
+void do_mem_swap(unsigned char idx, size_t swap_index);
 
 int state = 0;
 
-extern "C" void parafuzz_probebuff_tick(unsigned long int data) {
+extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long int data) {
+    if((data & CMD_MASK) == CMD_SWAP_BLOCK){
+        do_mem_swap(is_variant, data & OP_MASK);
+    }else if(is_variant){
+        return;
+    }
+    
     switch (data & CMD_MASK) {
         case CMD_SWITCH_STATE:
             state = data & OP_MASK;
