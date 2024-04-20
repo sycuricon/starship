@@ -234,6 +234,7 @@ extern "C" void swap_memory_initial(const char* bin_dist){
             }
             uint8_t* swap_block = SwapMem::malloc_mem_block(block_len, swap_file_name_ptr);
             origin_mem->register_swap_block(swap_block, block_begin, block_len);
+            variant_mem->register_swap_block(swap_block, block_begin, block_len);
         }else{
             except_examine(false, "the block_kind is invalid");
         }
