@@ -19,14 +19,14 @@
 
 #define CMD_SWAP_BLOCK          0xAF1B'608E'883C'0000ul
 
-void do_mem_swap(unsigned char idx, size_t swap_index);
+void do_mem_swap(unsigned char idx);
 
 int state = 0;
 int swap_index = 0;
 
 extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long int data) {
     if((data & CMD_MASK) == CMD_SWAP_BLOCK){
-        do_mem_swap(is_variant, swap_index++);
+        do_mem_swap(is_variant);
     }else if(is_variant){
         return;
     }

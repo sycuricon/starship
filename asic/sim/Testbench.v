@@ -40,7 +40,6 @@ import "DPI-C" function void cosim_reinit(
     input reg verbose
 );
 import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
-import "DPI-C" function void memory_swap_initial(input string bin_dist);
 
 module Testbench;
   
@@ -313,12 +312,6 @@ module Testbench;
   // .io_uart_tx(uart_tx),
   // .io_uart_rx(uart_rx)
   );
-
-  string bin_dist;
-  initial begin
-    void'($value$plusargs("bin_dist=%s", bin_dist));
-    memory_swap_initial(bin_dist);
-  end
 
 `ifdef COSIMULATION
   CJ rtlfuzz (

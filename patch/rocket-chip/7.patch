@@ -1,8 +1,8 @@
 diff --git a/scripts/vlsi_mem_gen b/scripts/vlsi_mem_gen
-index ffed8d78c..2f68025b2 100755
+index ffed8d78c..2bae70f9b 100755
 --- a/scripts/vlsi_mem_gen
 +++ b/scripts/vlsi_mem_gen
-@@ -191,11 +191,64 @@ def gen_mem(name, width, depth, mask_gran, mask_seg, ports):
+@@ -191,11 +191,69 @@ def gen_mem(name, width, depth, mask_gran, mask_seg, ports):
  endmodule" % (name, ',\n  '.join(port_spec), body if not blackbox else "")
    return s
  
@@ -12,6 +12,7 @@ index ffed8d78c..2f68025b2 100755
 +  code_line = [
 +    'import "DPI-C" function void swap_memory_write_byte(byte idx, longint addr, byte data);',
 +    'import "DPI-C" function byte swap_memory_read_byte(byte idx, longint addr);',
++    'import "DPI-C" function void swap_memory_initial(byte idx, string origin_dist, string variant_dist);',
 +    '',
 +    f'module {name}(',
 +    '\tinput W0_clk,',
@@ -27,8 +28,12 @@ index ffed8d78c..2f68025b2 100755
 +    ');',
 +    '',
 +    '\treg [7:0] idx;',
++    '\tstring origin_dist, variant_dist;',
 +    '\tinitial begin',
 +    '\t\tidx = {is_variant_hierachy($sformatf("%m"))};',
++    "\t\tvoid'($value$plusargs(\"origin_dist=%s\", origin_dist));",
++    "\t\tvoid'($value$plusargs(\"variant_dist=%s\", variant_dist));",
++    "\t\tswap_memory_initial(idx, origin_dist, variant_dist);",
 +    '\tend',
 +    '',
 +    f'\treg [{width-1}:0] R0_tmp_data;',
@@ -68,7 +73,7 @@ index ffed8d78c..2f68025b2 100755
      if f is not None:
          f.write(parsed_line)
      else:
-@@ -208,6 +261,7 @@ if __name__ == '__main__':
+@@ -208,6 +266,7 @@ if __name__ == '__main__':
    parser.add_argument('--blackbox', '-b', action='store_true', help='set to disable output of module body')
    #parser.add_argument('--use_latches', '-l', action='store_true', help='set to enable use of latches')
    parser.add_argument('--output_file', '-o', help='name of output file, default is stdout')
