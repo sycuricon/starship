@@ -9,8 +9,8 @@
 #include <vector>
 
 static const size_t PAGE_SIZE = 0x1000;
-void do_mem_swap(unsigned char idx, size_t swap_index);
-extern "C" void swap_memory_initial(const char* bin_dist);
+extern "C" void do_mem_swap(unsigned char idx);
+extern "C" void swap_memory_initial(unsigned char idx, const char* origin_dist, const char* variant_dist);
 extern "C" void swap_memory_write_byte(unsigned char idx, unsigned long int addr,unsigned char data);
 extern "C" unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr);
 
@@ -22,28 +22,34 @@ class SwapMem{
         SwapBlock();
         SwapBlock(uint8_t* swap_block, size_t swap_block_begin, size_t swap_block_len);
     };
+        std::vector<uint8_t*> mem_pool;
 
         uint8_t** mem_page_array;
         size_t mem_begin;
         size_t mem_len;
 
         static const size_t swap_block_max_len = 256;
-        std::vector<SwapBlock> swap_block_array;
+        std::vector<std::vector<SwapBlock>> swap_block_array;
+        size_t swap_block_index;
+
+    private:
+        uint8_t* malloc_mem_block(size_t block_len, std::string* file_name);
+        void register_mem(size_t block_begin, size_t block_len, std::string& file_name);
+        void register_swap_block(size_t block_begin, size_t block_len, std::string& file_name, int swap_index);
+        void add_mem(uint8_t* block, size_t block_begin, size_t block_len);
+        void remove_mem(size_t block_begin, size_t block_len);
 
     public:
-        SwapMem(size_t mem_begin, size_t mem_end);
+        SwapMem();
         ~SwapMem();
-        static uint8_t* malloc_mem_block(size_t block_len, std::string* file_name);
-        void register_mem(uint8_t* mem_block, size_t block_begin, size_t block_end);
-        void register_swap_block(uint8_t* mem_block, size_t mem_begin, size_t mem_end);
-        void do_mem_swap(size_t swap_index);
+        void initial_swap_mem(const char* bin_dist_name);
+        void do_mem_swap();
         void write_byte(size_t addr, uint8_t data);
         uint8_t read_byte(size_t addr);
         void print_swap_mem();
 };
 
-SwapMem* origin_mem;
-SwapMem* variant_mem;
+SwapMem swap_mem_array[2];
 
 #define except_examine(judge_result, comment) except_examine_func((judge_result), (comment), __FILE__, __LINE__)
 
@@ -53,7 +59,6 @@ void except_examine_func(bool judge_result, const char* comment, const char* fil
         std::exit(-1);
     }
 }
-
 
 SwapMem::SwapBlock::SwapBlock(){
     swap_block = NULL;
@@ -68,68 +73,111 @@ SwapMem::SwapBlock::SwapBlock(uint8_t* swap_block, size_t swap_block_begin, size
 
 #define UpPage(addr) (((addr) + PAGE_SIZE - 1)&~0xfff)
 
-SwapMem::SwapMem(size_t mem_begin, size_t mem_len){
-    except_examine(mem_begin % PAGE_SIZE == 0, "the memory bound must be aligned to page_size");
-    except_examine(mem_len != 0, "the memory bound must be larger than zero");
-    except_examine(mem_begin + mem_len >= mem_begin, "the memory address space is overflow");
-    this->mem_begin = mem_begin;
-    this->mem_len = UpPage(mem_len);
-    size_t array_entry_num = mem_len/PAGE_SIZE;
-    this->mem_page_array = new uint8_t*[array_entry_num];
-    std::memset(mem_page_array, 0, sizeof(uint8_t*)*array_entry_num);
+SwapMem::SwapMem():
+    mem_begin(0), mem_len(0), mem_page_array(nullptr), swap_block_index(0){
+    ;
 }
 
 SwapMem::~SwapMem(){
-    delete [] mem_page_array;
+    for(auto p:mem_pool){
+        delete [] p;
+    }
 }
 
-uint8_t* SwapMem::malloc_mem_block(size_t block_len, std::string* file_name=nullptr){
+uint8_t* SwapMem::malloc_mem_block(size_t block_len, std::string* file_name){
     block_len = UpPage(block_len);
     except_examine(block_len != 0, "the bound of block is zero");
     uint8_t* mem_block = new uint8_t[block_len];
+
     if(file_name){
         std::ifstream fin(*file_name, std::ios_base::binary);
         fin.seekg(0, std::ios::end);
         size_t fsize = fin.tellg();
         except_examine(fsize <= block_len, "the file content is larger than memory bound");
         fin.seekg(0, std::ios::beg);
+
         fin.read((char*)mem_block, fsize);
     }
+
+    mem_pool.push_back(mem_block);
     return mem_block;
 }
 
-void SwapMem::register_mem(uint8_t* mem_block, size_t block_begin, size_t block_len){
-    block_len = UpPage(block_len);
-    except_examine(mem_block, "the mmeory block is null");
-    except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,\
-        "the memory bound is out of the swap memory array");
-    except_examine(block_begin + block_len >= block_begin, "the block address space is overflow");
+void SwapMem::register_mem(size_t block_begin, size_t block_len, std::string& file_name){
+    uint8_t* mem_block = malloc_mem_block(block_len, &file_name);
+    add_mem(mem_block, block_begin, block_len);
+}
+
+void SwapMem::add_mem(uint8_t* block, size_t block_begin, size_t block_len){
     block_begin -= mem_begin;
-    block_len /= PAGE_SIZE;
     block_begin /= PAGE_SIZE;
+    block_len /= PAGE_SIZE;
     size_t block_end = block_begin + block_len;
+
     for(int i = block_begin; i < block_end; i++){
         except_examine(mem_page_array[i] == NULL, "the memory_bound is overlapped");
-        mem_page_array[i] = &mem_block[i*PAGE_SIZE];
+        mem_page_array[i] = &block[(i - block_begin)*PAGE_SIZE];
     }
 }
 
-void SwapMem::register_swap_block(uint8_t* mem_block, size_t mem_begin, size_t mem_end){
-    except_examine(swap_block_array.size() < this->swap_block_max_len, "the swap block is full");
-    except_examine(mem_block, "the memory bound is mepty");
-    swap_block_array.push_back(SwapBlock(mem_block, mem_begin, mem_len));
-}
-
-void SwapMem::do_mem_swap(size_t swap_index){
-    SwapBlock& swap_block = this->swap_block_array[swap_index];
-    uint8_t* mem_block = swap_block.swap_block;
-    size_t block_begin = swap_block.swap_block_begin - mem_begin;
-    size_t block_end = swap_block.swap_block_len + block_begin;
-    block_end /= PAGE_SIZE;
+void SwapMem::remove_mem(size_t block_begin, size_t block_len){
+    block_begin -= mem_begin;
     block_begin /= PAGE_SIZE;
+    block_len /= PAGE_SIZE;
+    size_t block_end = block_begin + block_len;
+
+
     for(int i = block_begin; i < block_end; i++){
-        mem_page_array[i] = &mem_block[i*PAGE_SIZE];
+        except_examine(mem_page_array[i] != NULL, "the memory_bound is not use");
+        mem_page_array[i] = nullptr;
     }
+}
+
+void SwapMem::register_swap_block(size_t block_begin, size_t block_len, std::string& file_name, int swap_index){
+    uint8_t* mem_block = malloc_mem_block(block_len, &file_name);
+
+    size_t block_end = block_begin + block_len;
+    SwapBlock swap_block(mem_block, block_begin, block_len);
+    if(swap_block_array.size() < swap_index + 1){
+        swap_block_array.resize(swap_index+1);
+    }
+    swap_block_array[swap_index].push_back(swap_block);
+    swap_block_index = swap_block_array.size();
+}
+
+void SwapMem::initial_swap_mem(const char* bin_dist_name){
+    std::ifstream bin_dist_file(bin_dist_name);
+    uint64_t mem_begin, mem_end;
+    bin_dist_file >> std::hex >> mem_begin >> std::hex >> mem_end;
+    mem_end = UpPage(mem_end);
+    except_examine(mem_end, "the memory bound is smaller than one block");
+    this->mem_begin = mem_begin;
+    this->mem_len = mem_end - mem_begin;
+
+    mem_page_array = new uint8_t*[mem_len/PAGE_SIZE];
+
+    size_t block_begin;
+    size_t block_len;
+    std::string block_kind;
+    std::string file_name;
+    int swap_index;
+    while(bin_dist_file >> std::hex >> block_begin >> std::hex >> block_len >> block_kind >> file_name){
+        block_len = UpPage(block_len);
+        except_examine(block_begin%PAGE_SIZE == 0, "the mmeory is not aligned to page");
+        except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,\
+            "the memory bound is out of the swap memory array");
+        except_examine(block_begin + block_len >= block_begin, "the block address space is overflow");
+
+        if(block_kind == "keep"){
+            register_mem(block_begin, block_len, file_name);
+        }else if(block_kind == "swap"){
+            bin_dist_file >> swap_index;
+            register_swap_block(block_begin, block_len, file_name, swap_index);
+        }else{
+            except_examine(false, "the block_kind is invalid");
+        }
+    }
+
 }
 
 void SwapMem::write_byte(size_t addr, uint8_t data){
@@ -138,7 +186,7 @@ void SwapMem::write_byte(size_t addr, uint8_t data){
     size_t page_offset = addr % PAGE_SIZE;
     uint8_t* page_ptr = mem_page_array[page_index];
     if(!page_ptr){
-        page_ptr = mem_page_array[page_index] = new uint8_t[PAGE_SIZE];
+        page_ptr = mem_page_array[page_index] = malloc_mem_block(PAGE_SIZE, nullptr);
     }
     page_ptr[page_offset] = data;
 }
@@ -149,9 +197,27 @@ uint8_t SwapMem::read_byte(size_t addr){
     size_t page_offset = addr % PAGE_SIZE;
     uint8_t* page_ptr = mem_page_array[page_index];
     if(!page_ptr){
-        page_ptr = mem_page_array[page_index] = new uint8_t[PAGE_SIZE];
+        page_ptr = mem_page_array[page_index] = malloc_mem_block(PAGE_SIZE, nullptr);
     }
     return page_ptr[page_offset];
+}
+
+void SwapMem::do_mem_swap(){
+    if(swap_block_index  < swap_block_array.size()){
+        std::vector<SwapBlock>& swap_block_vector = swap_block_array[swap_block_index];
+        for(auto p = swap_block_vector.begin();p != swap_block_vector.end();p++){
+            remove_mem(p->swap_block_begin, p->swap_block_len);
+        }
+    }
+    swap_block_index --;
+
+    except_examine(swap_block_index >= 0, "the swap_block_index < 0, program does not halt in proper");
+
+    std::vector<SwapBlock>& swap_block_vector = swap_block_array[swap_block_index];
+    for(auto p = swap_block_vector.begin();p != swap_block_vector.end();p++){
+        add_mem(p->swap_block, p->swap_block_begin, p->swap_block_len);
+    }
+
 }
 
 void SwapMem::print_swap_mem(){
@@ -169,129 +235,73 @@ void SwapMem::print_swap_mem(){
     std::cout << "swap_block_info" << std::endl;
     int i=0;
     for(auto p=swap_block_array.begin();p!=swap_block_array.end();p++,i++){
-        std::cout << '\t' << "swap_begin: " << std::hex << p->swap_block_begin << std::endl;
-        std::cout << '\t' << "swap_end: " << std::hex << p->swap_block_begin + p->swap_block_len << std::endl;
-        std::cout << '\t' << "swap_mem: " << std::hex<< (uint64_t)p->swap_block << std::endl;
-        std::cout << std::endl;
+        std::cout << "\tswap " << i << std::endl;
+        for(auto q = p->begin();q != p->end();q ++){
+            std::cout << "\t\tswap_begin: " << std::hex << q->swap_block_begin << std::endl;
+            std::cout << "\t\tswap_end: " << std::hex << q->swap_block_begin + q->swap_block_len << std::endl;
+            std::cout << "\t\tswap_mem: " << std::hex<< (uint64_t)q->swap_block << std::endl;
+            std::cout << std::endl;
+        }
+    }
+    std::cout << "\tcurr swap index:" << swap_block_index << std::endl;
+    std::cout <<  std::endl;
+
+    std::cout << "memory_pool info:" << std::endl;
+    for(auto p:mem_pool){
+        std::cout << "\t" << std::hex << (uint64_t)p << std::endl;
     }
     std::cout << std::endl;
 }
 
-// length, kind, initial, filename
-// kind: xor, shared, swap / init, uninit
-extern "C" void swap_memory_initial(const char* bin_dist){
-    std::ifstream bin_dist_file(bin_dist);
-    uint64_t mem_begin, mem_len;
-    bin_dist_file >> std::hex >> mem_begin >> std::hex >> mem_len;
-    except_examine(mem_len > 0, "the memory bound is smaller than one block");
-    origin_mem = new SwapMem(mem_begin, mem_len);
-    variant_mem = new SwapMem(mem_begin, mem_len);
+void do_mem_swap(unsigned char idx){
+    swap_mem_array[idx&1].do_mem_swap();
+}
 
-    size_t block_begin;
-    size_t block_len;
-    std::string block_kind;
-    std::string initial;
-    while(bin_dist_file >> std::hex >> block_begin >> std::hex >> block_len){
-        except_examine(block_begin%PAGE_SIZE == 0, "the block_begin must be aligned to page");
-        bin_dist_file >> block_kind;
-        bin_dist_file >> initial;
-
-        bool do_init = false;
-        if(initial == "init"){
-            do_init = true;
-        }
-
-        if(block_kind == "xor"){
-            std::string* origin_file_name_ptr = nullptr;
-            std::string* variant_file_name_ptr = nullptr;
-            std::string origin_file_name;
-            std::string variant_file_name;
-            if(do_init){
-                bin_dist_file >> origin_file_name >> variant_file_name;
-                origin_file_name_ptr = &origin_file_name;
-                variant_file_name_ptr = &variant_file_name;
-            }
-            uint8_t* origin_mem_block = SwapMem::malloc_mem_block(block_len, origin_file_name_ptr);
-            uint8_t* variant_mem_block = SwapMem::malloc_mem_block(block_len, variant_file_name_ptr);
-            origin_mem->register_mem(origin_mem_block, block_begin, block_len);
-            variant_mem->register_mem(variant_mem_block, block_begin, block_len);
-        }else if(block_kind == "shared"){
-            std::string shared_file_name;
-            std::string* shared_file_name_ptr = nullptr;
-            if(do_init){
-                bin_dist_file >> shared_file_name;
-                shared_file_name_ptr = &shared_file_name;
-            }
-            uint8_t* shared_mem_block = SwapMem::malloc_mem_block(block_len, shared_file_name_ptr);
-            origin_mem->register_mem(shared_mem_block, block_begin, block_len);
-            variant_mem->register_mem(shared_mem_block, block_begin, block_len);
-        }else if(block_kind == "swap"){
-            std::string swap_file_name;
-            std::string* swap_file_name_ptr = nullptr;
-            if(do_init){
-                bin_dist_file >> swap_file_name;
-                swap_file_name_ptr = &swap_file_name;
-            }
-            uint8_t* swap_block = SwapMem::malloc_mem_block(block_len, swap_file_name_ptr);
-            origin_mem->register_swap_block(swap_block, block_begin, block_len);
-            variant_mem->register_swap_block(swap_block, block_begin, block_len);
-        }else{
-            except_examine(false, "the block_kind is invalid");
-        }
+void swap_memory_initial(unsigned char idx, const char* origin_dist, const char* variant_dist){
+    if(idx&1){
+        swap_mem_array[1].initial_swap_mem(variant_dist);
+    }else{
+        swap_mem_array[0].initial_swap_mem(origin_dist);
     }
 }
 
-extern "C" void do_mem_swap(unsigned char idx, size_t swap_index){
-    if(idx&1){
-        variant_mem->do_mem_swap(swap_index);
-    }else{
-        origin_mem->do_mem_swap(swap_index);
-    }
+void swap_memory_write_byte(unsigned char idx, unsigned long int addr,unsigned char data){
+    swap_mem_array[idx&1].write_byte(addr, data);
 }
 
-extern "C" void swap_memory_write_byte(unsigned char idx, unsigned long int addr,unsigned char data){
-    if(idx&1){
-        variant_mem->write_byte(addr, data);
-    }else{
-        origin_mem->write_byte(addr, data);
-    }
-}
-
-extern "C" unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr){
-    if(idx&1){
-        return variant_mem->read_byte(addr);
-    }else{
-        return origin_mem->read_byte(addr);
-    }
+unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr){
+    return swap_mem_array[idx&1].read_byte(addr);
 }
 
 #if 0
 int main(){
-    swap_memory_initial("/home/zyy/divafuzz-workspace/build/fuzz_code/bin_dist");
-    origin_mem->print_swap_mem();
-    variant_mem->print_swap_mem();
+    swap_memory_initial(0, "/home/zyy/divafuzz-workspace/build/fuzz_code/origin.dist", "/home/zyy/divafuzz-workspace/build/fuzz_code/variant.dist");
+    swap_memory_initial(1, "/home/zyy/divafuzz-workspace/build/fuzz_code/origin.dist", "/home/zyy/divafuzz-workspace/build/fuzz_code/variant.dist");
 
-    swap_memory_write_bitmap(0, 0b011);
-    swap_memory_write_bitmap(1, 0b110);
-    swap_memory_write_bitmap(1, 0b101);
-    swap_memory_write_bitmap(1, 0b011);
-    swap_memory_write_bitmap(1, 0b101);
-    std::cout << std::hex << swap_memory_read_bitmap(0) << std::endl;
-    std::cout << std::hex << swap_memory_read_bitmap(1) << std::endl;
-    origin_mem->print_swap_mem();
-    variant_mem->print_swap_mem();
+    do_mem_swap(0);
+    do_mem_swap(1);
+    do_mem_swap(1);
+    swap_mem_array[0].print_swap_mem();
+    swap_mem_array[1].print_swap_mem();
 
     for(int i=0;i<64;i++){
-        size_t addr = i*PAGE_SIZE + std::rand()%PAGE_SIZE;
-        swap_memory_write_byte(0, addr, 0xde);
-        swap_memory_write_byte(0, addr+1, 0xad);
-        swap_memory_write_byte(0, addr+2, 0xbe);
-        swap_memory_write_byte(0, addr+3, 0xef);
-        std::cout << std::hex << (uint32_t)swap_memory_read_byte(0, addr) << std::hex << (uint32_t)swap_memory_read_byte(0, addr+1) <<\
-            std::hex << (uint32_t)swap_memory_read_byte(0, addr+2) << std::hex << (uint32_t)swap_memory_read_byte(0, addr+3) << std::endl;
+        size_t addr = i*PAGE_SIZE;
+        std::cout << "\t" << std::hex << addr <<": ";
+        std::cout << std::hex << (uint32_t)swap_memory_read_byte(0, addr+3) << std::hex << (uint32_t)swap_memory_read_byte(0, addr+2) <<\
+            std::hex << (uint32_t)swap_memory_read_byte(0, addr+1) << std::hex << (uint32_t)swap_memory_read_byte(0, addr) << std::endl;
     }
-    origin_mem->print_swap_mem();
-    variant_mem->print_swap_mem();
+    for(int i=0;i<64;i++){
+        size_t addr = i*PAGE_SIZE;
+        swap_memory_write_byte(0, addr+3, 0xde);
+        swap_memory_write_byte(0, addr+2, 0xad);
+        swap_memory_write_byte(0, addr+1, 0xbe);
+        swap_memory_write_byte(0, addr+0, 0xef);
+        std::cout << "\t" << std::hex << addr <<": ";
+        std::cout << std::hex << (uint32_t)swap_memory_read_byte(0, addr+3) << std::hex << (uint32_t)swap_memory_read_byte(0, addr+2) <<\
+            std::hex << (uint32_t)swap_memory_read_byte(0, addr+1) << std::hex << (uint32_t)swap_memory_read_byte(0, addr) << std::endl;
+    }
+    swap_mem_array[0].print_swap_mem();
+    swap_mem_array[1].print_swap_mem();
 
 }
 #endif
