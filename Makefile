@@ -215,6 +215,7 @@ $(SPIKE_BUILD)/Makefile:
 $(SPIKE_LIB)&: $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
 	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) $(notdir $(SPIKE_LIB))
 
+spike:$(SPIKE_LIB)&
 
 #######################################
 #
