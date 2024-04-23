@@ -26,6 +26,7 @@ int swap_index = 0;
 extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long int data) {
     if((data & CMD_MASK) == CMD_SWAP_BLOCK){
         do_mem_swap(is_variant);
+        return;
     }else if(is_variant){
         return;
     }
