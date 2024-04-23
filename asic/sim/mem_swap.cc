@@ -148,6 +148,10 @@ void SwapMem::initial_swap_mem(const char* bin_dist_name){
 }
 
 void SwapMem::write_byte(size_t addr, uint8_t data){
+    // std::cout << "write: ";
+    // std::cout << "addr = " << std::hex << (uint64_t)addr;
+    // std::cout << "; data = " << std::hex << (uint64_t)data << std::endl;
+    
     except_examine( addr < mem_len, "the addr of write_byte is not in the memory bound");
     size_t page_index = addr / PAGE_SIZE;
     size_t page_offset = addr % PAGE_SIZE;
@@ -159,7 +163,6 @@ void SwapMem::write_byte(size_t addr, uint8_t data){
 }
 
 uint8_t SwapMem::read_byte(size_t addr){
-    // std::cout << "addr = " << std::hex << addr << std::endl;
     except_examine( addr < mem_len, "the addr of write_byte is not in the memory bound");
     size_t page_index = addr / PAGE_SIZE;
     size_t page_offset = addr % PAGE_SIZE;
@@ -167,7 +170,13 @@ uint8_t SwapMem::read_byte(size_t addr){
     if(!page_ptr){
         page_ptr = mem_page_array[page_index] = malloc_mem_block(PAGE_SIZE, nullptr);
     }
-    return page_ptr[page_offset];
+    uint8_t data = page_ptr[page_offset];
+
+    // std::cout << "read: ";
+    // std::cout << "addr = " << std::hex << (uint64_t)addr;
+    // std::cout << "; data = " << std::hex << (uint64_t)data << std::endl;
+
+    return data;
 }
 
 void SwapMem::do_mem_swap(){
