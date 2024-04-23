@@ -236,7 +236,8 @@ VCS_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VCS_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SPIKE_LIB) \
 			   $(SIM_DIR)/timer.cc  \
-			   $(SIM_DIR)/parafuzz.cc
+			   $(SIM_DIR)/parafuzz.cc \
+			   $(SIM_DIR)/mem_swap.cc \
 
 VCS_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \
@@ -319,7 +320,8 @@ VLT_CFLAGS	:= -std=c++17 $(addprefix -I,$(SPIKE_INCLUDE)) -I$(ROCKET_BUILD)
 VLT_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SPIKE_LIB) \
 			   $(SIM_DIR)/timer.cc \
-			   $(SIM_DIR)/parafuzz.cc
+			   $(SIM_DIR)/parafuzz.cc \
+			   $(SIM_DIR)/mem_swap.cc \
 
 VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \

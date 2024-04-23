@@ -5,6 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include "mem_swap.h"
 
 #define CMD_MASK                0xFFFF'FFFF'FFFF'0000ul
 #define OP_MASK                 0x0000'0000'0000'FFFFul
@@ -18,8 +19,6 @@
 #define CMD_POWER_OFF           0xAF1B'608E'883B'0000ul
 
 #define CMD_SWAP_BLOCK          0xAF1B'608E'883C'0000ul
-
-void do_mem_swap(unsigned char idx);
 
 int state = 0;
 int swap_index = 0;

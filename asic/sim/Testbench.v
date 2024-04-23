@@ -133,15 +133,6 @@ module Testbench;
       end
     end
 
-    // Memory Initialize
-    #(`RESET_DELAY/2.0)
-    if ($value$plusargs("testcase=%s", testcase)) begin
-      $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
-      $readmemh({testcase, ".hex"}, `MEM_REG.ram);
-      // $readmemh({testcase, ".variant.hex"}, `MEM_REG_VNT.ram);
-    end
-    $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
-
     // taint
     $timeformat(-9,0,"",20);
     $value$plusargs("taintlog=%s", taintlog);

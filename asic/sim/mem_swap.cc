@@ -1,54 +1,12 @@
+#ifndef SWAP_DEBUG
 #include <svdpi.h>
+#endif
 #include <fstream>
 #include <iostream>
-#include <cstdint>
 #include <cassert>
-#include <string>
-#include <cstring>
-#include <cstdlib>
-#include <vector>
+#include "mem_swap.h"
 
 static const size_t PAGE_SIZE = 0x1000;
-extern "C" void do_mem_swap(unsigned char idx);
-extern "C" void swap_memory_initial(unsigned char idx, const char* origin_dist, const char* variant_dist);
-extern "C" void swap_memory_write_byte(unsigned char idx, unsigned long int addr,unsigned char data);
-extern "C" unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr);
-
-class SwapMem{
-    struct SwapBlock{
-        uint8_t* swap_block;
-        size_t swap_block_begin;
-        size_t swap_block_len;
-        SwapBlock();
-        SwapBlock(uint8_t* swap_block, size_t swap_block_begin, size_t swap_block_len);
-    };
-        std::vector<uint8_t*> mem_pool;
-
-        uint8_t** mem_page_array;
-        size_t mem_begin;
-        size_t mem_len;
-
-        static const size_t swap_block_max_len = 256;
-        std::vector<std::vector<SwapBlock>> swap_block_array;
-        size_t swap_block_index;
-
-    private:
-        uint8_t* malloc_mem_block(size_t block_len, std::string* file_name);
-        void register_mem(size_t block_begin, size_t block_len, std::string& file_name);
-        void register_swap_block(size_t block_begin, size_t block_len, std::string& file_name, int swap_index);
-        void add_mem(uint8_t* block, size_t block_begin, size_t block_len);
-        void remove_mem(size_t block_begin, size_t block_len);
-
-    public:
-        SwapMem();
-        ~SwapMem();
-        void initial_swap_mem(const char* bin_dist_name);
-        void do_mem_swap();
-        void write_byte(size_t addr, uint8_t data);
-        uint8_t read_byte(size_t addr);
-        void print_swap_mem();
-};
-
 SwapMem swap_mem_array[2];
 
 #define except_examine(judge_result, comment) except_examine_func((judge_result), (comment), __FILE__, __LINE__)
@@ -79,6 +37,7 @@ SwapMem::SwapMem():
 }
 
 SwapMem::~SwapMem(){
+    delete [] mem_page_array;
     for(auto p:mem_pool){
         delete [] p;
     }
@@ -115,7 +74,12 @@ void SwapMem::add_mem(uint8_t* block, size_t block_begin, size_t block_len){
     size_t block_end = block_begin + block_len;
 
     for(int i = block_begin; i < block_end; i++){
-        except_examine(mem_page_array[i] == NULL, "the memory_bound is overlapped");
+        // if(mem_page_array[i]!=nullptr){
+        //     std::cout << "i = "<< i << std::endl;
+        //     std::cout << "block_begin = "<< block_begin << std::endl;
+        //     std::cout << "block_len = "<< block_len << std::endl;
+        // }
+        // except_examine(mem_page_array[i] == nullptr, "the memory_bound is overlapped");
         mem_page_array[i] = &block[(i - block_begin)*PAGE_SIZE];
     }
 }
@@ -126,9 +90,8 @@ void SwapMem::remove_mem(size_t block_begin, size_t block_len){
     block_len /= PAGE_SIZE;
     size_t block_end = block_begin + block_len;
 
-
     for(int i = block_begin; i < block_end; i++){
-        except_examine(mem_page_array[i] != NULL, "the memory_bound is not use");
+        except_examine(mem_page_array[i] != nullptr, "the memory_bound is not use");
         mem_page_array[i] = nullptr;
     }
 }
@@ -155,6 +118,9 @@ void SwapMem::initial_swap_mem(const char* bin_dist_name){
     this->mem_len = mem_end - mem_begin;
 
     mem_page_array = new uint8_t*[mem_len/PAGE_SIZE];
+    for(int i = 0; i < mem_len/PAGE_SIZE; i++){
+        mem_page_array[i] = nullptr;
+    }
 
     size_t block_begin;
     size_t block_len;
@@ -178,6 +144,7 @@ void SwapMem::initial_swap_mem(const char* bin_dist_name){
         }
     }
 
+    // print_swap_mem();
 }
 
 void SwapMem::write_byte(size_t addr, uint8_t data){
@@ -192,6 +159,7 @@ void SwapMem::write_byte(size_t addr, uint8_t data){
 }
 
 uint8_t SwapMem::read_byte(size_t addr){
+    // std::cout << "addr = " << std::hex << addr << std::endl;
     except_examine( addr < mem_len, "the addr of write_byte is not in the memory bound");
     size_t page_index = addr / PAGE_SIZE;
     size_t page_offset = addr % PAGE_SIZE;
@@ -218,6 +186,7 @@ void SwapMem::do_mem_swap(){
         add_mem(p->swap_block, p->swap_block_begin, p->swap_block_len);
     }
 
+    // print_swap_mem();
 }
 
 void SwapMem::print_swap_mem(){
@@ -226,7 +195,7 @@ void SwapMem::print_swap_mem(){
     std::cout << "mem_end:" << std::hex << mem_len + mem_begin << std::endl;
     std::cout << "mem_page_array:" << std::endl; 
     for(size_t i=0;i<mem_len/PAGE_SIZE;i++){
-        if(mem_page_array[i]){
+        if(mem_page_array[i] != nullptr){
             std::cout << '\t' << std::hex << (mem_begin + i*PAGE_SIZE)\
                 << ": " << std::hex<< (uint64_t)mem_page_array[i] << std::endl;
         }
@@ -254,13 +223,16 @@ void SwapMem::print_swap_mem(){
 }
 
 void do_mem_swap(unsigned char idx){
+    std::cout << ((idx&1)?"variant":"origin") << " do memory swap" << std::endl;
     swap_mem_array[idx&1].do_mem_swap();
 }
 
 void swap_memory_initial(unsigned char idx, const char* origin_dist, const char* variant_dist){
     if(idx&1){
+        std::cout << "variant initial memory: " << variant_dist << std::endl;
         swap_mem_array[1].initial_swap_mem(variant_dist);
     }else{
+        std::cout << "origin initial memory: " << origin_dist << std::endl;
         swap_mem_array[0].initial_swap_mem(origin_dist);
     }
 }
@@ -273,7 +245,7 @@ unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr){
     return swap_mem_array[idx&1].read_byte(addr);
 }
 
-#if 0
+#ifdef SWAP_DEBUG
 int main(){
     swap_memory_initial(0, "/home/zyy/divafuzz-workspace/build/fuzz_code/origin.dist", "/home/zyy/divafuzz-workspace/build/fuzz_code/variant.dist");
     swap_memory_initial(1, "/home/zyy/divafuzz-workspace/build/fuzz_code/origin.dist", "/home/zyy/divafuzz-workspace/build/fuzz_code/variant.dist");
