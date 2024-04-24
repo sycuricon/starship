@@ -7,8 +7,8 @@ TOP			:= $(CURDIR)
 SRC			:= $(TOP)/repo
 BUILD		:= $(TOP)/build
 CONFIG		:= $(TOP)/conf
-SBT_BUILD 	:= $(TOP)/target $(TOP)/project/target $(TOP)/project/project
 ASIC		:= $(TOP)/asic
+SCRIPT		:= $(TOP)/scripts
 
 ifndef RISCV
   $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
@@ -123,9 +123,9 @@ $(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
 
 $(ROCKET_TH_SRAM): $(ROCKET_TH_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
-	$(ROCKET_SRC)/scripts/vlsi_mem_gen $(ROCKET_TH_MEMCONF) --swap > $(ROCKET_TH_SRAM)
+	$(SCRIPT)/tb_mem_gen $(ROCKET_TH_MEMCONF) --swap > $(ROCKET_TH_SRAM)
 
-th_sram:$(ROCKET_TH_SRAM)
+th_sram: $(ROCKET_TH_SRAM)
 
 $(ROCKET_ROM_HEX): $(ROCKET_DTS)
 	mkdir -p $(FSBL_BUILD)
@@ -405,6 +405,8 @@ DC_NETLIST	:= $(DC_OUTPUT)/netlist
 #               Utils
 #
 #######################################
+
+SBT_BUILD 	:= $(TOP)/target $(TOP)/project/target $(TOP)/project/project
 
 .PHONY: clean clean-all patch
 
