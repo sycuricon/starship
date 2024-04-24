@@ -16,7 +16,7 @@ endif
 
 GCC_VERSION	:= $(word 1,$(subst ., ,$(shell gcc -dumpversion)))
 ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
-  SCL_PREFIX := source scl_source enable devtoolset-10 &&
+  $(error At least GCC 9 is required.)
 endif
 
 all: bitstream
@@ -31,10 +31,18 @@ all: bitstream
 include conf/build.mk
 
 ifeq ($(STARSHIP_CORE),CVA6)
-  ifndef CVA6_REPO_DIR
-    $(error $$CVA6_REPO_DIR is undefined, please add $$CVA6_REPO_DIR in your configuration)
+  ifeq ($(CVA6_REPO_DIR),)
+    $(error $$CVA6_REPO_DIR must point to CVA6 repository)
   else
     export CVA6_REPO_DIR
+  endif
+endif
+
+ifeq ($(STARSHIP_CORE),XiangShan)
+  ifeq ($(XS_REPO_DIR),)
+    $(error $$XS_REPO_DIR must point to XiangShan repository)
+  else
+    export XS_REPO_DIR
   endif
 endif
 
@@ -90,7 +98,6 @@ $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF) $(ROCKET_TH_VE
 		-X verilog $(FIRRTL_DEBUG_OPTION) \
 		-i $< -o $(ROCKET_TH_VERILOG)"
 	touch $(ROCKET_TOP_INCLUDE) $(ROCKET_TH_INCLUDE)
-	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).bak
 
 #######################################
 #
@@ -118,6 +125,13 @@ $(ROCKET_INCLUDE): | $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) | tr ' ' '\n' >> $@
 	sed -i "s/.*\.f$$/-f &/g" $@
+ifeq ($(SIMULATION_MODE),variant)
+  ifeq ($(STARSHIP_CORE),XiangShan)
+	sed -i "/XSList.f/d" $@
+  endif
+	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $@
+	sed -i "s/$(ROCKET_OUTPUT).top.v/$(ROCKET_OUTPUT).top.ift.v/g" $@
+endif
 
 $(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
@@ -154,6 +168,45 @@ ifeq ($(SIMULATION_MODE),cosim)
 	sed -i "s/_covState = _RAND/_covState = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 	sed -i "s/_covSum = _RAND/_covSum = 0; \/\//g" $(ROCKET_TOP_VERILOG)
 endif
+
+#######################################
+#
+#              Yosys
+#
+#######################################
+
+YOSYS_SRC	:= $(ASIC)/yosys
+YOSYS_TOP = $(lastword $(subst ., ,$(STARSHIP_TOP)))
+YOSYS_CONFIG = $(lastword $(subst ., ,$(STARSHIP_CONFIG)))
+export YOSYS_TOP YOSYS_CONFIG
+
+YOSYS_TOP_VERILOG_OPT	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.opt.v
+YOSYS_TOP_VERILOG_IFT	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.ift.v
+
+ifeq ($(SIMULATION_MODE),variant)
+  VERILOG_SRC := $(subst $(ROCKET_TOP_VERILOG),$(YOSYS_TOP_VERILOG_IFT),$(VERILOG_SRC))
+endif
+
+$(YOSYS_TOP_VERILOG_OPT): $(VERILOG_SRC)
+	$(MAKE) verilog-patch
+ifeq ($(STARSHIP_CORE),BOOM)
+	yosys -c $(YOSYS_SRC)/boom_opt.tcl
+else ifeq ($(STARSHIP_CORE),XiangShan)
+	yosys -c $(YOSYS_SRC)/xiangshan_opt.tcl
+else
+$(error Unsupported core yet!)
+endif
+
+$(YOSYS_TOP_VERILOG_IFT): $(YOSYS_TOP_VERILOG_OPT) | $(ROCKET_INCLUDE)
+ifeq ($(STARSHIP_CORE),BOOM)
+	yosys -c $(YOSYS_SRC)/boom_ift.tcl
+else ifeq ($(STARSHIP_CORE),XiangShan)
+	yosys -c $(YOSYS_SRC)/xiangshan_ift.tcl
+endif
+
+verilog-instrument: $(YOSYS_TOP_VERILOG_OPT)
+	rm $(YOSYS_TOP_VERILOG_IFT)
+	$(MAKE) $(YOSYS_TOP_VERILOG_IFT)
 
 
 #######################################
@@ -204,11 +257,11 @@ SPIKE_INCLUDE	:= $(SPIKE_DIR) $(SPIKE_DIR)/cosim $(SPIKE_DIR)/fdt $(SPIKE_DIR)/f
 
 SIM_SRC_C		:= $(SIM_DIR)/probebuffer.cc
 SIM_SRC_V		:= $(SIM_DIR)/tty.v					\
-				   $(SIM_DIR)/probebuffer.v
+				   $(SIM_DIR)/probebuffer.v			\
+				   $(SIM_DIR)/archstep.v
 SIM_DEFINE		:= +define+MODEL=$(STARSHIP_TH)			\
 			   	   +define+CLOCK_PERIOD=1.0	   			\
 				   +define+TARGET_$(STARSHIP_CORE)
-
 
 ifeq ($(SIMULATION_MODE),cosim)
 SIM_SRC_C		+= $(SIM_DIR)/spike_difftest.cc		\
@@ -229,10 +282,10 @@ export LD_LIBRARY_PATH=$(SPIKE_BUILD)
 
 $(SPIKE_BUILD)/Makefile:
 	mkdir -p $(SPIKE_BUILD)
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) $(SPIKE_DIR)/configure
+	cd $(SPIKE_BUILD); $(SPIKE_DIR)/configure
 
 $(SPIKE_LIB)&: $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
-	cd $(SPIKE_BUILD); $(SCL_PREFIX) make -j$(shell nproc) $(notdir $(SPIKE_LIB))
+	cd $(SPIKE_BUILD); make -j$(shell nproc) $(notdir $(SPIKE_LIB))
 
 
 #######################################
@@ -257,8 +310,8 @@ VCS_DEFINE	:= $(SIM_DEFINE)								\
 			   +define+TOP_DIR=\"$(VCS_OUTPUT)\"			\
 			   +define+DEBUG_FSDB
 
-VCS_PARAL_COM	:= -j$(shell nproc) # -fgp
-VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
+VCS_PARAL_COM	:= -j$(shell nproc) # -Xkeyopt=rtopt -fgp 
+VCS_PARAL_RUN	:= # -fgp=num_threads:4,num_fsdb_threads:1 # -fgp=num_cores:$(shell nproc),percent_fsdb_cores:30
 
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 		\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext 			\
@@ -268,7 +321,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
-vcs-debug: 		VCS_SIM_OPTION += +verbose +dump +uart_tx=0
+vcs-debug: 		VCS_SIM_OPTION += +verbose +uart_tx=0
 vcs-fuzz: 		VCS_SIM_OPTION += +fuzzing +uart_tx=0
 vcs-fuzz-debug:	VCS_SIM_OPTION += +fuzzing +verbose +dump +uart_tx=0
 vcs-jtag: 		VCS_SIM_OPTION += +jtag_rbb_enable=1 +verbose +uart_tx=0
@@ -276,7 +329,7 @@ vcs-jtag-debug: VCS_SIM_OPTION += +jtag_rbb_enable=1 +verbose +dump +uart_tx=0
 
 $(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C)
 	mkdir -p $(VCS_BUILD) $(VCS_LOG) $(VCS_WAVE)
-	cd $(VCS_OUTPUT); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
+	cd $(VCS_OUTPUT); vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
 		-f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
 $(TESTCASE_HEX): $(TESTCASE_ELF)
@@ -290,7 +343,7 @@ $(TESTCASE_HEX): $(TESTCASE_ELF)
 
 vcs-dummy: $(VCS_TARGET)
 
-vcs: $(VCS_TARGET) $(TESTCASE_HEX)
+vcs: $(VCS_TARGET) # $(TESTCASE_HEX)
 	cd $(VCS_OUTPUT); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 		$(VCS_SIM_OPTION) $(EXTRA_SIM_ARGS) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
@@ -331,11 +384,11 @@ vlt-fuzz:		VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 vlt-fuzz-debug:	VLT_DEFINE += +define+COVERAGE_SUMMARY +define+COSIMULATION
 
 VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
-			   --timescale 1ns/10ps --trace --timing 										\
+			   --timescale 1ns/10ps --trace --timing -j $(shell nproc) 						\
 			   +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -O3						\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
-			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"			\
+			   -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS} -fcoroutines"				\
 			   -LDFLAGS "-ldl"
 VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
 
@@ -353,7 +406,7 @@ $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $
 
 vlt-dummy: $(VLT_TARGET)
 
-vlt: $(VLT_TARGET) $(TESTCASE_HEX)
+vlt: $(VLT_TARGET) # $(TESTCASE_HEX)
 	cd $(VLT_OUTPUT); time \
 	$(VLT_TARGET) $(VLT_SIM_OPTION) $(EXTRA_SIM_ARGS)
 
@@ -377,30 +430,6 @@ gtkwave:
 #            Synopsys DC
 #
 #######################################
-
-#######################################
-#
-#              Yosys
-#
-#######################################
-
-YOSYS_SRC	:= $(ASIC)/ift
-YOSYS_TOP = $(lastword $(subst ., ,$(STARSHIP_TOP)))
-YOSYS_CONFIG = $(lastword $(subst ., ,$(STARSHIP_CONFIG)))
-export YOSYS_TOP YOSYS_CONFIG
-
-verilog-instrument: $(VERILOG_SRC) $(ROCKET_INCLUDE)
-	cp $(ROCKET_TOP_VERILOG).bak $(ROCKET_TOP_VERILOG)
-	$(MAKE) verilog-patch 
-	cp $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_VERILOG).untainted
-ifeq ($(STARSHIP_CORE),BOOM)
-	yosys -c $(YOSYS_SRC)/boom_ift.tcl | tee $(ROCKET_BUILD)/yosys_ift.boom.log
-else ifeq ($(STARSHIP_CORE),XiangShan)
-	# sv2v -D SYNTHESIS --top XS_XSTile $(XS_REPO_DIR)/build/rtl/XSTop.v > $(XS_REPO_DIR)/build/rtl/XSTop.sv2v.v
-	yosys -c $(YOSYS_SRC)/xiangshan_ift.tcl | tee $(ROCKET_BUILD)/yosys_ift.xiangshan.log
-	sed -i "/XSList.f/d" $(ROCKET_INCLUDE)
-endif
-	sed -i "/$(ROCKET_OUTPUT).behav_srams.top.v/d" $(ROCKET_INCLUDE)
 
 #######################################
 #

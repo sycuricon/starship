@@ -93,7 +93,7 @@ module Testbench;
     if ($value$plusargs("testcase=%s", testcase)) begin
       $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
       $readmemh({testcase, ".hex"}, `DUT_MEM.ram);
-      // $readmemh({testcase, ".variant.hex"}, `VNT_MEM.ram);
+      $readmemh({testcase, ".variant.hex"}, `VNT_MEM.ram);
     end
     $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
   end
@@ -149,14 +149,14 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
-  // TestHarness testHarness_variant(
-  //   .clock(clock),
-  //   .reset(reset),
-  //   .io_uart_tx(),
-  //   .io_uart_rx(1'b0)
-  // // .io_uart_tx(uart_tx),
-  // // .io_uart_rx(uart_rx)
-  // );
+  TestHarness testHarness_variant(
+    .clock(clock),
+    .reset(reset),
+    .io_uart_tx(),
+    .io_uart_rx(1'b0)
+  // .io_uart_tx(uart_tx),
+  // .io_uart_rx(uart_rx)
+  );
 
   // tty #(115200, 0) u0_tty(
   //  .STX(uart_rx),

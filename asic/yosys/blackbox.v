@@ -59,3 +59,19 @@ module ProbeBufferBB(
 );
 
 endmodule
+
+(* keep *)
+(* blackbox *)
+(* pift_wire_instrumented *)
+(* pift_cell_instrumented *)
+(* pift_port_instrumented *)
+(* pift_ignore_module *)
+module ArchStepBB(
+    input clock,
+    input reset,
+    input valid,
+    input [63:0] pc,
+    input [31:0] inst
+);
+
+endmodule

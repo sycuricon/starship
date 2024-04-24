@@ -79,40 +79,40 @@ def main():
                     type = values[0].strip()
                     time = int(values[1].strip())
                     match type:
-                        case "INFO_VCTM_START":
+                        case "VCTM_START_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dot", line_color="black", annotation_text="VS", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_VCTM_END":
+                        case "VCTM_END_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dash", line_color="black", annotation_text="VE", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_VCTM_START_COMMIT":
+                        case "VCTM_START_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="dashdot", line_color="black", annotation_text="VSC", annotation_position="top left", row=i + 1, col=1)
-                        case "INFO_VCTM_END_COMMIT":
+                        case "VCTM_END_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="solid", line_color="black", annotation_text="VEC", annotation_position="top left", row=i + 1, col=1)
 
-                        case "INFO_DELAY_START":
+                        case "DELAY_START_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dot", line_color="green", annotation_text="DS", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_DELAY_END":
+                        case "DELAY_END_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dash", line_color="green", annotation_text="DE", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_DELAY_START_COMMIT":
+                        case "DELAY_START_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="dashdot", line_color="green", annotation_text="DSC", annotation_position="top left", row=i + 1, col=1)
-                        case "INFO_DELAY_END_COMMIT":
+                        case "DELAY_END_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="solid", line_color="green", annotation_text="DEC", annotation_position="top left", row=i + 1, col=1)
                         
-                        case "INFO_TEXE_START":
+                        case "TEXE_START_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dot", line_color="red", annotation_text="ES", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_TEXE_END":
+                        case "TEXE_END_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dash", line_color="red", annotation_text="EE", annotation_position="top right", row=i + 1, col=1)
-                        case "INFO_TEXE_START_COMMIT":
+                        case "TEXE_START_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="dashdot", line_color="red", annotation_text="ESC", annotation_position="top left", row=i + 1, col=1)
-                        case "INFO_TEXE_END_COMMIT":
+                        case "TEXE_END_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="solid", line_color="red", annotation_text="EEC", annotation_position="top left", row=i + 1, col=1)
 
-                        case "INFO_LEAK_START":
+                        case "LEAK_START_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dot", line_color="blue", annotation_text="LS", annotation_position="bottom right", row=i + 1, col=1)
-                        case "INFO_LEAK_END":
+                        case "LEAK_END_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dash", line_color="blue", annotation_text="LE", annotation_position="bottom right", row=i + 1, col=1)
-                        case "INFO_LEAK_START_COMMIT":
+                        case "LEAK_START_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="dashdot", line_color="blue", annotation_text="LSC", annotation_position="bottom left", row=i + 1, col=1)
-                        case "INFO_LEAK_END_COMMIT":
+                        case "LEAK_END_DEQ":
                             fig.add_vline(x=time, line_width=2, line_dash="solid", line_color="blue", annotation_text="LEC", annotation_position="bottom left", row=i + 1, col=1)
 
         fig.update_layout(title_text=f"""
