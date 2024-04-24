@@ -1,4 +1,4 @@
-# Verilog Generation Configuration
+# SoC Configuration
 ##################################
 
 STARSHIP_CORE	?= XiangShan
@@ -20,14 +20,14 @@ STARSHIP_BOARD	?= vc707
 SIMULATION_MODE		:= variant
 EXTRA_SIM_ARGS		?=
 
-STARSHIP_TESTCASE	?= /home/phantom/work/InstGenerator/build/Testbench
+STARSHIP_TESTCASE	?=
+
 
 # Out of Project Configuration
+##############################
 
-XS_REPO_DIR		?= /home/phantom/work/XiangShan
+XS_REPO_DIR		?=
 CVA6_REPO_DIR	?=
-
-export XS_REPO_DIR CVA6_REPO_DIR
 
 $(BUILD)/starship-dummy-testcase:
 	mkdir -p $(BUILD)
