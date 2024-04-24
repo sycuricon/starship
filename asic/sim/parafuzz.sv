@@ -1,5 +1,5 @@
-import "DPI-C" function void parafuzz_probebuff_tick(byte is_variant, longint unsigned data);
-import "DPI-C" function byte is_variant_hierachy(string hierarchy);
+import "DPI-C" function void parafuzz_probebuff_tick(byte unsigned is_variant, longint unsigned data);
+import "DPI-C" function byte unsigned is_variant_hierachy(string hierarchy);
 
 module ProbeBufferBB (
     input clock,
@@ -9,7 +9,7 @@ module ProbeBufferBB (
     output [63:0] read
 );
 
-    byte is_variant;
+    byte unsigned is_variant;
     initial begin
         is_variant = is_variant_hierachy($sformatf("%m"));
     end

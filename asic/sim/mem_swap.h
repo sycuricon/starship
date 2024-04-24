@@ -7,10 +7,12 @@
 #include <string>
 #include <cstring>
 
-extern "C" void do_mem_swap(unsigned char idx);
-extern "C" void swap_memory_initial(unsigned char idx, const char *origin_dist, const char *variant_dist);
-extern "C" void swap_memory_write_byte(unsigned char idx, unsigned long int addr, unsigned char data);
-extern "C" unsigned char swap_memory_read_byte(unsigned char idx, unsigned long int addr);
+#define TB_MEM_PAGE_SIZE 0x1000
+
+extern "C" void do_mem_swap(unsigned char is_variant);
+extern "C" void swap_memory_initial(unsigned char is_variant, const char *origin_dist, const char *variant_dist);
+extern "C" void swap_memory_write_byte(unsigned char is_variant, unsigned long int addr, unsigned char data);
+extern "C" unsigned char swap_memory_read_byte(unsigned char is_variant, unsigned long int addr);
 
 class SwapMem {
     struct SwapBlock {

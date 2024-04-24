@@ -64,7 +64,7 @@ extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long 
 #include <string.h>
 #include <map>
 
-extern "C" char is_variant_hierachy(const char* hierachy) {
+extern "C" unsigned char is_variant_hierachy(const char* hierachy) {
     return strstr(hierachy, "testHarness_variant") ? 1 : 0;
 }
 
