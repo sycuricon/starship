@@ -123,7 +123,7 @@ $(ROCKET_TOP_SRAM): $(ROCKET_TOP_MEMCONF)
 
 $(ROCKET_TH_SRAM): $(ROCKET_TH_MEMCONF)
 	mkdir -p $(ROCKET_BUILD)
-	$(SCRIPT)/tb_mem_gen $(ROCKET_TH_MEMCONF) --swap > $(ROCKET_TH_SRAM)
+	$(SCRIPT)/tb_mem_gen.py $(ROCKET_TH_MEMCONF) --swap > $(ROCKET_TH_SRAM)
 
 th_sram: $(ROCKET_TH_SRAM)
 
