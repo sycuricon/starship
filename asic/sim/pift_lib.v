@@ -1,6 +1,7 @@
 import "DPI-C" function int unsigned register_reference(string hierarchy);
 
-module taintcell_1I1O(A, Y, A_taint, Y_taint);
+// module taintcell_1I1O(A, Y, A_taint, Y_taint);
+module taintcell_1I1O(A, A_taint, Y_taint);
 
     parameter A_SIGNED = 0;
     parameter A_WIDTH = 0;
@@ -9,11 +10,11 @@ module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
     input [A_WIDTH-1:0] A;
     input [A_WIDTH-1:0] A_taint;
-    input [Y_WIDTH-1:0] Y;
+    // input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
     wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
-    wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    // wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
     wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
 
     generate
@@ -35,7 +36,8 @@ module taintcell_1I1O(A, Y, A_taint, Y_taint);
 
 endmodule
 
-module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
+// module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
+module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
 
     parameter A_SIGNED = 0;
     parameter A_WIDTH = 0;
@@ -48,12 +50,12 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     input [B_WIDTH-1:0] B;
     input [A_WIDTH-1:0] A_taint;
     input [B_WIDTH-1:0] B_taint;
-    input [Y_WIDTH-1:0] Y;
+    // input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
     wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
     wire [Y_WIDTH-1:0] B_san = $isunknown(B) ? {Y_WIDTH{1'b0}} : B_SIGNED ? $signed(B) : B;
-    wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    // wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
     wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
     wire [Y_WIDTH-1:0] Bt_san = B_SIGNED ? $signed(B_taint) : B_taint;
 
@@ -94,7 +96,8 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 
 endmodule
 
-module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
+// module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
+module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
     parameter WIDTH = 32'd64;
     parameter TYPE = "mux";
@@ -102,7 +105,7 @@ module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
     input [WIDTH-1:0] A;
     input [WIDTH-1:0] B;
     input S;
-    input [WIDTH-1:0] Y;
+    // input [WIDTH-1:0] Y;
     input [WIDTH-1:0] A_taint;
     input [WIDTH-1:0] B_taint;
     input S_taint;
@@ -397,7 +400,9 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     endgenerate
 endmodule
 
-module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK, WR_EN, WR_ADDR, WR_DATA,
+// module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK, WR_EN, WR_ADDR, WR_DATA,
+//     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint, taint_sum);
+module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, WR_ADDR,
     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint, taint_sum);
 
     parameter MEMID = "";
@@ -430,7 +435,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     input [RD_PORTS-1:0] RD_SRST_taint;
     input [RD_PORTS*ABITS-1:0] RD_ADDR;
     input [RD_PORTS*ABITS-1:0] RD_ADDR_taint;
-    input [RD_PORTS*WIDTH-1:0] RD_DATA;
+    // input [RD_PORTS*WIDTH-1:0] RD_DATA;
     output [RD_PORTS*WIDTH-1:0] RD_DATA_taint;
 
     reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
@@ -443,7 +448,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK,
     input [WR_PORTS*WIDTH-1:0] WR_EN_taint;
     input [WR_PORTS*ABITS-1:0] WR_ADDR;
     input [WR_PORTS*ABITS-1:0] WR_ADDR_taint;
-    input [WR_PORTS*WIDTH-1:0] WR_DATA;
+    // input [WR_PORTS*WIDTH-1:0] WR_DATA;
     input [WR_PORTS*WIDTH-1:0] WR_DATA_taint;
 
     output reg [ABITS:0] taint_sum;
