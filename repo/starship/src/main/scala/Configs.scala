@@ -36,6 +36,7 @@ class With150MHz extends WithFrequency(150)
 class WithRocketCore extends Config(new WithNBigCores(1))
 class WithBOOMCore extends Config(new boom.common.WithNSmallBooms(1))
 class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
+class WithXiangShanCore extends Config(new starship.xiangshan.WithNXSCores(1))
 
 class StarshipBaseConfig extends Config(
   // new WithRoccExample ++

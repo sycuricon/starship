@@ -5,69 +5,9 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-extern "C" void testbench_memory_do_swap(unsigned char is_variant);
-
-#define CMD_MASK                0xFFFF'FFFF'FFFF'0000ul
-#define OP_MASK                 0x0000'0000'0000'FFFFul
-
-#define CMD_SWITCH_STATE        0xAF1B'608E'883A'0000ul
-#define STATE_DEFAULT           0
-#define STATE_DUMP_NUM          1
-#define STATE_DUMP_CHAR         2
-#define STATE_DUMP_ADDR         3
-
-#define CMD_POWER_OFF           0xAF1B'608E'883B'0000ul
-
-#define CMD_SWAP_BLOCK          0xAF1B'608E'883C'0000ul
-
-int state = 0;
-int swap_index = 0;
-
-extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long int data) {
-    if((data & CMD_MASK) == CMD_SWAP_BLOCK){
-        testbench_memory_do_swap(is_variant);
-        return;
-    }else if(is_variant){
-        return;
-    }
-    
-    switch (data & CMD_MASK) {
-        case CMD_SWITCH_STATE:
-            state = data & OP_MASK;
-            return;
-        case CMD_POWER_OFF:
-            printf("[*] simulation exit with %ld\n", data & OP_MASK);
-            exit(0);
-        default:
-            break;
-    }
-
-    switch (state) {
-        case STATE_DEFAULT:
-            printf("[*] prober get data: %lu\n", data);
-            break;
-        case STATE_DUMP_NUM:
-            printf("%lu ", data);
-            break;
-        case STATE_DUMP_CHAR:
-            printf("%c", data);
-            break;
-        case STATE_DUMP_ADDR:
-            printf("%p ", (void *)data);
-            break;
-        default:
-            break;
-    }
-}
-
 #include <string>
 #include <string.h>
 #include <map>
-
-extern "C" unsigned char is_variant_hierachy(const char* hierachy) {
-    return strstr(hierachy, "testHarness_variant") ? 1 : 0;
-}
 
 inline unsigned int group_idx(unsigned int idx) {
     return idx / 2;
@@ -81,10 +21,11 @@ struct Reference {
     std::string dut_str;
     std::string vnt_str;
 
-    bool cached;
+    unsigned char cached;
     unsigned char prev_result;
 
     Reference(std::string raw) {
+        cached = 0;
         bool is_variant = raw.find("testHarness_variant") != std::string::npos ? true : false;
         if (!is_variant) {
             dut_str = raw;
@@ -101,7 +42,6 @@ struct Reference {
                 sizeof("testHarness_variant")-1,
                 "testHarness");
         }
-        clean_cache();
     }
 
     const char* dut() {
@@ -112,17 +52,21 @@ struct Reference {
         return vnt_str.c_str();
     }
 
-    void clean_cache() {
-        cached = false;
+    void clean_cache(unsigned char idx) {
+        cached = cached & ~(1 << idx);
     }
 
-    bool has_cache() {
-        return cached;
+    bool has_cache(unsigned char idx) {
+        return (cached >> idx) & 1;
     }
 
-    void set_cache(unsigned char update) {
-        cached = true;
-        prev_result = update;
+    void set_cache(unsigned char idx, unsigned char update) {
+        cached = cached | (1 << idx);
+        prev_result = (prev_result & ~(1 << idx)) | (update << idx);
+    }
+
+    unsigned char get_cache(unsigned char idx) {
+        return (prev_result >> idx) & 1;
     }
 };
 
@@ -143,13 +87,15 @@ extern "C" unsigned int register_reference(const char* hierarchy) {
     return idxMap[hierarchy];
 }
 
+#define IDX_MUX_S   0
+
 extern "C" void get_mux_sel(unsigned char* select);
 extern "C" unsigned char xref_diff_mux_sel(unsigned int idx) {
     Reference& h = refMap.at(group_idx(idx));
 
-    if (h.has_cache()) {
-        h.clean_cache();
-        return h.prev_result;
+    if (h.has_cache(IDX_MUX_S)) {
+        h.clean_cache(IDX_MUX_S);
+        return h.get_cache(IDX_MUX_S);
     }
     else {
         unsigned char dut_sel, vnt_sel;
@@ -160,18 +106,20 @@ extern "C" unsigned char xref_diff_mux_sel(unsigned int idx) {
         get_mux_sel(&vnt_sel);
 
         unsigned char result = dut_sel ^ vnt_sel;
-        h.set_cache(result);
+        h.set_cache(IDX_MUX_S, result);
         return result;
     }
 }
+
+#define IDX_DFF_EN  0
 
 extern "C" void get_dff_en(unsigned char* en);
 extern "C" unsigned char xref_diff_dff_en(unsigned int idx) {
     Reference& h = refMap.at(group_idx(idx));
 
-    if (h.has_cache()) {
-        h.clean_cache();
-        return h.prev_result;
+    if (h.has_cache(IDX_DFF_EN)) {
+        h.clean_cache(IDX_DFF_EN);
+        return h.get_cache(IDX_DFF_EN);
     }
     else {
         unsigned char dut_en, vnt_en;
@@ -182,18 +130,20 @@ extern "C" unsigned char xref_diff_dff_en(unsigned int idx) {
         get_dff_en(&vnt_en);
 
         unsigned char result = dut_en ^ vnt_en;
-        h.set_cache(result);
+        h.set_cache(IDX_DFF_EN, result);
         return result;   
     }
 }
+
+#define IDX_DFF_SRST  1
 
 extern "C" void get_dff_srst(unsigned char* srst);
 extern "C" unsigned char xref_diff_dff_srst(unsigned int idx) {
     Reference& h = refMap.at(group_idx(idx));
 
-    if (h.has_cache()) {
-        h.clean_cache();
-        return h.prev_result;
+    if (h.has_cache(IDX_DFF_SRST)) {
+        h.clean_cache(IDX_DFF_SRST);
+        return h.get_cache(IDX_DFF_SRST);
     }
     else {
         unsigned char dut_srst, vnt_srst;
@@ -204,18 +154,20 @@ extern "C" unsigned char xref_diff_dff_srst(unsigned int idx) {
         get_dff_srst(&vnt_srst);
 
         unsigned char result = dut_srst ^ vnt_srst;
-        h.set_cache(result);
+        h.set_cache(IDX_DFF_SRST, result);
         return result;
     }
 }
+
+#define IDX_DFF_ARST  2
 
 extern "C" void get_dff_arst(unsigned char* arst);
 extern "C" unsigned char xref_diff_dff_arst(unsigned int idx) {
     Reference& h = refMap.at(group_idx(idx));
 
-    if (h.has_cache()) {
-        h.clean_cache();
-        return h.prev_result;
+    if (h.has_cache(IDX_DFF_ARST)) {
+        h.clean_cache(IDX_DFF_ARST);
+        return h.get_cache(IDX_DFF_ARST);
     }
     else {
         unsigned char dut_arst, vnt_arst;
@@ -226,18 +178,20 @@ extern "C" unsigned char xref_diff_dff_arst(unsigned int idx) {
         get_dff_arst(&vnt_arst);
 
         unsigned char result = dut_arst ^ vnt_arst;
-        h.set_cache(result);
+        h.set_cache(IDX_DFF_ARST, result);
         return result;
     }
 }
+
+#define IDX_DFF_TAINT   3
 
 extern "C" void get_dff_taint(unsigned char* tainted);
 extern "C" unsigned char xref_merge_dff_taint(unsigned int idx) {
     Reference& h = refMap.at(group_idx(idx));
 
-    if (h.has_cache()) {
-        h.clean_cache();
-        return h.prev_result;
+    if (h.has_cache(IDX_DFF_TAINT)) {
+        h.clean_cache(IDX_DFF_TAINT);
+        return h.get_cache(IDX_DFF_TAINT);
     }
     else {
         unsigned char dut_tainted, vnt_tainted;
@@ -248,7 +202,7 @@ extern "C" unsigned char xref_merge_dff_taint(unsigned int idx) {
         get_dff_taint(&vnt_tainted);
 
         unsigned char result = dut_tainted | vnt_tainted;
-        h.set_cache(result);
+        h.set_cache(IDX_DFF_TAINT, result);
         return result;
     }
 }
