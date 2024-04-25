@@ -193,11 +193,12 @@ endmodule" % (name, ',\n  '.join(port_spec), body if not blackbox else "")
 
 def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
   assert mask_gran%8 == 0
+  assert width%8 == 0 and width >= 8
   addr_width = math.ceil(math.log2(depth))
   code_line = [
-    'import "DPI-C" function void swap_memory_write_byte(byte unsigned is_variant, longint unsigned addr, byte unsigned data);',
-    'import "DPI-C" function byte swap_memory_read_byte(byte unsigned is_variant, longint unsigned addr);',
-    'import "DPI-C" function void swap_memory_initial(byte unsigned is_variant, string origin_dist, string variant_dist);',
+    'import "DPI-C" function void testbench_memory_write_byte(byte unsigned is_variant, longint unsigned addr, byte unsigned data);',
+    'import "DPI-C" function byte testbench_memory_read_byte(byte unsigned is_variant, longint unsigned addr);',
+    'import "DPI-C" function void testbench_memory_initial(string input_file, longint unsigned real_mem_size);',
     '`timescale 1ns / 10ps',
     '',
     '`ifndef RESET_DELAY',
@@ -218,13 +219,12 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
     ');',
     '',
     '\tbyte unsigned is_variant;',
-    '\tstring origin_dist, variant_dist;',
+    '\tstring testcase_file = "";',
     '\tinitial begin',
     '\t\t#(`RESET_DELAY/2.0)',
     '\t\tis_variant = {is_variant_hierachy($sformatf("%m"))};',
-    "\t\tvoid'($value$plusargs(\"origin_dist=%s\", origin_dist));",
-    "\t\tvoid'($value$plusargs(\"variant_dist=%s\", variant_dist));",
-    "\t\tswap_memory_initial(is_variant, origin_dist, variant_dist);",
+    "\t\tvoid'($value$plusargs(\"testcase=%s\", testcase_file));",
+    f"\t\ttestbench_memory_initial(testcase_file, 64'h{hex(depth * width // 8)[2:]});",
     '\t\t$system("echo -e \\"\\033[31m[>] vcs init `date +%s.%3N` \\033[0m\\"");',
     '\tend',
     '',
@@ -236,7 +236,7 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
   code_line.append('\talways @(posedge R0_clk)begin')
   code_line.append('\t\tif (R0_en) begin')
   for i in range(width//8):
-    code_line.append(f'\t\t\tR0_tmp_data[{i*8+7}:{i*8}] <= swap_memory_read_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{i}}});')
+    code_line.append(f'\t\t\tR0_tmp_data[{i*8+7}:{i*8}] <= testbench_memory_read_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{i}}});')
   code_line.append('\t\tend')
   code_line.append('\tend')
 
@@ -245,7 +245,7 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
   for i in range(mask_seg):
     for j in range(mask_gran//8):
       byte_index = i*mask_gran//8 + j
-      code_line.append(f'\t\t\tif(W0_mask[{i}])swap_memory_write_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{byte_index}}}, W0_data[{byte_index*8+7}:{byte_index*8}]);')
+      code_line.append(f'\t\t\tif(W0_mask[{i}])testbench_memory_write_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{byte_index}}}, W0_data[{byte_index*8+7}:{byte_index*8}]);')
   code_line.append('\t\tend')
   code_line.append('\tend')
 

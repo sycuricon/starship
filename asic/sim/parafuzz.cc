@@ -5,7 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "mem_swap.h"
+
+extern "C" void testbench_memory_do_swap(unsigned char is_variant);
 
 #define CMD_MASK                0xFFFF'FFFF'FFFF'0000ul
 #define OP_MASK                 0x0000'0000'0000'FFFFul
@@ -25,7 +26,7 @@ int swap_index = 0;
 
 extern "C" void parafuzz_probebuff_tick(unsigned char is_variant, unsigned long int data) {
     if((data & CMD_MASK) == CMD_SWAP_BLOCK){
-        do_mem_swap(is_variant);
+        testbench_memory_do_swap(is_variant);
         return;
     }else if(is_variant){
         return;

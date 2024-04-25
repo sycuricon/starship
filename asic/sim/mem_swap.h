@@ -6,13 +6,13 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <cassert>
 
 #define TB_MEM_PAGE_SIZE 0x1000
 
-extern "C" void do_mem_swap(unsigned char is_variant);
-extern "C" void swap_memory_initial(unsigned char is_variant, const char *origin_dist, const char *variant_dist);
-extern "C" void swap_memory_write_byte(unsigned char is_variant, unsigned long int addr, unsigned char data);
-extern "C" unsigned char swap_memory_read_byte(unsigned char is_variant, unsigned long int addr);
+
 
 class SwapMem {
     struct SwapBlock {
@@ -39,8 +39,6 @@ class SwapMem {
 
     private:
         uint8_t *malloc_mem_block(size_t block_len, std::string *file_name);
-        void register_mem(size_t block_begin, size_t block_len, std::string &file_name);
-        void register_swap_block(size_t block_begin, size_t block_len, std::string &file_name, int swap_index);
         void add_mem(uint8_t *block, size_t block_begin, size_t block_len);
         void remove_mem(size_t block_begin, size_t block_len);
 
@@ -52,12 +50,14 @@ class SwapMem {
                 delete[] p;
             }
         }
-        void initial_swap_mem(const char *bin_dist_name);
+        void initial_mem(size_t mem_start_addr, size_t max_mem_size);
+        void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index);
+        void register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name);
+
         void do_mem_swap();
         void write_byte(size_t addr, uint8_t data);
         uint8_t read_byte(size_t addr);
         void print_swap_mem();
 };
-
 
 #endif

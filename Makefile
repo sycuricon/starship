@@ -192,10 +192,6 @@ bitstream: $(VIVADO_BITSTREAM)
 SIM_DIR			:= $(ASIC)/sim
 TB_TOP			?= Testbench
 
-TESTCASE_ELF	:= $(STARSHIP_TESTCASE)
-TESTCASE_BIN	:= $(shell mktemp)
-TESTCASE_HEX	:= $(STARSHIP_TESTCASE).hex
-
 CHISEL_DEFINE 	:= +define+PRINTF_COND=$(TB_TOP).printf_cond	\
 			   	   +define+STOP_COND=!$(TB_TOP).reset
 
@@ -238,6 +234,7 @@ VCS_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SIM_DIR)/timer.cc  \
 			   $(SIM_DIR)/parafuzz.cc \
 			   $(SIM_DIR)/mem_swap.cc \
+			   $(SIM_DIR)/tb_mem.cc
 
 VCS_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \
@@ -260,9 +257,9 @@ VCS_PARAL_RUN	:= # -fgp=num_threads:1,num_fsdb_threads:1 # -fgp=num_cores:$(shel
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 		\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext 			\
 			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
-			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" 											\
+			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" -lconfig++									\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
-VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
+VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +taintlog=$(notdir $(STARSHIP_TESTCASE))
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VCS_SIM_OPTION += +verbose +dump +uart_tx=0
@@ -276,18 +273,9 @@ $(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $
 	cd $(VCS_OUTPUT); $(SCL_PREFIX) vcs $(VCS_OPTION) -l $(VCS_LOG)/vcs.log -top $(TB_TOP) \
 		-f $(ROCKET_INCLUDE) $(VCS_SRC_V) $(VCS_SRC_C) -o $@
 
-$(TESTCASE_HEX): $(TESTCASE_ELF)
-	riscv64-unknown-elf-objcopy --gap-fill 0			\
-		--set-section-flags .bss=alloc,load,contents	\
-		--set-section-flags .sbss=alloc,load,contents	\
-		--set-section-flags .tbss=alloc,load,contents	\
-		-O binary $< $(TESTCASE_BIN)
-	od -v -An -tx8 $(TESTCASE_BIN) > $@
-	rm $(TESTCASE_BIN)
-
 vcs-dummy: $(VCS_TARGET)
 
-vcs: $(VCS_TARGET) $(TESTCASE_HEX)
+vcs: $(VCS_TARGET)
 	cd $(VCS_OUTPUT); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -l $(VCS_LOG)/sim.log  \
 		$(VCS_SIM_OPTION) $(EXTRA_SIM_ARGS) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
@@ -322,6 +310,7 @@ VLT_SRC_C	:= $(SIM_DIR)/spike_difftest.cc \
 			   $(SIM_DIR)/timer.cc \
 			   $(SIM_DIR)/parafuzz.cc \
 			   $(SIM_DIR)/mem_swap.cc \
+			   $(SIM_DIR)/tb_mem.cc
 
 VLT_SRC_V	:= $(SIM_DIR)/$(TB_TOP).v \
 			   $(SIM_DIR)/spike_difftest.v \
@@ -344,8 +333,8 @@ VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   +incdir+$(ROCKET_BUILD) +incdir+$(SIM_DIR) $(CHISEL_DEFINE) $(VLT_DEFINE)	\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
 			   -j $(shell nproc) -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS}"			\
-			   -LDFLAGS "-ldl"
-VLT_SIM_OPTION	:= +testcase=$(TESTCASE_ELF) +taintlog=$(notdir $(TESTCASE_ELF))
+			   -LDFLAGS "-ldl -lconfig++"
+VLT_SIM_OPTION	:= +testcase=$(STARSHIP_TESTCASE) +taintlog=$(notdir $(STARSHIP_TESTCASE))
 
 vlt-wave: 		VLT_SIM_OPTION	+= +dump
 vlt-debug: 		VLT_SIM_OPTION 	+= +verbose +dump
@@ -361,7 +350,7 @@ $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $
 
 vlt-dummy: $(VLT_TARGET)
 
-vlt: $(VLT_TARGET) $(TESTCASE_HEX)
+vlt: $(VLT_TARGET)
 	cd $(VLT_OUTPUT); time \
 	$(VLT_TARGET) $(VLT_SIM_OPTION) $(EXTRA_SIM_ARGS)
 
