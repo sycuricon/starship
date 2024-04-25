@@ -87,15 +87,6 @@ module Testbench;
         `WAVE_ON
       end
     end
-
-    // Memory Initialize
-    #(`RESET_DELAY/2.0)
-    if ($value$plusargs("testcase=%s", testcase)) begin
-      $display("TestHarness Memory Load Testcase: %s", {testcase, ".hex"});
-      $readmemh({testcase, ".hex"}, `DUT_MEM.ram);
-      $readmemh({testcase, ".variant.hex"}, `VNT_MEM.ram);
-    end
-    $system("echo -e \"\033[31m[>] vcs init `date +%s.%3N` \033[0m\"");
   end
 
   always @(negedge clock) begin
