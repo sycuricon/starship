@@ -110,7 +110,7 @@ FIRMWARE_BUILD	:= $(BUILD)/firmware
 FSBL_SRC		:= $(FIRMWARE_SRC)/fsbl
 FSBL_BUILD		:= $(FIRMWARE_BUILD)/fsbl
 
-ROCKET_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).f
+ROCKET_INCLUDE 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).$(SIMULATION_MODE).f
 ROCKET_ROM_HEX 	:= $(FSBL_BUILD)/sdboot.hex
 ROCKET_ROM		:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).rom.v
 ROCKET_TOP_SRAM	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).behav_srams.top.v
@@ -287,7 +287,7 @@ $(SPIKE_BUILD)/Makefile:
 $(SPIKE_LIB)&: $(SPIKE_SRC) $(SPIKE_BUILD)/Makefile
 	cd $(SPIKE_BUILD); make -j$(shell nproc) $(notdir $(SPIKE_LIB))
 
-spike:$(SPIKE_LIB)&
+spike: $(SPIKE_LIB)
 
 #######################################
 #
@@ -295,7 +295,7 @@ spike:$(SPIKE_LIB)&
 #
 #######################################
 
-VCS_OUTPUT	:= $(BUILD)/vcs
+VCS_OUTPUT	:= $(BUILD)/vcs/$(SIMULATION_MODE)
 VERDI_OUTPUT:= $(BUILD)/verdi
 VCS_BUILD	:= $(VCS_OUTPUT)/build
 VCS_LOG		:= $(VCS_OUTPUT)/log
@@ -358,7 +358,7 @@ verdi:
 #
 #######################################
 
-VLT_OUTPUT	:= $(BUILD)/verilator
+VLT_OUTPUT	:= $(BUILD)/verilator/$(SIMULATION_MODE)
 VLT_BUILD	:= $(VLT_OUTPUT)/build
 VLT_WAVE 	:= $(VLT_OUTPUT)/wave
 VLT_TARGET  := $(VLT_BUILD)/$(TB_TOP)
