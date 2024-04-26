@@ -82,6 +82,7 @@ struct TBConfig {
                 std::cerr << "Configuration requires a larger memory size!" << std::endl;
                 exit(EXIT_FAILURE);
             }
+            max_mem_size = std::min(max_mem_size, cfg_mem_size);
 
             const libconfig::Setting &cfg_region = cfg_root["memory_regions"];
             for (int i = 0; i < cfg_region.getLength(); i++) {
