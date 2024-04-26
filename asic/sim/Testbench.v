@@ -58,7 +58,6 @@ module Testbench;
   `endif
 
   initial begin
-    $system("echo -e \"\033[31m[>] vcs start `date +%s.%3N` \033[0m\"");
     `ifdef VCS
       `ifdef COVERAGE_SUMMARY
         force `INTERRUPT = interrupt;

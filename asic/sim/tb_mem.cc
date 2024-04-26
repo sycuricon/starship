@@ -155,7 +155,7 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
     tb_config.update_size(size);
     tb_config.load_config(input_file);
 
-    tb_config.dump_config();
+    // tb_config.dump_config();
 
     mem_pool[DUT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
     if (tb_config.has_variant)

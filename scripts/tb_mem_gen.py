@@ -225,7 +225,6 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
     '\t\tis_variant = {is_variant_hierachy($sformatf("%m"))};',
     "\t\tvoid'($value$plusargs(\"testcase=%s\", testcase_file));",
     f"\t\ttestbench_memory_initial(testcase_file, 64'h{hex(depth * width // 8)[2:]});",
-    '\t\t$system("echo -e \\"\\033[31m[>] vcs init `date +%s.%3N` \\033[0m\\"");',
     '\tend',
     '',
     f'\treg [{width-1}:0] R0_tmp_data;',

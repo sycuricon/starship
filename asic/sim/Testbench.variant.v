@@ -21,10 +21,6 @@ module Testbench;
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
-  initial begin
-    $system("echo -e \"\033[31m[>] vcs start `date +%s.%3N` \033[0m\"");
-  end 
-
   int unsigned rand_value;
   string testcase;
   longint timer_result;
