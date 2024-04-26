@@ -17,7 +17,7 @@ STARSHIP_BOARD	?= vc707
 # Simulation Configuration
 ##########################
 
-SIMULATION_MODE		:= variant
+SIMULATION_MODE		?= variant
 SIMULATION_LABEL	?= $(notdir $(STARSHIP_TESTCASE))
 EXTRA_SIM_ARGS		?=
 
