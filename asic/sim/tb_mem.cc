@@ -137,7 +137,7 @@ struct TBConfig {
 
 bool init_done = false;
 TBConfig tb_config;
-SwapMem mem_pool[2];
+SwappableMem mem_pool[2];
 
 #define DUT_MEM 0
 #define VNT_MEM 1
@@ -182,7 +182,7 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
 }
 
 extern "C" void testbench_memory_do_swap(unsigned char is_variant) {
-    std::cout << ((is_variant) ? "variant" : "origin") << " do memory swap" << std::endl;
+    std::cout << ((is_variant) ? "vnt" : "dut") << " do memory swap" << std::endl;
     if (tb_config.has_variant || !is_variant)
         mem_pool[is_variant].do_mem_swap();
 }

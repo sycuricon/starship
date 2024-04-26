@@ -12,7 +12,7 @@ void except_examine_func(bool judge_result, const char *comment, const char *fil
 
 #define UpPage(addr) (((addr) + TB_MEM_PAGE_SIZE - 1) & ~0xfff)
 
-uint8_t *SwapMem::malloc_mem_block(size_t block_len, std::string *file_name) {
+uint8_t *SwappableMem::malloc_mem_blocks(size_t block_len, std::string *file_name) {
     block_len = UpPage(block_len);
     except_examine(block_len != 0, "the bound of block is zero");
     uint8_t *mem_block = new uint8_t[block_len];
@@ -27,40 +27,40 @@ uint8_t *SwapMem::malloc_mem_block(size_t block_len, std::string *file_name) {
         fin.read((char *)mem_block, fsize);
     }
 
-    mem_pool.push_back(mem_block);
+    mem_region_keeper.push_back(mem_block);
     return mem_block;
 }
 
-void SwapMem::add_mem(uint8_t *block, size_t block_begin, size_t block_len) {
-    block_begin -= mem_begin;
-    block_begin /= TB_MEM_PAGE_SIZE;
-    block_len /= TB_MEM_PAGE_SIZE;
-    size_t block_end = block_begin + block_len;
+void SwappableMem::mount_mem_blocks(uint8_t *block, size_t block_begin, size_t block_len) {
+    size_t block_begin_offset = block_begin - mem_begin;
+    size_t block_begin_page = block_begin_offset / TB_MEM_PAGE_SIZE;
+    size_t block_page_size = block_len / TB_MEM_PAGE_SIZE;
+    size_t block_end_page = block_begin_page + block_page_size;
 
-    for (int i = block_begin; i < block_end; i++) {
-        // if(mem_page_array[i]!=nullptr){
+    for (size_t i = block_begin_page; i < block_end_page; i++) {
+        // if (mem_block_array[i]!=nullptr) {
         //     std::cout << "i = "<< i << std::endl;
         //     std::cout << "block_begin = "<< block_begin << std::endl;
         //     std::cout << "block_len = "<< block_len << std::endl;
         // }
-        // except_examine(mem_page_array[i] == nullptr, "the memory_bound is overlapped");
-        mem_page_array[i] = &block[(i - block_begin) * TB_MEM_PAGE_SIZE];
+        // except_examine(mem_block_array[i] == nullptr, "the memory_bound is overlapped");
+        mem_block_array[i] = &block[(i - block_begin_page) * TB_MEM_PAGE_SIZE];
     }
 }
 
-void SwapMem::remove_mem(size_t block_begin, size_t block_len) {
-    block_begin -= mem_begin;
-    block_begin /= TB_MEM_PAGE_SIZE;
-    block_len /= TB_MEM_PAGE_SIZE;
-    size_t block_end = block_begin + block_len;
+void SwappableMem::unmount_mem_blocks(size_t block_begin, size_t block_len) {
+    size_t block_begin_offset = block_begin - mem_begin;
+    size_t block_begin_page = block_begin_offset / TB_MEM_PAGE_SIZE;
+    size_t block_page_size = block_len / TB_MEM_PAGE_SIZE;
+    size_t block_end_page = block_begin_page + block_page_size;
 
-    for (int i = block_begin; i < block_end; i++) {
-        except_examine(mem_page_array[i] != nullptr, "the memory_bound is not use");
-        mem_page_array[i] = nullptr;
+    for (size_t i = block_begin; i < block_end_page; i++) {
+        except_examine(mem_block_array[i] != nullptr, "Try to unmount a memory block that is not mounted");
+        mem_block_array[i] = nullptr;
     }
 }
 
-void SwapMem::write_byte(size_t addr, uint8_t data) {
+void SwappableMem::write_byte(size_t addr, uint8_t data) {
     // std::cout << "write: ";
     // std::cout << "addr = " << std::hex << (uint64_t)addr;
     // std::cout << "; data = " << std::hex << (uint64_t)data << std::endl;
@@ -68,20 +68,20 @@ void SwapMem::write_byte(size_t addr, uint8_t data) {
     except_examine(addr < mem_len, "the addr of write_byte is not in the memory bound");
     size_t page_index = addr / TB_MEM_PAGE_SIZE;
     size_t page_offset = addr % TB_MEM_PAGE_SIZE;
-    uint8_t *page_ptr = mem_page_array[page_index];
+    uint8_t *page_ptr = mem_block_array[page_index];
     if (!page_ptr) {
-        page_ptr = mem_page_array[page_index] = malloc_mem_block(TB_MEM_PAGE_SIZE, nullptr);
+        page_ptr = mem_block_array[page_index] = malloc_mem_blocks(TB_MEM_PAGE_SIZE, nullptr);
     }
     page_ptr[page_offset] = data;
 }
 
-uint8_t SwapMem::read_byte(size_t addr) {
+uint8_t SwappableMem::read_byte(size_t addr) {
     except_examine(addr < mem_len, "the addr of write_byte is not in the memory bound");
     size_t page_index = addr / TB_MEM_PAGE_SIZE;
     size_t page_offset = addr % TB_MEM_PAGE_SIZE;
-    uint8_t *page_ptr = mem_page_array[page_index];
+    uint8_t *page_ptr = mem_block_array[page_index];
     if (!page_ptr) {
-        page_ptr = mem_page_array[page_index] = malloc_mem_block(TB_MEM_PAGE_SIZE, nullptr);
+        page_ptr = mem_block_array[page_index] = malloc_mem_blocks(TB_MEM_PAGE_SIZE, nullptr);
     }
     uint8_t data = page_ptr[page_offset];
 
@@ -92,11 +92,11 @@ uint8_t SwapMem::read_byte(size_t addr) {
     return data;
 }
 
-void SwapMem::do_mem_swap() {
+void SwappableMem::do_mem_swap() {
     if (swap_block_index < swap_block_array.size()) {
         std::vector<SwapBlock> &swap_block_vector = swap_block_array[swap_block_index];
         for (auto p = swap_block_vector.begin(); p != swap_block_vector.end(); p++) {
-            remove_mem(p->swap_block_begin, p->swap_block_len);
+            unmount_mem_blocks(p->swap_block_begin, p->swap_block_len);
         }
     }
     swap_block_index--;
@@ -105,21 +105,21 @@ void SwapMem::do_mem_swap() {
 
     std::vector<SwapBlock> &swap_block_vector = swap_block_array[swap_block_index];
     for (auto p = swap_block_vector.begin(); p != swap_block_vector.end(); p++) {
-        add_mem(p->swap_block, p->swap_block_begin, p->swap_block_len);
+        mount_mem_blocks(p->swap_block, p->swap_block_begin, p->swap_block_len);
     }
 
     // print_swap_mem();
 }
 
-void SwapMem::print_swap_mem() {
+void SwappableMem::print_swap_mem() {
     std::cout << "the info of swap memory:" << std::endl;
     std::cout << "mem_begin:" << std::hex << mem_begin << std::endl;
     std::cout << "mem_end:" << std::hex << mem_len + mem_begin << std::endl;
-    std::cout << "mem_page_array:" << std::endl;
+    std::cout << "mem_block_array:" << std::endl;
     for (size_t i = 0; i < mem_len / TB_MEM_PAGE_SIZE; i++) {
-        if (mem_page_array[i] != nullptr) {
+        if (mem_block_array[i] != nullptr) {
             std::cout << '\t' << std::hex << (mem_begin + i * TB_MEM_PAGE_SIZE)
-                      << ": " << std::hex << (uint64_t)mem_page_array[i] << std::endl;
+                      << ": " << std::hex << (uint64_t)mem_block_array[i] << std::endl;
         }
     }
     std::cout << std::endl;
@@ -138,32 +138,32 @@ void SwapMem::print_swap_mem() {
     std::cout << std::endl;
 
     std::cout << "memory_pool info:" << std::endl;
-    for (auto p : mem_pool) {
+    for (auto p : mem_region_keeper) {
         std::cout << "\t" << std::hex << (uint64_t)p << std::endl;
     }
     std::cout << std::endl;
 }
 
-void SwapMem::initial_mem(size_t mem_start_addr, size_t max_mem_size) {    
+void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size) {    
     this->mem_begin = mem_start_addr;
     this->mem_len = UpPage(max_mem_size);
 
     except_examine(this->mem_len, "the memory bound is smaller than one block");
 
-    mem_page_array = new uint8_t *[mem_len / TB_MEM_PAGE_SIZE];
+    mem_block_array = new uint8_t *[mem_len / TB_MEM_PAGE_SIZE];
     for (int i = 0; i < mem_len / TB_MEM_PAGE_SIZE; i++) {
-        mem_page_array[i] = nullptr;
+        mem_block_array[i] = nullptr;
     }
 }
 
-void SwapMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index) {
+void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index) {
     block_len = UpPage(block_len);
     except_examine(block_begin % TB_MEM_PAGE_SIZE == 0, "the memory is not aligned to page");
     except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,
                     "the memory bound is out of the swap memory array");
     except_examine(block_begin + block_len >= block_begin, "the block address space is overflow");
 
-    uint8_t *mem_block = malloc_mem_block(block_len, &file_name);
+    uint8_t *mem_block = malloc_mem_blocks(block_len, &file_name);
 
     size_t block_end = block_begin + block_len;
     SwapBlock swap_block(mem_block, block_begin, block_len);
@@ -174,13 +174,13 @@ void SwapMem::register_swap_blocks(size_t block_begin, size_t block_len, std::st
     swap_block_index = swap_block_array.size();
 }
 
-void SwapMem::register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name) {
+void SwappableMem::register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name) {
     block_len = UpPage(block_len);
     except_examine(block_begin % TB_MEM_PAGE_SIZE == 0, "the memory is not aligned to page");
     except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,
                     "the memory bound is out of the swap memory array");
     except_examine(block_begin + block_len >= block_begin, "the block address space is overflow");
 
-    uint8_t *mem_block = malloc_mem_block(block_len, &file_name);
-    add_mem(mem_block, block_begin, block_len);
+    uint8_t *mem_block = malloc_mem_blocks(block_len, &file_name);
+    mount_mem_blocks(mem_block, block_begin, block_len);
 }
