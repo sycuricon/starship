@@ -295,7 +295,7 @@ spike: $(SPIKE_LIB)
 #
 #######################################
 
-VCS_OUTPUT	:= $(BUILD)/vcs/$(SIMULATION_MODE)
+VCS_OUTPUT	:= $(BUILD)/vcs/$(STARSHIP_CONFIG)_$(STARSHIP_CORE)_$(SIMULATION_MODE)
 VERDI_OUTPUT:= $(BUILD)/verdi
 VCS_BUILD	:= $(VCS_OUTPUT)/build
 VCS_LOG		:= $(VCS_OUTPUT)/log
