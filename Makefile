@@ -319,7 +319,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" -lconfig++									\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
-VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +taintlog=$(notdir $(STARSHIP_TESTCASE))
+VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +taintlog=$(SIMULATION_LABEL)
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VCS_SIM_OPTION += +verbose +uart_tx=0
@@ -358,7 +358,7 @@ verdi:
 #
 #######################################
 
-VLT_OUTPUT	:= $(BUILD)/verilator/$(SIMULATION_MODE)
+VLT_OUTPUT	:= $(BUILD)/verilator/$(STARSHIP_CONFIG)_$(STARSHIP_CORE)_$(SIMULATION_MODE)
 VLT_BUILD	:= $(VLT_OUTPUT)/build
 VLT_WAVE 	:= $(VLT_OUTPUT)/wave
 VLT_TARGET  := $(VLT_BUILD)/$(TB_TOP)
@@ -382,7 +382,7 @@ VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
 			   -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS} -fcoroutines"				\
 			   -LDFLAGS "-ldl  -lconfig++"
-VLT_SIM_OPTION	:= +testcase=$(STARSHIP_TESTCASE) +taintlog=$(notdir $(STARSHIP_TESTCASE))
+VLT_SIM_OPTION	:= +testcase=$(STARSHIP_TESTCASE) +taintlog=$(SIMULATION_LABEL)
 
 vlt-wave: 		VLT_SIM_OPTION	+= +dump
 vlt-debug: 		VLT_SIM_OPTION 	+= +verbose +dump
@@ -442,6 +442,12 @@ patch:
 				"git apply --ignore-space-change --ignore-whitespace ../../" $$0 \
 			")" \
 		}' | sh
+
+plot_vcs_taint:
+	$(SCRIPT)/taint_sum.py -s vcs -c $(STARSHIP_CONFIG)_$(STARSHIP_CORE)_$(SIMULATION_MODE) -q
+
+plot_vlt_taint:
+	$(SCRIPT)/taint_sum.py -s vcs -c $(STARSHIP_CONFIG)_$(STARSHIP_CORE)_$(SIMULATION_MODE) -q
 
 clean:
 	rm -rf $(BUILD)

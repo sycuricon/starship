@@ -1,7 +1,7 @@
 # SoC Configuration
 ##################################
 
-STARSHIP_CORE	?= XiangShan
+STARSHIP_CORE	?= BOOM
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= starship.asic.TestHarness
 STARSHIP_TOP	?= starship.asic.StarshipSimTop
@@ -18,6 +18,7 @@ STARSHIP_BOARD	?= vc707
 ##########################
 
 SIMULATION_MODE		:= variant
+SIMULATION_LABEL	?= $(notdir $(STARSHIP_TESTCASE))
 EXTRA_SIM_ARGS		?=
 
 STARSHIP_TESTCASE	?=

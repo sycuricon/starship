@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import os
 import datetime
 import argparse
@@ -15,30 +17,31 @@ def getTargetFileList(path):
         
     return file_list
 
-
 def getTargetList(file_list):
     target = set()
     for i in file_list:
         target.add(i.split('.')[0])
     return target
 
-def genHTMLOutputFileName(target, simulator):
-    return f"build/{simulator}/{target}.html"
+def genHTMLOutputFileName(target, config, simulator):
+    return f"build/{simulator}/{config}/{target}.html"
 
-def genTaintLogFileName(target, simulator):
-    return f"build/{simulator}/wave/{target}.csv"
+def genTaintLogFileName(target, config, simulator):
+    return f"build/{simulator}/{config}/wave/{target}.csv"
 
-def genEventLogFileName(target, simulator):
-    return f"build/{simulator}/wave/{target}.log"
+def genEventLogFileName(target, config, simulator):
+    return f"build/{simulator}/{config}/wave/{target}.log"
 
 def main():
     parse = argparse.ArgumentParser(description="Taint Visualization")
-    parse.add_argument("-s", "--source", dest="source", default="vcs", help="source of taint data")
+    parse.add_argument("-s", "--sim", dest="simulator", default="vcs", help="select simulator")
+    parse.add_argument("-c", "--config", dest="config", default="none", help="detailed configuration")
     parse.add_argument("-q", "--quite", dest="quite", action="store_true", help="quite mode, don't open browser")
     args = parse.parse_args()
 
-    source = "verilator" if args.source == "vlt" else args.source
-    target_file_list = sorted(getTargetFileList(f'build/{source}/wave'))
+    simulator = "verilator" if args.simulator == "vlt" else args.simulator
+    config = args.config
+    target_file_list = sorted(getTargetFileList(f'build/{simulator}/{config}/wave'))
 
     targets = sorted(getTargetList(target_file_list))
     print(f"find targets: {targets}")
@@ -47,9 +50,9 @@ def main():
         print(f"processing {target}")
         selected_rounds = [round for round in target_file_list if round.startswith(target + '.')]
 
-        output_file = genHTMLOutputFileName(target, source)
-        tlog_file_list = [genTaintLogFileName(round, source) for round in selected_rounds]
-        elog_file_list = [genEventLogFileName(round, source) for round in selected_rounds]
+        output_file = genHTMLOutputFileName(target, config, simulator)
+        tlog_file_list = [genTaintLogFileName(round, config, simulator) for round in selected_rounds]
+        elog_file_list = [genEventLogFileName(round, config, simulator) for round in selected_rounds]
        
         if (os.path.exists(output_file)):
             simulation_timestamp = [os.path.getmtime(file) for file in tlog_file_list]
@@ -117,7 +120,7 @@ def main():
 
         fig.update_layout(title_text=f"""
             Taint Sum over Time
-            <br><sup>{source}, {datetime.datetime.fromtimestamp(os.path.getctime(tlog))}<sup>
+            <br><sup>{simulator}, {datetime.datetime.fromtimestamp(os.path.getctime(tlog))}<sup>
         """)
 
         print(f"saving {output_file}")
