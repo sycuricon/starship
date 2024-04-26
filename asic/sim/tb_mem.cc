@@ -159,7 +159,7 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
 
     mem_pool[DUT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
     if (tb_config.has_variant)
-        mem_pool[DUT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
+        mem_pool[VNT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
 
     for (auto &mem_region : tb_config.mem_regions) {
         if (mem_region.type == "dut") {
