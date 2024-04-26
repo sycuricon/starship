@@ -21,7 +21,8 @@ struct TBConfig {
     bool has_variant;
     size_t mem_start_addr;
     size_t max_mem_size;
-    std::vector<MemRegionConfig> mem_regions;
+    std::vector<MemRegionConfig> mem_region_list;
+    std::vector<int> swap_schedule_list;
 
     TBConfig() {
         has_variant = false;
@@ -84,54 +85,74 @@ struct TBConfig {
             }
             max_mem_size = std::min(max_mem_size, cfg_mem_size);
 
-            const libconfig::Setting &cfg_region = cfg_root["memory_regions"];
-            for (int i = 0; i < cfg_region.getLength(); i++) {
-                const libconfig::Setting &region_cfg = cfg_region[i];
-                MemRegionConfig mem_region;
-                if (!(region_cfg.lookupValue("type", mem_region.type)
-                    && lookupAddrValue(region_cfg, "start_addr", mem_region.start_addr)
-                    && lookupAddrValue(region_cfg, "max_len", mem_region.max_len)
-                    && region_cfg.lookupValue("init_file", mem_region.init_file)
-                )) {
-                    std::cerr << "Invalid memory region configuration!" << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+            if (cfg_root.exists("memory_regions")) {
+                const libconfig::Setting &cfg_region = cfg_root["memory_regions"];
+                for (int i = 0; i < cfg_region.getLength(); i++) {
+                    const libconfig::Setting &region_cfg = cfg_region[i];
+                    MemRegionConfig new_region;
+                    if (!(region_cfg.lookupValue("type", new_region.type)
+                        && lookupAddrValue(region_cfg, "start_addr", new_region.start_addr)
+                        && lookupAddrValue(region_cfg, "max_len", new_region.max_len)
+                        && region_cfg.lookupValue("init_file", new_region.init_file)
+                    )) {
+                        std::cerr << "Invalid memory region configuration!" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
 
-                if (mem_region.type == "vnt") {
-                    has_variant = true;
-                }
+                    if (new_region.type == "vnt") {
+                        has_variant = true;
+                    }
 
-                if (mem_region.type == "swap" && !region_cfg.lookupValue("swap_id", mem_region.swap_id)) {
-                    std::cerr << "Swap memory region requires a swap_id!" << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+                    if (new_region.type == "swap" && !region_cfg.lookupValue("swap_id", new_region.swap_id)) {
+                        std::cerr << "Swap memory region requires a swap_id!" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
 
-                mem_regions.push_back(mem_region);
+                    mem_region_list.push_back(new_region);
+                }
+            }
+
+            if (cfg_root.exists("swap_list")) {
+                const libconfig::Setting &cfg_schedule = cfg_root["swap_list"];
+                for (int i = 0; i < cfg_schedule.getLength(); i++) {
+                    swap_schedule_list.push_back(cfg_schedule[i]);
+                }
             }
         } else {
             printf("[*] Init memory via binary file: %s\n", input_file.c_str());
 
             has_variant = false;
-            MemRegionConfig mem_region;
-            mem_region.type = "dut";
-            mem_region.start_addr = mem_start_addr;
-            mem_region.max_len = max_mem_size;
-            mem_region.init_file = input_file;
-            mem_regions.push_back(mem_region);
+            MemRegionConfig new_region;
+            new_region.type = "dut";
+            new_region.start_addr = mem_start_addr;
+            new_region.max_len = max_mem_size;
+            new_region.init_file = input_file;
+            mem_region_list.push_back(new_region);
         }
     }
 
     void dump_config() {
-        std::cout << "start_addr: " << std::hex << mem_start_addr << std::endl;
-        std::cout << "max_mem_size: " << std::hex << max_mem_size << std::endl;
-        for (auto &mem_region : mem_regions) {
-            std::cout << "type: " << mem_region.type << std::endl;
-            std::cout << "start_addr: " << std::hex << mem_region.start_addr << std::endl;
-            std::cout << "max_len: " << std::hex << mem_region.max_len << std::endl;
-            std::cout << "init_file: " << mem_region.init_file << std::endl;
+        printf("Starship TestBench Memory Configuration:\n");
+        printf("  mem_start_addr: 0x%lx\n", mem_start_addr);
+        printf("  max_mem_size: 0x%lx\n", max_mem_size);
+        printf("  has_variant: %s\n", has_variant ? "true" : "false");
+
+        for (auto &mem_region : mem_region_list) {
+            printf("  memory region: %s\n", mem_region.init_file.c_str());
+            printf("    type: %s\n", mem_region.type.c_str());
+            printf("    start_addr: 0x%lx\n", mem_region.start_addr);
+            printf("    max_len: 0x%lx\n", mem_region.max_len);
             if (mem_region.type == "swap") {
-                std::cout << "swap_id: " << mem_region.swap_id << std::endl;
+                printf("    swap_id: %d\n", mem_region.swap_id);
             }
+        }
+
+        if (swap_schedule_list.size() > 0) {
+            printf("  swap_schedule: ");
+            for (auto &swap_id : swap_schedule_list) {
+                printf("%d ", swap_id);
+            }
+            puts("\n");
         }
     }
 };
@@ -158,11 +179,11 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
 
     // tb_config.dump_config();
 
-    mem_pool[DUT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
+    mem_pool[DUT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size, tb_config.swap_schedule_list);
     if (tb_config.has_variant)
-        mem_pool[VNT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size);
+        mem_pool[VNT_MEM].initial_mem(tb_config.mem_start_addr, tb_config.max_mem_size, tb_config.swap_schedule_list);
 
-    for (auto &mem_region : tb_config.mem_regions) {
+    for (auto &mem_region : tb_config.mem_region_list) {
         if (mem_region.type == "dut") {
             mem_pool[DUT_MEM].register_normal_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file);
         }
@@ -183,7 +204,7 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
 }
 
 extern "C" void testbench_memory_do_swap(unsigned char is_variant) {
-    std::cout << ((is_variant) ? "vnt" : "dut") << " do memory swap" << std::endl;
+    printf("[*] %s do memory swap\n", is_variant ? "vnt" : "dut");
     if (tb_config.has_variant || !is_variant)
         mem_pool[is_variant].do_mem_swap();
 }

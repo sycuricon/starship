@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iostream>
 #include <cassert>
+#include <queue>
+#include <map>
 
 #define TB_MEM_PAGE_SIZE 0x1000
 
@@ -32,9 +34,9 @@ class SwappableMem {
     size_t mem_begin;
     size_t mem_len;
 
-    static const size_t swap_block_max_len = 256;
-    std::vector<std::vector<SwapBlock>> swap_block_array;
-    size_t swap_block_index;
+    int current_swap;
+    std::queue<int> swap_schedule;
+    std::map<int, std::vector<SwapBlock>> swap_block_map;
 
 private:
     uint8_t *malloc_mem_blocks(size_t block_len, std::string *file_name);
@@ -42,7 +44,7 @@ private:
     void unmount_mem_blocks(size_t block_begin, size_t block_len);
 
 public:
-    SwappableMem() : mem_begin(0), mem_len(0), mem_block_array(nullptr), swap_block_index(0) {}
+    SwappableMem() : mem_begin(0), mem_len(0), mem_block_array(nullptr), current_swap(-1) {}
     ~SwappableMem() {
         delete[] mem_block_array;
         for (auto p : mem_region_keeper) {
@@ -50,7 +52,7 @@ public:
         }
     }
 
-    void initial_mem(size_t mem_start_addr, size_t max_mem_size);
+    void initial_mem(size_t mem_start_addr, size_t max_mem_size, std::vector<int>& schedule_list);
     void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index);
     void register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name);
 

@@ -55,7 +55,8 @@ void SwappableMem::unmount_mem_blocks(size_t block_begin, size_t block_len) {
     size_t block_end_page = block_begin_page + block_page_size;
 
     for (size_t i = block_begin; i < block_end_page; i++) {
-        except_examine(mem_block_array[i] != nullptr, "Try to unmount a memory block that is not mounted");
+        // Is this neccessary ?
+        // except_examine(mem_block_array[i] != nullptr, "Try to unmount a memory block that is not mounted");
         mem_block_array[i] = nullptr;
     }
 }
@@ -93,58 +94,59 @@ uint8_t SwappableMem::read_byte(size_t addr) {
 }
 
 void SwappableMem::do_mem_swap() {
-    if (swap_block_index < swap_block_array.size()) {
-        std::vector<SwapBlock> &swap_block_vector = swap_block_array[swap_block_index];
-        for (auto p = swap_block_vector.begin(); p != swap_block_vector.end(); p++) {
-            unmount_mem_blocks(p->swap_block_begin, p->swap_block_len);
+    if (current_swap > 0) {
+        for (auto const& block : swap_block_map[current_swap]) {
+            unmount_mem_blocks(block.swap_block_begin, block.swap_block_len);
         }
     }
-    swap_block_index--;
 
-    except_examine(swap_block_index >= 0, "the swap_block_index < 0, program does not halt in proper");
-
-    std::vector<SwapBlock> &swap_block_vector = swap_block_array[swap_block_index];
-    for (auto p = swap_block_vector.begin(); p != swap_block_vector.end(); p++) {
-        mount_mem_blocks(p->swap_block, p->swap_block_begin, p->swap_block_len);
+    if (swap_schedule.empty()) {
+        std::cerr << "The schedule queue is empty, the simulation did not execute as expected" << std::endl;
+        exit(EXIT_FAILURE);
     }
+
+    current_swap = swap_schedule.front();
+    printf("[*] swap to swap id %d\n", current_swap);
+
+    if (swap_block_map.count(current_swap) == 0) {
+        std::cerr << "Swap to an invalid swap id " << current_swap << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    for (auto const& block : swap_block_map[current_swap]) {
+        mount_mem_blocks(block.swap_block, block.swap_block_begin, block.swap_block_len);
+    }
+    
+    swap_schedule.pop();
 
     // print_swap_mem();
 }
 
 void SwappableMem::print_swap_mem() {
-    std::cout << "the info of swap memory:" << std::endl;
-    std::cout << "mem_begin:" << std::hex << mem_begin << std::endl;
-    std::cout << "mem_end:" << std::hex << mem_len + mem_begin << std::endl;
-    std::cout << "mem_block_array:" << std::endl;
+    printf("Memory Information:\n");
+    printf("  mem_begin: %lx\n", mem_begin);
+    printf("  mem_end: %lx\n", mem_len + mem_begin);
+    printf("  live memory block:\n");
     for (size_t i = 0; i < mem_len / TB_MEM_PAGE_SIZE; i++) {
         if (mem_block_array[i] != nullptr) {
-            std::cout << '\t' << std::hex << (mem_begin + i * TB_MEM_PAGE_SIZE)
-                      << ": " << std::hex << (uint64_t)mem_block_array[i] << std::endl;
+            printf("    %lx@%lx\n", mem_begin + i * TB_MEM_PAGE_SIZE, (uint64_t)mem_block_array[i]);
         }
     }
-    std::cout << std::endl;
-    std::cout << "swap_block_info" << std::endl;
-    int i = 0;
-    for (auto p = swap_block_array.begin(); p != swap_block_array.end(); p++, i++) {
-        std::cout << "\tswap " << i << std::endl;
-        for (auto q = p->begin(); q != p->end(); q++) {
-            std::cout << "\t\tswap_begin: " << std::hex << q->swap_block_begin << std::endl;
-            std::cout << "\t\tswap_end: " << std::hex << q->swap_block_begin + q->swap_block_len << std::endl;
-            std::cout << "\t\tswap_mem: " << std::hex << (uint64_t)q->swap_block << std::endl;
-            std::cout << std::endl;
+    printf("  swap memory block:\n");
+    for (auto const& group : swap_block_map) {
+        printf("    swap id: %d\n", group.first);
+        for (auto const& block : group.second) {
+            printf("      %lx-%lx@%lx\n", block.swap_block_begin, block.swap_block_len, (uint64_t)block.swap_block);
         }
     }
-    std::cout << "\tcurr swap index:" << swap_block_index << std::endl;
-    std::cout << std::endl;
-
-    std::cout << "memory_pool info:" << std::endl;
+    printf("  current live swap id: %d\n", current_swap);
+    printf(" registed memory region:\n");
     for (auto p : mem_region_keeper) {
-        std::cout << "\t" << std::hex << (uint64_t)p << std::endl;
+        printf("    %lx\n", (uint64_t)p);
     }
-    std::cout << std::endl;
 }
 
-void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size) {    
+void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size, std::vector<int>& swap_schedule_list) {    
     this->mem_begin = mem_start_addr;
     this->mem_len = UpPage(max_mem_size);
 
@@ -153,6 +155,10 @@ void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size) {
     mem_block_array = new uint8_t *[mem_len / TB_MEM_PAGE_SIZE];
     for (int i = 0; i < mem_len / TB_MEM_PAGE_SIZE; i++) {
         mem_block_array[i] = nullptr;
+    }
+
+    for (auto &swap_id : swap_schedule_list) {
+        swap_schedule.push(swap_id);
     }
 }
 
@@ -167,11 +173,7 @@ void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, st
 
     size_t block_end = block_begin + block_len;
     SwapBlock swap_block(mem_block, block_begin, block_len);
-    if (swap_block_array.size() < swap_index + 1) {
-        swap_block_array.resize(swap_index + 1);
-    }
-    swap_block_array[swap_index].push_back(swap_block);
-    swap_block_index = swap_block_array.size();
+    swap_block_map[swap_index].push_back(swap_block);
 }
 
 void SwappableMem::register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name) {
