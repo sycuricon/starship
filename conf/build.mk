@@ -5,7 +5,7 @@ STARSHIP_CORE	?= BOOM
 STARSHIP_FREQ	?= 100
 STARSHIP_TH 	?= starship.asic.TestHarness
 STARSHIP_TOP	?= starship.asic.StarshipSimTop
-STARSHIP_CONFIG	?= starship.asic.StarshipSimConfig
+STARSHIP_CONFIG	?= starship.asic.StarshipSimMiniConfig
 
 
 # FPGA Configuration
