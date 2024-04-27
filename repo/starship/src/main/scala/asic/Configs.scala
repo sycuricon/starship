@@ -47,3 +47,12 @@ class StarshipSimDebugConfig extends Config(
     case DTSTimebase => BigInt(1000000L)
   })
 )
+
+class StarshipSimMiniConfig extends Config(
+  new StarshipBaseConfig().alter((site,here,up) => {
+    case DebugModuleKey => None
+    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
+    /* timebase-frequency = 1 MHz */
+    case DTSTimebase => BigInt(1000000L)
+  })
+)

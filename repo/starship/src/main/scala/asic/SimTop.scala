@@ -125,7 +125,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   val ldut = LazyModule(new StarshipSimTop)
   val dut = Module(ldut.module)
 
-
+  io.uart_tx := DontCare
 
   dut.reset_manager.map (_.reset_in := reset.asBool)
   // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
