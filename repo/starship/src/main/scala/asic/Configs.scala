@@ -54,5 +54,6 @@ class StarshipSimMiniConfig extends Config(
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
+    case BootROMLocated(x) => up(BootROMLocated(x), site).map { p => p.copy(hang = 0x80000000L) }
   })
 )
