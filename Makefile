@@ -99,6 +99,7 @@ $(ROCKET_TOP_VERILOG) $(ROCKET_TOP_INCLUDE) $(ROCKET_TOP_MEMCONF) $(ROCKET_TH_VE
 		-X verilog $(FIRRTL_DEBUG_OPTION) \
 		-i $< -o $(ROCKET_TH_VERILOG)"
 	touch $(ROCKET_TOP_INCLUDE) $(ROCKET_TH_INCLUDE)
+	$(MAKE) verilog-patch
 
 #######################################
 #
@@ -155,8 +156,7 @@ verilog: $(VERILOG_SRC)
 
 verilog-debug: $(VERILOG_SRC)
 
-verilog-patch: $(VERILOG_SRC)
-	sed -i "s/ram\[initvar\] = {2 {\$$random}}/ram\[initvar\] = 0/g" $(ROCKET_TH_SRAM)
+verilog-patch: $(ROCKET_TOP_VERILOG)
 ifeq ($(STARSHIP_CORE),BOOM)
 	sed -i "s/40'h10000 : 40'h0/40'h80000000 : 40'h0/g" $(ROCKET_TOP_VERILOG)
 else ifeq ($(STARSHIP_CORE),CVA6)
@@ -192,7 +192,6 @@ ifeq ($(SIMULATION_MODE),variant)
 endif
 
 $(YOSYS_TOP_VERILOG_OPT): $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
-	$(MAKE) verilog-patch
 ifeq ($(STARSHIP_CORE),BOOM)
 	yosys -c $(YOSYS_SRC)/boom_opt.tcl
 else ifeq ($(STARSHIP_CORE),XiangShan)
