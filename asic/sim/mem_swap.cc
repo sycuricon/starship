@@ -17,6 +17,10 @@ uint8_t *SwappableMem::malloc_mem_blocks(size_t block_len, std::string *file_nam
     except_examine(block_len != 0, "the bound of block is zero");
     uint8_t *mem_block = new uint8_t[block_len];
 
+    for (size_t i = 0; i < block_len; i++) {
+        mem_block[i] = 0xff;
+    }
+
     if (file_name) {
         std::ifstream fin(*file_name, std::ios_base::binary);
         fin.seekg(0, std::ios::end);
