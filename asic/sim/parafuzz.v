@@ -80,16 +80,6 @@ module SyncMonitor (
     end
   endfunction
 
-  function void arch_step;
-    input string id;
-    input valid;
-    input [63:0] pc;
-    input [31:0] inst;
-
-    if (valid) 
-      $display("%s %t pc 0x%x inst 0x%x", id, $time, pc, inst);
-  endfunction
-
   `ifdef TARGET_BOOM
     `include "variant/rob_sync.boom.v"
   `else // TARGET_XiangShan
