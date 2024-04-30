@@ -79,8 +79,8 @@ def main():
             with open(elog, 'r') as file:
                 for line in file:
                     values = line.strip().split(',')
-                    type = values[0].strip()
-                    time = int(values[1].strip())
+                    type = values[1].strip()
+                    time = int(values[0].strip())
                     match type:
                         case "VCTM_START_ENQ":
                             fig.add_vline(x=time, line_width=1, line_dash="dot", line_color="black", annotation_text="VS", annotation_position="top right", row=i + 1, col=1)
