@@ -81,7 +81,7 @@ void SwappableMem::write_byte(size_t addr, uint8_t data) {
 }
 
 uint8_t SwappableMem::read_byte(size_t addr) {
-    except_examine(addr < mem_len, "the addr of write_byte is not in the memory bound");
+    except_examine(addr < mem_len, "the addr of read_byte is not in the memory bound");
     size_t page_index = addr / TB_MEM_PAGE_SIZE;
     size_t page_offset = addr % TB_MEM_PAGE_SIZE;
     uint8_t *page_ptr = mem_block_array[page_index];
