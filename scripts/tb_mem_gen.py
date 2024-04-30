@@ -235,7 +235,7 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
   code_line.append('\talways @(posedge R0_clk)begin')
   code_line.append('\t\tif (R0_en) begin')
   for i in range(width//8):
-    code_line.append(f'\t\t\tR0_tmp_data[{i*8+7}:{i*8}] <= testbench_memory_read_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{i}}});')
+    code_line.append(f'\t\t\tR0_tmp_data[{i*8+7}:{i*8}] <= testbench_memory_read_byte(is_variant, {{{64 - addr_width - offset_width}\'h0, R0_addr, {offset_width}\'d{i}}});')
   code_line.append('\t\tend')
   code_line.append('\tend')
 
@@ -244,7 +244,7 @@ def gen_swap_mem(name, width, depth, mask_gran, mask_seg, ports):
   for i in range(mask_seg):
     for j in range(mask_gran//8):
       byte_index = i*mask_gran//8 + j
-      code_line.append(f'\t\t\tif(W0_mask[{i}])testbench_memory_write_byte(is_variant, {{{64 - addr_width - offset_width}\'h0 ,R0_addr, {offset_width}\'d{byte_index}}}, W0_data[{byte_index*8+7}:{byte_index*8}]);')
+      code_line.append(f'\t\t\tif(W0_mask[{i}]) testbench_memory_write_byte(is_variant, {{{64 - addr_width - offset_width}\'h0, W0_addr, {offset_width}\'d{byte_index}}}, W0_data[{byte_index*8+7}:{byte_index*8}]);')
   code_line.append('\t\tend')
   code_line.append('\tend')
 
