@@ -46,10 +46,6 @@ endmodule
 
 (* keep *)
 (* blackbox *)
-(* pift_wire_instrumented *)
-(* pift_cell_instrumented *)
-(* pift_port_instrumented *)
-(* pift_ignore_module *)
 module ProbeBufferBB(
     input clock,
     input reset,

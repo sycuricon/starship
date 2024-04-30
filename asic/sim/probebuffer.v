@@ -4,9 +4,13 @@ import "DPI-C" function byte unsigned is_variant_hierachy(string hierarchy);
 module ProbeBufferBB (
     input clock,
     input reset,
-    input [63:0] write,
     input wen,
-    output [63:0] read
+    input wen_taint_0,
+    input [63:0] write,
+    input [63:0] write_taint_0,
+    output [63:0] read,
+    output [63:0] read_taint_0,
+    output [31:0] taint_sum
 );
 
     byte unsigned is_variant;
@@ -22,6 +26,8 @@ module ProbeBufferBB (
         end
     end
 
-  assign read = 0;
+  assign read = is_variant ? 0 : -1;
+  assign read_taint_0 = -1;
+  assign taint_sum = 0;
 
 endmodule
