@@ -4,6 +4,7 @@
 `define DUT_ROB_ENQ_EN_1        `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_1_valid
 `define DUT_ROB_ENQ_INST_1      `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_1_bits_cf_instr
 `define DUT_ROB_ENQ_PC_1        `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_1_bits_cf_pc
+`define DUT_ROB_ENQ_READY       `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_canAccept
 
 `define DUT_ROB_DEQ_EN_0        `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step.valid
 `define DUT_ROB_DEQ_INST_0      `DUT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step.inst
@@ -38,6 +39,7 @@
 `define VNT_ROB_ENQ_INST_0      `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_0_bits_cf_instr
 `define VNT_ROB_ENQ_EN_1        `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_1_valid
 `define VNT_ROB_ENQ_INST_1      `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_req_1_bits_cf_instr
+`define VNT_ROB_ENQ_READY       `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.io_enq_canAccept
 
 `define VNT_ROB_DEQ_EN_0        `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step.valid
 `define VNT_ROB_DEQ_INST_0      `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step.inst
@@ -71,17 +73,17 @@
 always @(posedge clock) begin
   if (!reset) begin
     $fwrite(taint_fd, "%t, %d, %d\n", $time, `DUT_SOC_TOP.taint_sum, `VNT_SOC_TOP.taint_sum);
-    event_handler(`DUT_ROB_ENQ_EN_0, `DUT_ROB_ENQ_INST_0, "ENQ");
-    event_handler(`DUT_ROB_ENQ_EN_1, `DUT_ROB_ENQ_INST_1, "ENQ");
-    event_handler(`DUT_ROB_DEQ_EN_0, `DUT_ROB_DEQ_INST_0, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_1, `DUT_ROB_DEQ_INST_1, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_2, `DUT_ROB_DEQ_INST_2, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_3, `DUT_ROB_DEQ_INST_3, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_4, `DUT_ROB_DEQ_INST_4, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_5, `DUT_ROB_DEQ_INST_5, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_6, `DUT_ROB_DEQ_INST_6, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_7, `DUT_ROB_DEQ_INST_7, "DEQ");
-    event_handler(`DUT_ROB_DEQ_EN_8, `DUT_ROB_DEQ_INST_8, "DEQ");
+    event_handler(`DUT_ROB_ENQ_EN_0 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_0, "ENQ", 0);
+    event_handler(`DUT_ROB_ENQ_EN_1 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_1, "ENQ", 1);
+    event_handler(`DUT_ROB_DEQ_EN_0, `DUT_ROB_DEQ_INST_0, "DEQ", 0);
+    event_handler(`DUT_ROB_DEQ_EN_1, `DUT_ROB_DEQ_INST_1, "DEQ", 1);
+    event_handler(`DUT_ROB_DEQ_EN_2, `DUT_ROB_DEQ_INST_2, "DEQ", 2);
+    event_handler(`DUT_ROB_DEQ_EN_3, `DUT_ROB_DEQ_INST_3, "DEQ", 3);
+    event_handler(`DUT_ROB_DEQ_EN_4, `DUT_ROB_DEQ_INST_4, "DEQ", 4);
+    event_handler(`DUT_ROB_DEQ_EN_5, `DUT_ROB_DEQ_INST_5, "DEQ", 5);
+    event_handler(`DUT_ROB_DEQ_EN_6, `DUT_ROB_DEQ_INST_6, "DEQ", 6);
+    event_handler(`DUT_ROB_DEQ_EN_7, `DUT_ROB_DEQ_INST_7, "DEQ", 7);
+    event_handler(`DUT_ROB_DEQ_EN_8, `DUT_ROB_DEQ_INST_8, "DEQ", 8);
   end
 end
 
