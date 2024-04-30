@@ -75,3 +75,16 @@ module ArchStepBB(
 );
 
 endmodule
+
+(* keep *)
+(* blackbox *)
+module MemMorpherBB(
+  input clock,
+  input reset,
+  input valid,
+  input [63:0] addr,
+  output [255:0] data_in,
+  output [255:0] data_out
+);
+
+endmodule

@@ -17,8 +17,14 @@ module MemMorpherBB(
   input clock,
   input reset,
   input valid,
+  input valid_taint_0,
   input [63:0] addr,
-  output [255:0] data
+  input [63:0] addr_taint_0,
+  input [255:0] data_in,
+  input [255:0] data_in_taint_0,
+  output [255:0] data_out,
+  output [255:0] data_out_taint_0,
+  output [31:0] taint_sum
 );
   reg [255:0] data_reg;
   byte unsigned is_variant;
@@ -64,6 +70,8 @@ module MemMorpherBB(
     end  
   end
 
-  assign data = data_reg;
+  assign data_out = data_reg;
+  assign data_out_taint_0 = data_in_taint_0;
+  assign taint_sum = 0;
 
 endmodule
