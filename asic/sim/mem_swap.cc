@@ -181,6 +181,8 @@ void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, st
 }
 
 void SwappableMem::register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name) {
+    if (block_len == 0)
+        return;
     block_len = UpPage(block_len);
     except_examine(block_begin % TB_MEM_PAGE_SIZE == 0, "the memory is not aligned to page");
     except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,
