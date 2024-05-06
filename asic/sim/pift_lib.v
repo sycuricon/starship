@@ -426,6 +426,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter WR_PRIORITY_MASK = 1'b0;
     parameter WR_WIDE_CONTINUATION = 1'b0;
 
+    localparam integer EXT_SIZE = $pow(2, $clog2(SIZE));
+
     input [RD_PORTS-1:0] RD_CLK;
     input [RD_PORTS-1:0] RD_EN;
     input [RD_PORTS-1:0] RD_EN_taint;
@@ -459,17 +461,20 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     reg merged = 0;
     int unsigned ref_id;
-    reg [WIDTH-1:0] memory_taint [SIZE-1:0];
+    reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
     reg [WIDTH-1:0] cell_old_taint;
     reg [WIDTH-1:0] cell_new_taint;
     initial begin
+        // if (EXT_SIZE != SIZE) begin
+        //     $display("Unmatched memory size %d/%d for %m", SIZE, EXT_SIZE);
+        // end
         cell_old_taint = 0;
         cell_new_taint = 0;
         taint_sum = 0;
         merged = 0;
         ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY)
-        for (i = 0; i < SIZE; i = i+1)
+        for (i = 0; i < EXT_SIZE; i = i+1)
             memory_taint[i] = 0;
     end
 
