@@ -3,12 +3,13 @@ module ArchStepBB(
     input reset,
     input valid,
     input [63:0] pc,
-    input [31:0] inst
+    input [31:0] inst,
+    input [63:0] data
 );
   always @(posedge clock) begin
     if (!reset) begin
       if (valid && Testbench.verbose) 
-        $display("%t pc 0x%x inst 0x%x", $time, pc, inst);
+        $display("%t pc 0x%x inst 0x%x data 0x%x", $time, pc, inst, data);
     end
   end
 endmodule

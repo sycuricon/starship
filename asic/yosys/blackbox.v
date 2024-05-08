@@ -67,7 +67,8 @@ module ArchStepBB(
     input reset,
     input valid,
     input [63:0] pc,
-    input [31:0] inst
+    input [31:0] inst,
+    input [63:0] data
 );
 
 endmodule
