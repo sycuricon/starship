@@ -132,7 +132,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
     // end
 
     always @(*) begin
-        if (S_taint) begin
+        if (S_taint && !Testbench.smon.victim_done) begin
             S_diff = xref_diff_mux_sel(ref_id);
             Y_taint = (S ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : {WIDTH{1'b0}});
         end
@@ -168,7 +168,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     reg [WIDTH-1:0] register_taint;
     assign Q_taint = register_taint;
     // disable taint mask
-    // & {WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
+    // & {WIDTH{~(Testbench.smon.victim_done)}};
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -221,7 +221,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     generate
         reg query_taint;
         always @(negedge pos_clk) begin
-            if (!merged & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+            if (!merged && Testbench.smon.victim_done) begin
                 query_taint = xref_merge_dff_taint(ref_id);
                 register_taint <= {WIDTH{query_taint}};
                 merged = 1;
@@ -239,7 +239,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "sdff": begin: gensdff
                 always @(posedge pos_clk) begin
                     if (pos_srst) begin
-                        if (SRST_taint) begin
+                        if (SRST_taint && !Testbench.smon.victim_done) begin
                             srst_diff = xref_diff_dff_srst(ref_id);
                             register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                         end
@@ -248,7 +248,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         end
                     end
                     else begin
-                        if (SRST_taint) begin
+                        if (SRST_taint && !Testbench.smon.victim_done) begin
                             srst_diff = xref_diff_dff_srst(ref_id);
                             register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
                         end
@@ -261,7 +261,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "adff": begin: genadff
                 always @(posedge pos_clk, posedge pos_arst) begin
                     if (pos_arst) begin
-                        if (ARST_taint) begin
+                        if (ARST_taint && !Testbench.smon.victim_done) begin
                             arst_diff = xref_diff_dff_arst(ref_id);
                             register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                         end
@@ -270,7 +270,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         end
                     end
                     else begin
-                        if (ARST_taint) begin
+                        if (ARST_taint && !Testbench.smon.victim_done) begin
                             arst_diff = xref_diff_dff_arst(ref_id);
                             register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
                         end
@@ -283,7 +283,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "dffe": begin: gendffe
                 always @(posedge pos_clk) begin
                     if (pos_en) begin
-                        if (EN_taint) begin
+                        if (EN_taint && !Testbench.smon.victim_done) begin
                             en_diff = xref_diff_dff_en(ref_id);
                             register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
@@ -292,7 +292,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         end
                     end
                     else begin
-                        if (EN_taint) begin
+                        if (EN_taint && !Testbench.smon.victim_done) begin
                             en_diff = xref_diff_dff_en(ref_id);
                             register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
@@ -302,7 +302,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "sdffe": begin: gensdffe
                 always @(posedge pos_clk) begin
                     if (pos_srst) begin
-                        if (SRST_taint) begin
+                        if (SRST_taint && !Testbench.smon.victim_done) begin
                             srst_diff = xref_diff_dff_srst(ref_id);
                             register_taint <= srst_diff ? SRST_VALUE ^ Q_san : 0;
                         end
@@ -312,7 +312,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     end
                     else begin
                         if (pos_en) begin
-                            if (EN_taint) begin
+                            if (EN_taint && !Testbench.smon.victim_done) begin
                                 en_diff = xref_diff_dff_en(ref_id);
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -321,7 +321,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                         end
                         else begin
-                            if (EN_taint) begin
+                            if (EN_taint && !Testbench.smon.victim_done) begin
                                 en_diff = xref_diff_dff_en(ref_id);
                                 register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -332,7 +332,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             "adffe": begin: genadffe
                 always @(posedge pos_clk, posedge pos_arst) begin
                     if (pos_arst) begin
-                        if (ARST_taint) begin
+                        if (ARST_taint && !Testbench.smon.victim_done) begin
                             arst_diff = xref_diff_dff_arst(ref_id);
                             register_taint <= arst_diff ? ARST_VALUE ^ Q_san : 0;
                         end
@@ -342,7 +342,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     end
                     else begin
                         if (pos_en) begin
-                            if (EN_taint) begin
+                            if (EN_taint && !Testbench.smon.victim_done) begin
                                 en_diff = xref_diff_dff_en(ref_id);
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -351,7 +351,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                         end
                         else begin
-                            if (EN_taint) begin
+                            if (EN_taint && !Testbench.smon.victim_done) begin
                                 en_diff = xref_diff_dff_en(ref_id);
                                 register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -363,7 +363,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 always @(posedge pos_clk) begin
                     if (pos_en) begin
                         if (pos_srst) begin
-                            if (SRST_taint) begin
+                            if (SRST_taint && !Testbench.smon.victim_done) begin
                                 srst_diff = xref_diff_dff_srst(ref_id);
                                 register_taint <= srst_diff ? SRST_VALUE ^ Q_san : 0;
                             end
@@ -372,7 +372,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                         end
                         else begin
-                            if (EN_taint) begin
+                            if (EN_taint && !Testbench.smon.victim_done) begin
                                 en_diff = xref_diff_dff_en(ref_id);
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -382,11 +382,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         end
                     end
                     else begin
-                        if (EN_taint) begin
+                        if (EN_taint && !Testbench.smon.victim_done) begin
                             en_diff = xref_diff_dff_en(ref_id);
                             register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
-                        else if (SRST_taint) begin
+                        else if (SRST_taint && !Testbench.smon.victim_done) begin
                             srst_diff = xref_diff_dff_srst(ref_id);
                             register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
                         end
@@ -443,7 +443,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
     assign RD_DATA_taint = memory_rd_taint;
     // disable taint mask
-    // & {RD_PORTS*WIDTH{~((Testbench.smon.vnt_done | Testbench.smon.dut_done))}};
+    // & {RD_PORTS*WIDTH{~((Testbench.smon.victim_done))}};
 
     input [WR_PORTS-1:0] WR_CLK;
     input [WR_PORTS*WIDTH-1:0] WR_EN;
@@ -534,7 +534,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     generate
         reg query_taint;
         always @(negedge Testbench.clock) begin
-            if (!merged & (Testbench.smon.vnt_done | Testbench.smon.dut_done)) begin
+            if (!merged && Testbench.smon.victim_done) begin
                 taint_sum = 0;
                 for (i = 0; i < SIZE; i = i+1) begin
                     query_taint = xref_merge_mem_taint(ref_id, i);

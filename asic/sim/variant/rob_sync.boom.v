@@ -34,15 +34,14 @@ end
 
 always @(negedge clock) begin
   if (reset) begin
-    dut_done <= 1'b0;
-    vnt_done <= 1'b0;
+    victim_done <= 1'b0;
   end
   if (!sync) begin
     if (`DUT_ROB_DEQ_EN_0 && (`DUT_ROB_DEQ_INST_0 == `INFO_DELAY_END)) begin
-      dut_done <= 1;
+      victim_done <= 1;
     end
     if (`VNT_ROB_DEQ_EN_0 && (`VNT_ROB_DEQ_INST_0 == `INFO_DELAY_END)) begin
-      vnt_done <= 1;
+      victim_done <= 1;
     end
   end
 end

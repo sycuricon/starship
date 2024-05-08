@@ -111,8 +111,7 @@ end
 
 always @(negedge clock) begin
   if (reset) begin
-    dut_done <= 1'b0;
-    vnt_done <= 1'b0;
+    victim_done <= 1'b0;
   end
   if (!sync) begin
     if (
@@ -126,7 +125,7 @@ always @(negedge clock) begin
       (`DUT_ROB_DEQ_EN_7 && (`DUT_ROB_DEQ_INST_7 == `INFO_DELAY_END)) ||
       (`DUT_ROB_DEQ_EN_8 && (`DUT_ROB_DEQ_INST_8 == `INFO_DELAY_END))
     ) begin
-      dut_done <= 1;
+      victim_done <= 1;
     end
     if (
       (`VNT_ROB_DEQ_EN_0 && (`VNT_ROB_DEQ_INST_0 == `INFO_DELAY_END)) ||
@@ -139,7 +138,7 @@ always @(negedge clock) begin
       (`VNT_ROB_DEQ_EN_7 && (`VNT_ROB_DEQ_INST_7 == `INFO_DELAY_END)) ||
       (`VNT_ROB_DEQ_EN_8 && (`VNT_ROB_DEQ_INST_8 == `INFO_DELAY_END))
     ) begin
-      vnt_done <= 1;
+      victim_done <= 1;
     end
   end
 end

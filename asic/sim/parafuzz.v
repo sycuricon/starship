@@ -18,8 +18,7 @@ module SyncMonitor (
   input reset
 );
 
-  reg dut_done = 0;
-  reg vnt_done = 0;
+  reg victim_done = 0;
   reg sync = 1'b1;
 
   string taintlog = "default";
