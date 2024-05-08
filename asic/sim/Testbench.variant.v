@@ -5,11 +5,8 @@
   `define RESET_DELAY 15.7
 `endif
 
-`define DUT_SOC_TOP     Testbench.testHarness.ldut
-`define VNT_SOC_TOP     Testbench.testHarness_variant.ldut
+`include "xref_common.vh"
 
-`define DUT_MEM         Testbench.testHarness.mem.srams.mem.mem_ext
-`define VNT_MEM         Testbench.testHarness_variant.mem.srams.mem.mem_ext
 
 module Testbench;
   
@@ -124,7 +121,7 @@ module Testbench;
 
   SyncMonitor smon(
     .clock(clock),
-    .reset(reset)    
+    .reset(reset)
   );
 
   TestHarness testHarness(

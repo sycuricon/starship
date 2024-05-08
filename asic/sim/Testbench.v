@@ -5,28 +5,7 @@
   `define RESET_DELAY 15.7
 `endif
 
-`define SOC_TOP     Testbench.testHarness.ldut
-`define TILE_TOP    `SOC_TOP.tile_prci_domain
-`define MEM_TOP     Testbench.testHarness.mem.srams.mem
-`define MEM_REG     `MEM_TOP.mem_ext
-
-`ifdef TARGET_BOOM
-  `define CPU_TOP   `TILE_TOP.tile_reset_domain_boom_tile
-  `define PIPELINE  `CPU_TOP.core
-  `define INTERRUPT `PIPELINE.io_interrupts_msip
-`elsif TARGET_CVA6
-  `define CPU_TOP   `TILE_TOP.tile_reset_domain_cva6_tile
-  `define PIPELINE  `CPU_TOP.core.i_ariane.i_cva6
-  `define INTERRUPT `PIPELINE.ipi_i
-`elsif TARGET_XiangShan
-  `define CPU_TOP   `TILE_TOP.tile_reset_domain_xiangshan_tile
-  `define PIPELINE  `CPU_TOP.core.core.backend
-  `define INTERRUPT `PIPELINE.io_externalInterrupt_msip
-`else // TARGET_ROCKET
-  `define CPU_TOP   `TILE_TOP.tile_reset_domain_tile
-  `define PIPELINE  `CPU_TOP.core.core.backend
-  `define INTERRUPT `PIPELINE.io_interrupts_msip
-`endif
+`include "xref_common.vh"
 
 `ifdef COSIMULATION
   `define COVERAGE_PROBE Testbench.testHarness.ldut.io_covSum
@@ -53,14 +32,14 @@ module Testbench;
 
   `ifdef VCS
     `ifdef COVERAGE_SUMMARY
-      assign `SOC_TOP.metaReset = reset;
+      assign `DUT_SOC_TOP.metaReset = reset;
     `endif
   `endif
 
   initial begin
     `ifdef VCS
       `ifdef COVERAGE_SUMMARY
-        force `INTERRUPT = interrupt;
+        force `DUT_INTERRUPT = interrupt;
       `endif
     `endif
   end 
@@ -200,6 +179,13 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
+`ifdef ROBPROFILE
+  SyncMonitor smon(
+    .clock(clock),
+    .reset(reset)
+  );
+`endif
+
 `ifdef COSIMULATION
   CJ rtlfuzz (
     .clock(clock),
@@ -233,7 +219,7 @@ module Testbench;
     `ifdef COSIMULATION
       if (coverage_collector(`COVERAGE_PROBE)) begin
         reset = 1;
-        $readmemh("./testcase.hex", `MEM_REG.ram);
+        $readmemh("./testcase.hex", `DUT_MEM_REG.ram);
         cosim_reinit("./testcase.elf", verbose);
         $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
       end
