@@ -272,7 +272,7 @@ SIM_SRC_V		+= $(SIM_DIR)/Testbench.v			\
 SIM_DEFINE		+= +define+COVERAGE_SUMMARY +define+COSIMULATION
 else ifeq ($(SIMULATION_MODE),variant)
 SIM_SRC_C		+= $(SIM_DIR)/divaift_lib.cc
-SIM_SRC_V		+= $(SIM_DIR)/Testbench.variant.v	\
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.ift.v	\
 				   $(SIM_DIR)/divaift_lib.v			\
 				   $(SIM_DIR)/robprofile.v
 SIM_DEFINE		+= +define+HASVARIANT
