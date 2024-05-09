@@ -208,7 +208,7 @@ else ifeq ($(STARSHIP_CORE),XiangShan)
 endif
 
 verilog-instrument: $(YOSYS_TOP_VERILOG_OPT)
-	rm $(YOSYS_TOP_VERILOG_IFT)
+	rm -f $(YOSYS_TOP_VERILOG_IFT)
 	$(MAKE) $(YOSYS_TOP_VERILOG_IFT)
 
 
