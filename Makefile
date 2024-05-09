@@ -185,7 +185,7 @@ export YOSYS_TOP YOSYS_CONFIG
 YOSYS_TOP_VERILOG_OPT	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.opt.v
 YOSYS_TOP_VERILOG_IFT	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).top.ift.v
 
-ifeq ($(SIMULATION_MODE),variant)
+ifneq (,$(filter $(SIMULATION_MODE),taint variant))
   VERILOG_SRC := $(subst $(ROCKET_TOP_VERILOG),$(YOSYS_TOP_VERILOG_IFT),$(VERILOG_SRC))
   VERILOG_SRC := $(subst $(ROCKET_TOP_SRAM),,$(VERILOG_SRC))
   VERILOG_SRC := $(subst $(ROCKET_ROM),,$(VERILOG_SRC))
@@ -270,16 +270,22 @@ SIM_SRC_C		+= $(SIM_DIR)/spike_difftest.cc		\
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.v			\
 				   $(SIM_DIR)/spike_difftest.v
 SIM_DEFINE		+= +define+COVERAGE_SUMMARY +define+COSIMULATION
-else ifeq ($(SIMULATION_MODE),variant)
-SIM_SRC_C		+= $(SIM_DIR)/divaift_lib.cc
-SIM_SRC_V		+= $(SIM_DIR)/Testbench.ift.v	\
-				   $(SIM_DIR)/divaift_lib.v			\
-				   $(SIM_DIR)/robprofile.v
-SIM_DEFINE		+= +define+HASVARIANT
 else ifeq ($(SIMULATION_MODE),robprofile)
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.v			\
 				   $(SIM_DIR)/robprofile.v
 SIM_DEFINE		+= +define+ROBPROFILE
+else ifeq ($(SIMULATION_MODE),taint)
+SIM_SRC_C		+= $(SIM_DIR)/divaift_lib.cc
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.ift.v		\
+				   $(SIM_DIR)/divaift_lib.v			\
+				   $(SIM_DIR)/robprofile.v
+SIM_DEFINE		+= +define+HASTAINT
+else ifeq ($(SIMULATION_MODE),variant)
+SIM_SRC_C		+= $(SIM_DIR)/divaift_lib.cc
+SIM_SRC_V		+= $(SIM_DIR)/Testbench.ift.v		\
+				   $(SIM_DIR)/divaift_lib.v			\
+				   $(SIM_DIR)/robprofile.v
+SIM_DEFINE		+= +define+HASVARIANT
 else
 SIM_SRC_V		+= $(SIM_DIR)/Testbench.v
 endif

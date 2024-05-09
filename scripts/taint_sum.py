@@ -67,13 +67,14 @@ def main():
             print(f"reading {tlog}")
             data = pd.read_csv(tlog)
             fig.add_trace(
-                go.Scatter(x=data['time'], y=data['base'], name="dut"),
+                go.Scatter(x=data['time'], y=data['dut'], name="dut"),
                 row=i + 1, col=1
             )
-            fig.add_trace(
-                go.Scatter(x=data['time'], y=data['variant'], name="vnt"),
-                row=i + 1, col=1
-            )
+            if 'vnt' in data:
+                fig.add_trace(
+                    go.Scatter(x=data['time'], y=data['vnt'], name="vnt"),
+                    row=i + 1, col=1
+                )
             
             print(f"reading {elog}")
             with open(elog, 'r') as file:

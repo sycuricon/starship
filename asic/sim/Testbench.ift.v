@@ -133,6 +133,7 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
+`ifdef HASVARIANT
   TestHarness testHarness_variant(
     .clock(clock),
     .reset(reset),
@@ -141,6 +142,7 @@ module Testbench;
   // .io_uart_tx(uart_tx),
   // .io_uart_rx(uart_rx)
   );
+`endif
 
   // tty #(115200, 0) u0_tty(
   //  .STX(uart_rx),

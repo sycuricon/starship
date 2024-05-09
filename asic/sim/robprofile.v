@@ -29,9 +29,25 @@ module SyncMonitor (
     $timeformat(-9, 0, "", 20);
     $value$plusargs("taintlog=%s", taintlog);
     taint_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.csv"}, "w");
-    $fwrite(taint_fd,"time,base,variant\n");
     event_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.log"}, "w");
+`ifdef HASVARIANT
+    $fwrite(taint_fd,"time,dut,vnt\n");
+`else
+        $fwrite(taint_fd,"time,dut\n");
+`endif
   end
+
+always @(posedge clock) begin
+  if (!reset) begin
+`ifdef HASVARIANT
+    $fwrite(taint_fd, "%t, %d, %d\n", $time, `DUT_SOC_TOP.taint_sum, `VNT_SOC_TOP.taint_sum);
+`elsif HASTAINT
+    $fwrite(taint_fd, "%t, %d\n", $time, `DUT_SOC_TOP.taint_sum);
+`endif
+  end
+end
+
+
 
   function void event_handler;
     input valid;
