@@ -54,57 +54,58 @@ end
     input [31:0] inst;
     input string suffix;
     input int id;
+    input int is_dut;
 
     if (valid) begin
       case (inst)
         `INFO_VCTM_START: begin
-          $fwrite(event_fd, "%t, VCTM_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, VCTM_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] victim_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_VCTM_END: begin
-          $fwrite(event_fd, "%t, VCTM_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_DELAY_START: begin
-          $fwrite(event_fd, "%t, DELAY_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, DELAY_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] delay_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_DELAY_END: begin
-          $fwrite(event_fd, "%t, DELAY_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, DELAY_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_TEXE_START: begin
-          $fwrite(event_fd, "%t, TEXE_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, TEXE_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] texe_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_TEXE_END: begin
-          $fwrite(event_fd, "%t, TEXE_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, TEXE_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_LEAK_START: begin
-          $fwrite(event_fd, "%t, LEAK_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, LEAK_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] leak_end `date +%s.%3N` \033[0m\"");
         end
         `INFO_LEAK_END: begin
-          $fwrite(event_fd, "%t, LEAK_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, LEAK_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_INIT_START: begin
-          $fwrite(event_fd, "%t, INIT_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, INIT_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] init_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_INIT_END: begin
-          $fwrite(event_fd, "%t, INIT_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, INIT_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_BIM_START: begin
-          $fwrite(event_fd, "%t, BIM_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, BIM_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] bim_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_BIM_END: begin
-          $fwrite(event_fd, "%t, BIM_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, BIM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
         `INFO_TRAIN_START: begin
-          $fwrite(event_fd, "%t, TRAIN_START_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, TRAIN_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $system("echo -e \"\033[31m[>] train_start `date +%s.%3N` \033[0m\"");
         end
         `INFO_TRAIN_END: begin
-          $fwrite(event_fd, "%t, TRAIN_END_%s, %d\n", $time, suffix, id);
+          $fwrite(event_fd, "%t, TRAIN_END_%s, %d, %d\n", $time, suffix, id, is_dut);
         end
       endcase
     end
