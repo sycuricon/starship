@@ -192,7 +192,9 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
         }
         else if (mem_region.type == "swap") {
             mem_pool[DUT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id);
-            mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id);
+            if (tb_config.has_variant){
+                mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id);
+            }
         }
         else {
             std::cerr << "Invalid memory region type: " << mem_region.type << std::endl;
