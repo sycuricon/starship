@@ -85,11 +85,8 @@ module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
             "sshr", "shift", "shiftx": begin: gensshr
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
             end
-            "mul": begin: genmul
-                assign Y_taint = {Y_WIDTH{|{At_san, Bt_san}}};
-            end
             default: begin: gendefault
-                assign Y_taint = At_san | Bt_san;
+                assign Y_taint = {Y_WIDTH{|{At_san, Bt_san}}};
             end
         endcase
     endgenerate
