@@ -62,15 +62,12 @@ module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
     generate
         case (TYPE)
             "and": begin: genand
-                // assign Y_taint = (At_san & B_san) | (Bt_san & A_san);
                 assign Y_taint = (At_san & B_san) | (Bt_san & A_san) | (At_san & Bt_san);
             end
             "or": begin: genor
-                // assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san);
                 assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
             end
             "eq", "ne": begin: geneq
-                // assign Y_taint = |{At_san, Bt_san};
                 assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san))) & |{At_san, Bt_san};
             end
             "shl": begin: genshl
@@ -126,23 +123,18 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
     endfunction
 
     reg S_diff = 1;
-    // always @(negedge Testbench.clock) begin
-    //     S_diff = xref_diff_mux_sel(ref_id);
-    // end
 
     always @(*) begin
         if (S_taint) begin
 `ifdef HASVARIANT
             S_diff = xref_diff_mux_sel(ref_id);
 `endif
-            Y_taint = (S ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : {WIDTH{1'b0}});
+            Y_taint = (S ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
         end
         else begin
             Y_taint = S ? B_taint : A_taint;
         end
     end
-
-    // assign Y_taint = (S ? B_taint : A_taint) | (S_taint & S_diff ? A_san ^ B_san : {WIDTH{1'b0}});
 
 endmodule
 
@@ -168,8 +160,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     reg [WIDTH-1:0] register_taint;
     assign Q_taint = register_taint;
-    // disable taint mask
-    // & {WIDTH{~(Testbench.smon.victim_done)}};
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -215,11 +205,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     reg query_taint;
     reg en_diff = 1, srst_diff = 1, arst_diff = 1;
-    // always @(negedge Testbench.clock) begin
-    //     #0.1 en_diff = xref_diff_dff_en(ref_id);
-    //     #0.1 srst_diff = xref_diff_dff_srst(ref_id);
-    //     #0.1 arst_diff = xref_diff_dff_arst(ref_id);
-    // end
 
     generate
         always @(negedge pos_clk) begin
@@ -322,7 +307,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 `ifdef HASVARIANT
                             srst_diff = xref_diff_dff_srst(ref_id);
 `endif
-                            register_taint <= srst_diff ? SRST_VALUE ^ Q_san : 0;
+                            register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                         end
                         else begin
                             register_taint <= 0;
@@ -358,7 +343,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 `ifdef HASVARIANT
                             arst_diff = xref_diff_dff_arst(ref_id);
 `endif
-                            register_taint <= arst_diff ? ARST_VALUE ^ Q_san : 0;
+                            register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                         end
                         else begin
                             register_taint <= 0;
@@ -395,7 +380,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 `ifdef HASVARIANT
                                 srst_diff = xref_diff_dff_srst(ref_id);
 `endif
-                                register_taint <= srst_diff ? SRST_VALUE ^ Q_san : 0;
+                                register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                             end
                             else begin
                                 register_taint <= 0;
@@ -478,8 +463,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     reg [RD_PORTS*WIDTH-1:0] memory_rd_taint;
     assign RD_DATA_taint = memory_rd_taint;
-    // disable taint mask
-    // & {RD_PORTS*WIDTH{~((Testbench.smon.victim_done))}};
 
     input [WR_PORTS-1:0] WR_CLK;
     input [WR_PORTS*WIDTH-1:0] WR_EN;
