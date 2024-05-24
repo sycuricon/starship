@@ -87,6 +87,30 @@ extern "C" unsigned int register_reference(const char* hierarchy) {
     return idxMap[hierarchy];
 }
 
+#define IDX_GATE_CMP   0
+
+extern "C" void get_gate_cmp(unsigned char* cmp);
+extern "C" unsigned char xref_diff_gate_cmp(unsigned int idx) {
+    Reference& h = refMap.at(group_idx(idx));
+
+    if (h.has_cache(IDX_GATE_CMP)) {
+        h.clean_cache(IDX_GATE_CMP);
+        return h.get_cache(IDX_GATE_CMP);
+    }
+    else {
+        unsigned char dut_sel, vnt_sel;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_gate_cmp(&dut_sel);
+
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_gate_cmp(&vnt_sel);
+
+        unsigned char result = dut_sel ^ vnt_sel;
+        h.set_cache(IDX_GATE_CMP, result);
+        return result;
+    }
+}
+
 #define IDX_MUX_S   0
 
 extern "C" void get_mux_sel(unsigned char* select);

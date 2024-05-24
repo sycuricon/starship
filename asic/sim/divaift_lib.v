@@ -36,8 +36,7 @@ module taintcell_1I1O(A, A_taint, Y_taint);
 
 endmodule
 
-// module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
-module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
+module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 
     parameter A_SIGNED = 0;
     parameter A_WIDTH = 0;
@@ -50,14 +49,28 @@ module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
     input [B_WIDTH-1:0] B;
     input [A_WIDTH-1:0] A_taint;
     input [B_WIDTH-1:0] B_taint;
-    // input [Y_WIDTH-1:0] Y;
+    input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
     wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
     wire [Y_WIDTH-1:0] B_san = $isunknown(B) ? {Y_WIDTH{1'b0}} : B_SIGNED ? $signed(B) : B;
-    // wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
     wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
     wire [Y_WIDTH-1:0] Bt_san = B_SIGNED ? $signed(B_taint) : B_taint;
+
+    int unsigned ref_id = 0;
+    initial begin
+`ifdef HASVARIANT
+        ref_id = register_reference($sformatf("%m"));
+`endif
+    end
+
+    import "DPI-C" function byte unsigned xref_diff_gate_cmp(int unsigned ref_id);
+    export "DPI-C" function get_gate_cmp;
+    function void get_gate_cmp();
+        output byte unsigned cmp;
+        cmp = Y_san[0];
+    endfunction
 
     generate
         case (TYPE)
@@ -67,8 +80,21 @@ module taintcell_2I1O(A, B, A_taint, B_taint, Y_taint);
             "or": begin: genor
                 assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
             end
-            "eq", "ne": begin: geneq
-                assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san))) & |{At_san, Bt_san};
+            "eq", "ne", "lt", "le", "gt", "ge": begin: gencmp
+                reg [Y_WIDTH-1:0] gate_taint;
+                reg cmp_diff = 1;
+                always @(*) begin
+                    if (|{At_san, Bt_san}) begin
+`ifdef HASVARIANT
+                        cmp_diff = xref_diff_gate_cmp(ref_id);
+`endif
+                        gate_taint = cmp_diff;
+                    end
+                    else begin
+                        gate_taint = 0;
+                    end
+                end
+                assign Y_taint = gate_taint;
             end
             "shl": begin: genshl
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
