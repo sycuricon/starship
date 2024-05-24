@@ -30,13 +30,22 @@
 `define VNT_ROB_DEQ_PC_1        `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step_1.pc
 `define VNT_ROB_DEQ_DATA_1      `VNT_SOC_TOP.tile_prci_domain.tile_reset_domain_xiangshan_tile.core.core.backend.ctrlBlock.rob.arch_step_1.data
 
+`define IS_DUT 1
+`define IS_VNT 0
 
 always @(posedge clock) begin
   if (!reset) begin
-    event_handler(`DUT_ROB_ENQ_EN_0 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_0, "ENQ", 0);
-    event_handler(`DUT_ROB_ENQ_EN_1 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_1, "ENQ", 1);
-    event_handler(`DUT_ROB_DEQ_EN_0, `DUT_ROB_DEQ_INST_0, "DEQ", 0);
-    event_handler(`DUT_ROB_DEQ_EN_1, `DUT_ROB_DEQ_INST_1, "DEQ", 1);
+    event_handler(`DUT_ROB_ENQ_EN_0 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_0, "ENQ", 0, `IS_DUT);
+    event_handler(`DUT_ROB_ENQ_EN_1 && `DUT_ROB_ENQ_READY, `DUT_ROB_ENQ_INST_1, "ENQ", 1, `IS_DUT);
+    event_handler(`DUT_ROB_DEQ_EN_0, `DUT_ROB_DEQ_INST_0, "DEQ", 0, `IS_DUT);
+    event_handler(`DUT_ROB_DEQ_EN_1, `DUT_ROB_DEQ_INST_1, "DEQ", 1, `IS_DUT);
+
+    `ifdef HASVARIANT
+      event_handler(`VNT_ROB_ENQ_EN_0 && `VNT_ROB_ENQ_READY, `VNT_ROB_ENQ_INST_0, "ENQ", 0, `IS_VNT);
+      event_handler(`VNT_ROB_ENQ_EN_1 && `VNT_ROB_ENQ_READY, `VNT_ROB_ENQ_INST_1, "ENQ", 1, `IS_VNT);
+      event_handler(`VNT_ROB_DEQ_EN_0, `VNT_ROB_DEQ_INST_0, "DEQ", 0, `IS_VNT);
+      event_handler(`VNT_ROB_DEQ_EN_1, `VNT_ROB_DEQ_INST_1, "DEQ", 1, `IS_VNT);
+    `endif
   end
 end
 
