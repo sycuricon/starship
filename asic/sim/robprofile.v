@@ -33,7 +33,7 @@ module SyncMonitor (
 `ifdef HASVARIANT
     $fwrite(taint_fd,"time,dut,vnt\n");
 `else
-        $fwrite(taint_fd,"time,dut\n");
+    $fwrite(taint_fd,"time,dut\n");
 `endif
   end
 

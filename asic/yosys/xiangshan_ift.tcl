@@ -11,5 +11,6 @@ yosys opt -purge
 
 yosys tee -o build/rocket-chip/xiangshan_ift.log pift --ignore-ports clock,reset --verbose
 yosys tcov --verbose
+yosys opt -purge
 
 yosys write_verilog -simple-lhs build/rocket-chip/XiangShan.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).top.ift.v
