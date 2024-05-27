@@ -8,14 +8,17 @@ module taintcell_1I1O(A, A_taint, Y_taint);
     parameter TYPE = "default";
     parameter Y_WIDTH = 0;
 
+    localparam integer INPUT_WIDTH = A_WIDTH;
+    localparam integer OUTPUT_WIDTH = Y_WIDTH;
+
     input [A_WIDTH-1:0] A;
     input [A_WIDTH-1:0] A_taint;
     // input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
-    wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
-    // wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
-    wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
+    wire [INPUT_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
+    // wire [OUTPUT_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    wire [INPUT_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
 
     generate
         case (TYPE)
@@ -45,6 +48,9 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     parameter TYPE = "default";
     parameter Y_WIDTH = 0;
 
+    localparam integer INPUT_WIDTH = A_WIDTH > B_WIDTH ? A_WIDTH : B_WIDTH;
+    localparam integer OUTPUT_WIDTH = Y_WIDTH;
+
     input [A_WIDTH-1:0] A;
     input [B_WIDTH-1:0] B;
     input [A_WIDTH-1:0] A_taint;
@@ -52,11 +58,11 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     input [Y_WIDTH-1:0] Y;
     output [Y_WIDTH-1:0] Y_taint;
 
-    wire [Y_WIDTH-1:0] A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
-    wire [Y_WIDTH-1:0] B_san = $isunknown(B) ? {Y_WIDTH{1'b0}} : B_SIGNED ? $signed(B) : B;
-    wire [Y_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
-    wire [Y_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
-    wire [Y_WIDTH-1:0] Bt_san = B_SIGNED ? $signed(B_taint) : B_taint;
+    wire [INPUT_WIDTH-1:0]  A_san = $isunknown(A) ? {Y_WIDTH{1'b0}} : A_SIGNED ? $signed(A) : A;
+    wire [INPUT_WIDTH-1:0]  B_san = $isunknown(B) ? {Y_WIDTH{1'b0}} : B_SIGNED ? $signed(B) : B;
+    wire [OUTPUT_WIDTH-1:0] Y_san = $isunknown(Y) ? {Y_WIDTH{1'b0}} : Y;
+    wire [INPUT_WIDTH-1:0]  At_san = A_SIGNED ? $signed(A_taint) : A_taint;
+    wire [INPUT_WIDTH-1:0]  Bt_san = B_SIGNED ? $signed(B_taint) : B_taint;
 
     int unsigned ref_id = 0;
     initial begin
