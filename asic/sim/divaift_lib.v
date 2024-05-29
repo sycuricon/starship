@@ -145,6 +145,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
     wire [WIDTH-1:0] A_san = $isunknown(A) ? {WIDTH{1'b0}} : A;
     wire [WIDTH-1:0] B_san = $isunknown(B) ? {WIDTH{1'b0}} : B;
+    wire S_san = $isunknown(S) ? 0 : S;
 
     int unsigned ref_id = 0;
     initial begin
@@ -157,7 +158,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
     export "DPI-C" function get_mux_sel;
     function void get_mux_sel();
         output byte select;
-        select = S;
+        select = S_san;
     endfunction
 
     reg S_diff = 1;
@@ -167,10 +168,10 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 `ifdef HASVARIANT
             S_diff = xref_diff_mux_sel(ref_id);
 `endif
-            Y_taint = (S ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
+            Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
         end
         else begin
-            Y_taint = S ? B_taint : A_taint;
+            Y_taint = S_san ? B_taint : A_taint;
         end
     end
 
