@@ -331,7 +331,7 @@ VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -derac
 			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
 			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" -lconfig++									\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
-VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +taintlog=$(SIMULATION_LABEL)
+VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +label=$(SIMULATION_LABEL)
 
 vcs-wave: 		VCS_SIM_OPTION += +dump +uart_tx=0
 vcs-debug: 		VCS_SIM_OPTION += +verbose +uart_tx=0
@@ -348,6 +348,7 @@ $(VCS_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VCS_SRC_V) $
 vcs-dummy: $(VCS_TARGET)
 
 vcs: $(VCS_TARGET)
+	mkdir -p $(VCS_LOG) $(VCS_WAVE)
 	cd $(VCS_OUTPUT); time \
 	$(VCS_TARGET) -quiet +ntb_random_seed_automatic -no_save -l $(VCS_LOG)/sim.log  \
 		$(VCS_SIM_OPTION) $(EXTRA_SIM_ARGS) 2>&1 | tee /tmp/rocket.log; exit "$${PIPESTATUS[0]}";
@@ -361,7 +362,7 @@ verdi:
 	touch $(VERDI_OUTPUT)/signal.rc
 	cd $(VERDI_OUTPUT); \
 	verdi -$(VCS_OPTION) -q -ssy -ssv -ssz -autoalias \
-		-ssf $(VCS_WAVE)/starship.fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
+		-ssf $(VCS_WAVE)/$(SIMULATION_LABEL).fsdb -sswr $(VERDI_OUTPUT)/signal.rc \
 		-logfile $(VCS_LOG)/verdi.log -top $(TB_TOP) -f $(ROCKET_INCLUDE) $(VCS_SRC_V) &
 
 #######################################
@@ -394,7 +395,7 @@ VLT_OPTION	:= -Wno-fatal -Wno-WIDTH -Wno-STMTDLY -Werror-IMPLICIT							\
 			   --cc --exe --Mdir $(VLT_BUILD) --top-module $(TB_TOP) --main -o $(TB_TOP) 	\
 			   -CFLAGS "-DVL_DEBUG -DTOP=${TB_TOP} ${VLT_CFLAGS} -fcoroutines"				\
 			   -LDFLAGS "-ldl  -lconfig++"
-VLT_SIM_OPTION	:= +testcase=$(STARSHIP_TESTCASE) +taintlog=$(SIMULATION_LABEL)
+VLT_SIM_OPTION	:= +testcase=$(STARSHIP_TESTCASE) +label=$(SIMULATION_LABEL)
 
 vlt-wave: 		VLT_SIM_OPTION	+= +dump
 vlt-debug: 		VLT_SIM_OPTION 	+= +verbose +dump
@@ -411,6 +412,7 @@ $(VLT_TARGET): $(VERILOG_SRC) $(ROCKET_ROM_HEX) $(ROCKET_INCLUDE) $(VLT_SRC_V) $
 vlt-dummy: $(VLT_TARGET)
 
 vlt: $(VLT_TARGET)
+	mkdir -p $(VLT_WAVE)
 	cd $(VLT_OUTPUT); time \
 	$(VLT_TARGET) $(VLT_SIM_OPTION) $(EXTRA_SIM_ARGS)
 
@@ -421,7 +423,7 @@ vlt-jtag: 		vlt
 vlt-jtag-debug: vlt
 
 gtkwave:
-	gtkwave $(VLT_WAVE)/starship.vcd
+	gtkwave $(VLT_WAVE)/$(SIMULATION_LABEL).vcd
 
 #######################################
 #

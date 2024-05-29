@@ -45,10 +45,8 @@ module Testbench;
   end 
 
   int unsigned rand_value;
-  string testcase;
-  string taintlog = "default";
-  longint timer_result;
-  
+  string test_name = "starship";
+
   reg [255:0] reason = "";
   reg failure = 1'b0;
   reg verbose = 1'b0;
@@ -70,6 +68,7 @@ module Testbench;
   wire uart_rx, uart_tx;
 
   initial begin
+    void'($value$plusargs("label=%s", test_name));
     void'($value$plusargs("max-cycles=%d", max_cycles));
     void'($value$plusargs("dump-start=%d", dump_start));
     void'($value$plusargs("jtag_rbb_enable=%d", jtag_rbb_enable));
@@ -93,12 +92,12 @@ module Testbench;
       `ifdef DEBUG_FSDB
         `define WAVE_ON     $fsdbDumpon;
         `define WAVE_CLOSE  $fsdbDumpoff;
-        $fsdbDumpfile({`TOP_DIR, "/wave/starship.fsdb"});
+        $fsdbDumpfile({`TOP_DIR, "/wave/", test_name, ".fsdb"});
         $fsdbDumpvars(0, "+all");
       `elsif DEBUG_VCD
         `define WAVE_ON     $dumpon;
         `define WAVE_CLOSE  $dumpoff;
-        $dumpfile({`TOP_DIR, "/wave/starship.vcd"});
+        $dumpfile({`TOP_DIR, "/wave/", test_name, ".vcd"});
         $dumpvars(0, Testbench);
       `else
         `define WAVE_ON     ;

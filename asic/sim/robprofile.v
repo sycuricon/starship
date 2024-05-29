@@ -21,15 +21,15 @@ module SyncMonitor (
   reg victim_done = 0;
   reg sync = 1'b1;
 
-  string taintlog = "default";
+  string log_name = "default";
   int taint_fd;
   int event_fd;
 
   initial begin
     $timeformat(-9, 0, "", 20);
-    $value$plusargs("taintlog=%s", taintlog);
-    taint_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.csv"}, "w");
-    event_fd = $fopen({`TOP_DIR, "/wave/", taintlog, ".taint.log"}, "w");
+    $value$plusargs("label=%s", log_name);
+    taint_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.csv"}, "w");
+    event_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.log"}, "w");
 `ifdef HASVARIANT
     $fwrite(taint_fd,"time,dut,vnt\n");
 `else
