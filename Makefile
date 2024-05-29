@@ -193,8 +193,10 @@ endif
 
 $(YOSYS_TOP_VERILOG_OPT): $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
 ifeq ($(STARSHIP_CORE),BOOM)
+	$(YOSYS_SRC)/boom_vec_collect.sh
 	yosys -c $(YOSYS_SRC)/boom_opt.tcl
 else ifeq ($(STARSHIP_CORE),XiangShan)
+	$(YOSYS_SRC)/xiangshan_vec_collect.sh
 	yosys -c $(YOSYS_SRC)/xiangshan_opt.tcl
 else
 $(error Unsupported core yet!)

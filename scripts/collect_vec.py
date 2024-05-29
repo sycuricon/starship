@@ -23,7 +23,7 @@ def parseVecRegister(file):
 
             elif line.strip().startswith("endmodule"):
                 if len(working_reginfo) > 0:
-                    print(f"[*] Processing module: {working_module}")
+                    # print(f"[*] Processing module: {working_module}")
                     for _, reg_set in working_reginfo.items():
                         if len(reg_set) > 1:
                             def preprocess(reg_name):
@@ -85,21 +85,21 @@ def main():
     if not os.path.exists(os.path.dirname(args.output)):
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
+    all_vec_list = defaultdict(set)
     for file in args.input:
         print(f"[*] Processing {file}")
-        all_vec_list = defaultdict(set)
         all_vec_list.update(parseVecRegister(file))
                 
-        with open(args.output, "w") as f:
-            for module, vec_list in all_vec_list.items():
-                if args.prefix is not None:
-                    if any(map(lambda x: module.startswith(x), args.prefix)):
-                        continue
+    with open(args.output, "w") as f:
+        for module, vec_set in all_vec_list.items():
+            if args.prefix is not None:
+                if any(map(lambda x: module.startswith(x), args.prefix)):
+                    continue
 
-                f.write(f"{module}\n")
-                for vec in vec_list:
-                    f.write(f"\t{vec}\n")
-                f.write("\n\n")
+            f.write(f"{module}\n")
+            for vec in sorted(vec_set):
+                f.write(f"\t{vec}\n")
+            f.write("\n\n")
 
 if __name__ == "__main__":
     main()
