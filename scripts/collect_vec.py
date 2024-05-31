@@ -66,7 +66,24 @@ def parseVecRegister(file):
     return vec_list
 
 
-def main():
+def main(args):
+    all_vec_list = defaultdict(set)
+    for file in args.input:
+        print(f"[*] Processing {file}")
+        all_vec_list.update(parseVecRegister(file))
+                
+    with open(args.output, "w") as f:
+        for module, vec_set in all_vec_list.items():
+            if args.prefix is not None:
+                if any(map(lambda x: module.startswith(x), args.prefix)):
+                    continue
+
+            f.write(f"{module}\n")
+            for vec in sorted(vec_set):
+                f.write(f"\t@{vec}\n")
+            f.write("\n\n")
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collect Vec Register")
 
     parser.add_argument(
@@ -81,25 +98,7 @@ def main():
     )
 
     args = parser.parse_args()
-
     if not os.path.exists(os.path.dirname(args.output)):
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
-    all_vec_list = defaultdict(set)
-    for file in args.input:
-        print(f"[*] Processing {file}")
-        all_vec_list.update(parseVecRegister(file))
-                
-    with open(args.output, "w") as f:
-        for module, vec_set in all_vec_list.items():
-            if args.prefix is not None:
-                if any(map(lambda x: module.startswith(x), args.prefix)):
-                    continue
-
-            f.write(f"{module}\n")
-            for vec in sorted(vec_set):
-                f.write(f"\t{vec}\n")
-            f.write("\n\n")
-
-if __name__ == "__main__":
-    main()
+    main(args)
