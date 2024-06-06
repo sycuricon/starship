@@ -9,12 +9,20 @@
 
 #include "mem_swap.h"
 
+void except_examine_func(bool judge_result, const char *comment, const char *file_name, int line_name) {
+    if (!judge_result) {
+        std::cerr << comment << " in file " << file_name << "'s line " << line_name << std::endl;
+        std::exit(-1);
+    }
+}
+
 struct MemRegionConfig {
     std::string type;
     size_t start_addr;
     size_t max_len;
     std::string init_file;
     int swap_id;
+    std::string mode;
 };
 
 struct TBConfig {
@@ -108,6 +116,11 @@ struct TBConfig {
                         exit(EXIT_FAILURE);
                     }
 
+                    if (new_region.type == "swap" && !region_cfg.lookupValue("mode", new_region.mode)) {
+                        std::cerr << "Swap memory region requires a execution mode!" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+
                     mem_region_list.push_back(new_region);
                 }
             }
@@ -195,9 +208,9 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
             mem_pool[VNT_MEM].register_normal_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file);
         }
         else if (mem_region.type == "swap") {
-            mem_pool[DUT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id);
+            mem_pool[DUT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode);
             if (tb_config.has_variant){
-                mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id);
+                mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode);
             }
         }
         else {
@@ -209,10 +222,10 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
     init_done = true;
 }
 
-extern "C" void testbench_memory_do_swap(unsigned char is_variant) {
+extern "C" unsigned long int testbench_memory_do_swap(unsigned char is_variant) {
     printf("[*] %s do memory swap\n", is_variant ? "vnt" : "dut");
     if (tb_config.has_variant || !is_variant)
-        mem_pool[is_variant].do_mem_swap();
+        return mem_pool[is_variant].do_mem_swap();
 }
 
 extern "C" void testbench_memory_write_byte(unsigned char is_variant, unsigned long int addr, unsigned char data) {

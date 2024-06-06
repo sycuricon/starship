@@ -12,20 +12,33 @@
 #include <queue>
 #include <map>
 
+void except_examine_func(bool judge_result, const char *comment, const char *file_name, int line_name);
+#define except_examine(judge_result, comment) except_examine_func((judge_result), (comment), __FILE__, __LINE__)
+
 #define TB_MEM_PAGE_SIZE 0x1000
+#define UpPage(addr) (((addr) + TB_MEM_PAGE_SIZE - 1) & ~0xfff)
 
 struct SwapBlock {
     uint8_t *swap_block;
     size_t swap_block_begin;
     size_t swap_block_len;
+    bool is_vm;
+    char priv;
 
     SwapBlock() {
         swap_block = NULL;
         swap_block_begin = 0;
         swap_block_len = 0;
+        is_vm = false;
+        priv = 'M';
     }
-    SwapBlock(uint8_t *swap_block, size_t swap_block_begin, size_t swap_block_len)
-        : swap_block(swap_block), swap_block_begin(swap_block_begin), swap_block_len(swap_block_len) {}
+
+    SwapBlock(uint8_t *swap_block, size_t swap_block_begin, size_t swap_block_len, std::string &mode)
+        : swap_block(swap_block), swap_block_begin(swap_block_begin), swap_block_len(swap_block_len) {
+            except_examine(mode.length() == 2, "Invalid execution mode length");
+            priv = mode[0];
+            is_vm = mode[1] == 'v';
+        }
 };
 
 class SwappableMem {
@@ -53,10 +66,10 @@ public:
     }
 
     void initial_mem(size_t mem_start_addr, size_t max_mem_size, std::vector<int>& schedule_list);
-    void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index);
+    void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode);
     void register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name);
 
-    void do_mem_swap();
+    unsigned long int do_mem_swap();
     void write_byte(size_t addr, uint8_t data);
     uint8_t read_byte(size_t addr);
     void print_swap_mem();

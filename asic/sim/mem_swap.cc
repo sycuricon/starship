@@ -1,17 +1,5 @@
 #include "mem_swap.h"
 
-
-#define except_examine(judge_result, comment) except_examine_func((judge_result), (comment), __FILE__, __LINE__)
-
-void except_examine_func(bool judge_result, const char *comment, const char *file_name, int line_name) {
-    if (!judge_result) {
-        std::cerr << comment << " in file " << file_name << "'s line " << line_name << std::endl;
-        std::exit(-1);
-    }
-}
-
-#define UpPage(addr) (((addr) + TB_MEM_PAGE_SIZE - 1) & ~0xfff)
-
 uint8_t *SwappableMem::malloc_mem_blocks(size_t block_len, std::string *file_name) {
     block_len = UpPage(block_len);
     except_examine(block_len != 0, "the bound of block is zero");
@@ -97,7 +85,7 @@ uint8_t SwappableMem::read_byte(size_t addr) {
     return data;
 }
 
-void SwappableMem::do_mem_swap() {
+unsigned long int SwappableMem::do_mem_swap() {
     if (current_swap > 0) {
         for (auto const& block : swap_block_map[current_swap]) {
             unmount_mem_blocks(block.swap_block_begin, block.swap_block_len);
@@ -117,13 +105,37 @@ void SwappableMem::do_mem_swap() {
         exit(EXIT_FAILURE);
     }
 
+    size_t start_addr = mem_begin + mem_len;
     for (auto const& block : swap_block_map[current_swap]) {
         mount_mem_blocks(block.swap_block, block.swap_block_begin, block.swap_block_len);
+        start_addr = std::min(start_addr, block.swap_block_begin);
     }
     
     swap_schedule.pop();
 
     // print_swap_mem();
+
+    #define DEJAVUZZ_VM_MASK    0xfffffffffff00000ul
+    #define DEJAVUZZ_PRIV_M     0x11
+    #define DEJAVUZZ_PRIV_S     0x01
+    #define DEJAVUZZ_PRIV_U     0x00
+    
+    // TODO: replace this vector
+    if (swap_block_map[current_swap][0].priv == 'S') {
+        if (swap_block_map[current_swap][0].is_vm) {
+            start_addr = start_addr | DEJAVUZZ_VM_MASK;
+        }
+        return start_addr | DEJAVUZZ_PRIV_S;
+    }
+    else if (swap_block_map[current_swap][0].priv == 'U') {
+        if (swap_block_map[current_swap][0].is_vm) {
+            start_addr = start_addr & ~DEJAVUZZ_VM_MASK;
+        }
+        return start_addr | DEJAVUZZ_PRIV_U;
+    }
+    else {
+        return start_addr | DEJAVUZZ_PRIV_M;
+    }
 }
 
 void SwappableMem::print_swap_mem() {
@@ -166,7 +178,7 @@ void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size, std::
     }
 }
 
-void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index) {
+void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode) {
     block_len = UpPage(block_len);
     except_examine(block_begin % TB_MEM_PAGE_SIZE == 0, "the memory is not aligned to page");
     except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,
@@ -176,7 +188,7 @@ void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, st
     uint8_t *mem_block = malloc_mem_blocks(block_len, &file_name);
 
     size_t block_end = block_begin + block_len;
-    SwapBlock swap_block(mem_block, block_begin, block_len);
+    SwapBlock swap_block(mem_block, block_begin, block_len, mode);
     swap_block_map[swap_index].push_back(swap_block);
 }
 
