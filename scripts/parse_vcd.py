@@ -67,7 +67,8 @@ def main(args):
 
     fig = make_subplots(
         rows=len(signal_list), cols=1, 
-        subplot_titles=(["/".join(s.split(".")[5:-1]) for s in signal_list])
+        subplot_titles=(["/".join(s.split(".")[5:-1]) for s in signal_list]),
+        shared_xaxes=True
     )
 
     for i, signal in enumerate(signal_list):
