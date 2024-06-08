@@ -116,20 +116,21 @@ unsigned long int SwappableMem::do_mem_swap() {
     // print_swap_mem();
 
     #define DEJAVUZZ_VM_MASK    0xfffffffffff00000ul
-    #define DEJAVUZZ_PRIV_M     0x11
-    #define DEJAVUZZ_PRIV_S     0x01
-    #define DEJAVUZZ_PRIV_U     0x00
+    #define DEJAVUZZ_PRIV_M     0b11
+    #define DEJAVUZZ_PRIV_S     0b01
+    #define DEJAVUZZ_PRIV_U     0b00
+    #define DEJAVUZZ_VM_FLAG    0b100
     
     // TODO: replace this vector
     if (swap_block_map[current_swap][0].priv == 'S') {
         if (swap_block_map[current_swap][0].is_vm) {
-            start_addr = start_addr | DEJAVUZZ_VM_MASK;
+            start_addr = start_addr | DEJAVUZZ_VM_MASK | DEJAVUZZ_VM_FLAG;
         }
         return start_addr | DEJAVUZZ_PRIV_S;
     }
     else if (swap_block_map[current_swap][0].priv == 'U') {
         if (swap_block_map[current_swap][0].is_vm) {
-            start_addr = start_addr & ~DEJAVUZZ_VM_MASK;
+            start_addr = start_addr & ~DEJAVUZZ_VM_MASK | DEJAVUZZ_VM_FLAG;
         }
         return start_addr | DEJAVUZZ_PRIV_U;
     }
