@@ -2,7 +2,7 @@
 
 set -x
 
-scripts/collect_vec.py \
+scripts/collect_array.py \
     -i  build/rocket-chip/XiangShan.$YOSYS_TOP.$YOSYS_CONFIG.top.v \
         build/rocket-chip/XiangShan.$YOSYS_TOP.$YOSYS_CONFIG.behav_srams.top.v \
         $XS_REPO_DIR/build/rtl/XSTop.v \

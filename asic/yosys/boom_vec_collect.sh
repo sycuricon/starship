@@ -2,7 +2,7 @@
 
 set -x
 
-scripts/collect_vec.py \
+scripts/collect_array.py \
     -i  build/rocket-chip/BOOM.$YOSYS_TOP.$YOSYS_CONFIG.top.v \
         build/rocket-chip/BOOM.$YOSYS_TOP.$YOSYS_CONFIG.behav_srams.top.v \
     -o  build/rocket-chip/BOOM.$YOSYS_TOP.$YOSYS_CONFIG.vec

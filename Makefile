@@ -213,6 +213,14 @@ verilog-instrument: $(YOSYS_TOP_VERILOG_OPT)
 	rm -f $(YOSYS_TOP_VERILOG_IFT)
 	$(MAKE) $(YOSYS_TOP_VERILOG_IFT)
 
+collect_array: $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
+ifeq ($(STARSHIP_CORE),BOOM)
+	$(YOSYS_SRC)/boom_vec_collect.sh
+else ifeq ($(STARSHIP_CORE),XiangShan)
+	$(YOSYS_SRC)/xiangshan_vec_collect.sh
+else
+$(error Unsupported core yet!)
+endif
 
 #######################################
 #
@@ -464,6 +472,13 @@ plot_vcs_taint:
 
 plot_vlt_taint:
 	$(SCRIPT)/taint_sum.py -s vcs -c $(STARSHIP_CONFIG)_$(STARSHIP_CORE)_$(SIMULATION_MODE) -q
+
+$(VCS_WAVE)/$(SIMULATION_LABEL).vcd: $(VCS_WAVE)/$(SIMULATION_LABEL).fsdb
+	cd $(VCS_WAVE); \
+	fsdb2vcd $(SIMULATION_LABEL).fsdb -f $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sink -keep_last_time -o $(SIMULATION_LABEL).vcd
+
+plot_vcs_local_taint: $(VCS_WAVE)/$(SIMULATION_LABEL).vcd
+	$(SCRIPT)/parse_vcd.py -i $^ -o $(VCS_OUTPUT)/$(SIMULATION_LABEL).html
 
 clean:
 	rm -rf $(BUILD)

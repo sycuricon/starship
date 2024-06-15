@@ -4,11 +4,10 @@ import os
 import argparse
 import re
 from collections import defaultdict
-import json
 
 def parseVecRegister(file):
 
-    vec_list = defaultdict(set)
+    array_list = defaultdict(set)
 
     with open(file, "r") as f:
         lines = f.readlines()
@@ -24,21 +23,32 @@ def parseVecRegister(file):
             elif line.strip().startswith("endmodule"):
                 if len(working_reginfo) > 0:
                     # print(f"[*] Processing module: {working_module}")
-                    for _, reg_set in working_reginfo.items():
-                        if len(reg_set) > 1:
-                            def preprocess(reg_name):
+                    vec_list = defaultdict(set)
+
+                    for _, possible_array_list in working_reginfo.items():
+                        for reginfo_pair in possible_array_list:
+                            reg_name = reginfo_pair[0]
+                            reg_type = reginfo_pair[1]
+
+                            if reg_type == "mem":
+                                array_list[working_module].add(f"#{reg_name}")
+                            
+                            else: # is vec
                                 sub_fields = reg_name.split("_")
                                 try:
                                     item_index = list(map(lambda x: x.isdigit() or len(x) == 0, sub_fields)).index(True)
-                                    bundle_name = "_".join(sub_fields[:item_index])
+                                    bundle_name = "_".join(list(map(lambda x: "" if x.isdigit() else x, sub_fields)))
                                 except ValueError:
                                     item_index = -1
                                     bundle_name = reg_name
-                                return (bundle_name, item_index, reg_name)
+                                
+                                if item_index >= 0:
+                                    vec_list[bundle_name].add(reg_name)
+                                    # target_list[working_module].add(f"@{reg_name}")
 
-                            maybe_vec = filter(lambda reg_tuple: reg_tuple[1] >= 0, map(preprocess, reg_set))
-                            for vec_tuple in maybe_vec:
-                                vec_list[working_module].add(vec_tuple[2])
+                    for _, vec_set in vec_list.items():
+                        if len(vec_set) > 1:
+                            array_list[working_module].update(list(map(lambda reg_name: f"@{reg_name}", vec_set)))
 
                 # reset state
                 working_module = None
@@ -56,35 +66,37 @@ def parseVecRegister(file):
 
             # print(f"[*] Found reg line: {line[:-1]}")
 
-            reg_name = re.search(r"reg\s+(\[(\d+):(\d+)\])?\s*([A-Za-z0-9_$]+)\s*(\[\d+:\d+\])?\s*;", line).group(4)
+            match_res = re.search(r"reg\s+(\[\d+:\d+\])?\s*([A-Za-z0-9_$]+)\s*(\[\d+:\d+\])?\s*;", line)
+            reg_name = match_res.group(2)
+            reg_type = "vec" if match_res.group(3) is None else "mem"
             reg_info = line.split("@")[1][1:-2]
 
-            working_reginfo[reg_info].add(reg_name)
+            working_reginfo[reg_info].add((reg_name, reg_type))
 
             # print(f"[*] Found register: `{reg_name}` @ {reg_info}")
     
-    return vec_list
+    return array_list
 
 
 def main(args):
-    all_vec_list = defaultdict(set)
+    final_array_list = defaultdict(set)
     for file in args.input:
         print(f"[*] Processing {file}")
-        all_vec_list.update(parseVecRegister(file))
+        final_array_list.update(parseVecRegister(file))
                 
     with open(args.output, "w") as f:
-        for module, vec_set in all_vec_list.items():
+        for module, target_set in final_array_list.items():
             if args.prefix is not None:
                 if any(map(lambda x: module.startswith(x), args.prefix)):
                     continue
 
             f.write(f"{module}\n")
-            for vec in sorted(vec_set):
-                f.write(f"\t@{vec}\n")
+            for target in sorted(target_set):
+                f.write(f"\t{target}\n")
             f.write("\n\n")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Collect Vec Register")
+    parser = argparse.ArgumentParser(description="Collect Register Array from Verilog Files")
 
     parser.add_argument(
         "-i", "--input", nargs="+", type=str, required=True, help="input verilog files"
