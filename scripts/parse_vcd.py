@@ -46,10 +46,18 @@ def process_signal(raw_signal_list, vcd):
     max_cycle = 0
     for signal in raw_signal_list:
         max_cycle = max(max_cycle, vcd[signal].tv[-1][0]/100)
+
+        # for xiangshan
+        # if signal.find("l2top") != -1:
+        #     continue
+
         if signal.find("Testbench.testHarness.ldut") != -1:
             vnt_signal = signal.replace("testHarness", "testHarness_variant")
             if len(vcd[signal].tv) != 1 or len(vcd[vnt_signal].tv) != 1:
                 signal_list.append(signal)
+
+    # bleed
+    max_cycle += 10
 
     for dut_signal in signal_list:
         vnt_signal = dut_signal.replace("testHarness", "testHarness_variant")
@@ -65,17 +73,18 @@ def main(args):
 
     signal_list = process_signal(raw_signal_list, vcd)
 
-    fig = make_subplots(
-        rows=len(signal_list), cols=1, 
-        subplot_titles=(["/".join(s.split(".")[5:-1]) for s in signal_list]),
-        shared_xaxes=True
-    )
+    if len(signal_list) > 0:
+        fig = make_subplots(
+            rows=len(signal_list), cols=1, 
+            subplot_titles=(["/".join(s.split(".")[5:-1]) for s in signal_list]),
+            shared_xaxes=True
+        )
 
-    for i, signal in enumerate(signal_list):
-        draw(fig, vcd, signal, i)
+        for i, signal in enumerate(signal_list):
+            draw(fig, vcd, signal, i)
 
-    fig.update_layout(height=len(signal_list)*200, title_text="Taint Analysis")
-    fig.write_html(args.output)
+        fig.update_layout(height=len(signal_list)*200, title_text="Taint Analysis")
+        fig.write_html(args.output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Taint Analysis")
