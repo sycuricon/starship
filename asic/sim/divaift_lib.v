@@ -178,7 +178,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 endmodule
 
 module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_taint, D_taint, Q_taint,
-    taint_sum);
+    LIVENESS_OP0, LIVENESS_OP1, taint_sum);
 
     parameter WIDTH = 0;
     parameter CLK_POLARITY = 1'b1;
@@ -187,7 +187,10 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     parameter SRST_VALUE = 0;
     parameter ARST_POLARITY = 1'b1;
     parameter ARST_VALUE = 0;
-    parameter TYPE="dff";
+    parameter TYPE = "dff";
+    parameter LIVENESS_TYPE = "none";
+    parameter integer LIVENESS_SIZE = 0;
+    parameter integer LIVENESS_IDX = 0;
 
     input CLK, ARST, SRST, EN;
     input [WIDTH-1:0] D;
@@ -195,6 +198,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     input SRST_taint, ARST_taint, EN_taint;
     input [WIDTH-1:0] D_taint;
     output [WIDTH-1:0] Q_taint;
+    input [LIVENESS_SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1;
     output taint_sum;
 
     reg [WIDTH-1:0] register_taint;
@@ -208,6 +212,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
+    reg liveness_mask = 1;
     reg merged = 0;
     int unsigned ref_id = 0;
     initial begin
@@ -256,7 +261,34 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
             end
         end
 
-        assign taint_sum = |register_taint;
+        always @(*) begin
+            case (LIVENESS_TYPE)
+                "queue": begin: queuemask
+                    if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                        liveness_mask = LIVENESS_OP0 <= LIVENESS_IDX && LIVENESS_IDX <= LIVENESS_OP1;
+                    end
+                    else if (LIVENESS_OP0 > LIVENESS_OP1) begin
+                        liveness_mask = LIVENESS_OP0 <= LIVENESS_IDX || LIVENESS_IDX <= LIVENESS_OP1;
+                    end
+                    else begin
+                        liveness_mask = 0;
+                    end
+                end
+                "bitmap": begin: bitmapmask
+                    liveness_mask = LIVENESS_OP0[LIVENESS_IDX];
+                end
+                "bitmap_n": begin: bitmapnmask
+                    liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
+                end
+                "bitmap_single": begin: bitmapsmask
+                    liveness_mask = LIVENESS_OP0;
+                end
+                "bitmap_single_n": begin: bitmapsnmask
+                    liveness_mask = ~LIVENESS_OP0;
+                end
+            endcase
+        end
+        assign taint_sum = |register_taint & liveness_mask;
 
         case (TYPE)
             "dff": begin: gendff
@@ -463,7 +495,8 @@ endmodule
 // module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, RD_DATA, WR_CLK, WR_EN, WR_ADDR, WR_DATA,
 //     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint, taint_sum);
 module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, WR_ADDR,
-    RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint, taint_sum);
+    RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint,
+    LIVENESS_OP0, LIVENESS_OP1, taint_sum);
 
     parameter MEMID = "";
     parameter signed SIZE = 4;
@@ -485,6 +518,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter WR_CLK_POLARITY = 1'b1;
     parameter WR_PRIORITY_MASK = 1'b0;
     parameter WR_WIDE_CONTINUATION = 1'b0;
+
+    parameter LIVENESS_TYPE = "none";
 
     localparam integer EXT_SIZE = $pow(2, $clog2(SIZE));
 
@@ -511,6 +546,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     // input [WR_PORTS*WIDTH-1:0] WR_DATA;
     input [WR_PORTS*WIDTH-1:0] WR_DATA_taint;
 
+    input [SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1;
     output reg [ABITS:0] taint_sum;
 
     int i, j;
@@ -590,7 +626,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     // end
 
     generate
-        reg query_taint;
+        reg query_taint = 0;
+        reg liveness_mask = 1;
         always @(negedge Testbench.clock) begin
             if (!merged && Testbench.smon.victim_done) begin
                 taint_sum = 0;
@@ -601,9 +638,30 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                 end
                 merged = 1;
             end
-            // taint_sum = 0;
-            // for (i = 0; i < SIZE; i = i+1)
-            //     taint_sum = taint_sum + |memory_taint[i];
+            taint_sum = 0;
+            for (i = 0; i < SIZE; i = i+1) begin
+                case (LIVENESS_TYPE)
+                    "queue": begin: queuemask
+                        if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                            liveness_mask = LIVENESS_OP0 <= i && i <= LIVENESS_OP1;
+                        end
+                        else if (LIVENESS_OP0 > LIVENESS_OP1) begin
+                            liveness_mask = LIVENESS_OP0 <= i || i <= LIVENESS_OP1;
+                        end
+                        else begin
+                            liveness_mask = 0;
+                        end
+                    end
+                    "bitmap": begin: bitmapmask
+                        liveness_mask = LIVENESS_OP0[i];
+                    end
+                    "bitmap_n": begin: bitmapnmask
+                        liveness_mask = ~LIVENESS_OP0[i];
+                    end
+                endcase
+                taint_sum = taint_sum + (|memory_taint[i] & liveness_mask);
+            end
+                
         end
 
         if (RD_CLK_ENABLE == 0) begin: async_read
@@ -645,7 +703,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         if (WR_CLK_ENABLE == 0) begin: async_write
             always @(*) begin
                 for (i = 0; i < WR_PORTS; i = i+1) begin
-                    cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    // cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = 
                         (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
                         {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
@@ -659,13 +717,13 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                     //             WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
                     //     end
                     // end
-                    cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    if (cell_old_taint ^ cell_new_taint) begin
-                        if (cell_new_taint)
-                            taint_sum = taint_sum + 1;
-                        else
-                            taint_sum = taint_sum - 1;
-                    end
+                    // cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    // if (cell_old_taint ^ cell_new_taint) begin
+                    //     if (cell_new_taint)
+                    //         taint_sum = taint_sum + 1;
+                    //     else
+                    //         taint_sum = taint_sum - 1;
+                    // end
                 end
             end
         end
@@ -677,7 +735,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                 initial $error("Mixed write clock polarities are not supported: %s at %m", MEMID);
             always @(posedge pos_wt_clk) begin
                 for (i = 0; i < WR_PORTS; i = i+1) begin
-                    cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    // cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = 
                         (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
                         {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
@@ -691,13 +749,13 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                     //             WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
                     //     end
                     // end
-                    cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    if (cell_old_taint ^ cell_new_taint) begin
-                        if (cell_new_taint)
-                            taint_sum = taint_sum + 1;
-                        else
-                            taint_sum = taint_sum - 1;
-                    end
+                    // cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    // if (cell_old_taint ^ cell_new_taint) begin
+                    //     if (cell_new_taint)
+                    //         taint_sum = taint_sum + 1;
+                    //     else
+                    //         taint_sum = taint_sum - 1;
+                    // end
                 end
             end
         end
