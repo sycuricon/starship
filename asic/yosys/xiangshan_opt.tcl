@@ -33,6 +33,8 @@ yosys read_verilog -sv build/rocket-chip/XiangShan.$::env(YOSYS_TOP).$::env(YOSY
 
 yosys hierarchy -top $::env(YOSYS_TOP)
 
+yosys tee -o build/rocket-chip/xiangshan_keep.log keep_chisel_signals --verbose
+
 yosys proc
 yosys pmuxtree
 yosys bmuxmap
