@@ -264,11 +264,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         always @(*) begin
             case (LIVENESS_TYPE)
                 "queue": begin: queuemask
-                    if (LIVENESS_OP0 < LIVENESS_OP1) begin
-                        liveness_mask = LIVENESS_OP0 <= LIVENESS_IDX && LIVENESS_IDX <= LIVENESS_OP1;
+                    if (LIVENESS_OP1 < LIVENESS_OP0) begin
+                        liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX && LIVENESS_IDX < LIVENESS_OP0;
                     end
-                    else if (LIVENESS_OP0 > LIVENESS_OP1) begin
-                        liveness_mask = LIVENESS_OP0 <= LIVENESS_IDX || LIVENESS_IDX <= LIVENESS_OP1;
+                    else if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                        liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
                     end
                     else begin
                         liveness_mask = 0;
@@ -280,10 +280,10 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 "bitmap_n": begin: bitmapnmask
                     liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
                 end
-                "bitmap_single": begin: bitmapsmask
+                "cond": begin: bitmapsmask
                     liveness_mask = LIVENESS_OP0;
                 end
-                "bitmap_single_n": begin: bitmapsnmask
+                "cond_n": begin: bitmapsnmask
                     liveness_mask = ~LIVENESS_OP0;
                 end
             endcase
@@ -642,11 +642,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             for (i = 0; i < SIZE; i = i+1) begin
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
-                        if (LIVENESS_OP0 < LIVENESS_OP1) begin
-                            liveness_mask = LIVENESS_OP0 <= i && i <= LIVENESS_OP1;
+                        if (LIVENESS_OP1 < LIVENESS_OP0) begin
+                            liveness_mask = LIVENESS_OP1 <= i && i < LIVENESS_OP0;
                         end
-                        else if (LIVENESS_OP0 > LIVENESS_OP1) begin
-                            liveness_mask = LIVENESS_OP0 <= i || i <= LIVENESS_OP1;
+                        else if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                            liveness_mask = LIVENESS_OP1 <= i || i < LIVENESS_OP0;
                         end
                         else begin
                             liveness_mask = 0;
@@ -657,6 +657,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                     end
                     "bitmap_n": begin: bitmapnmask
                         liveness_mask = ~LIVENESS_OP0[i];
+                    end
+                    "cond": begin: bitmapsmask
+                        liveness_mask = LIVENESS_OP0;
+                    end
+                    "cond_n": begin: bitmapsnmask
+                        liveness_mask = ~LIVENESS_OP0;
                     end
                 endcase
                 taint_sum = taint_sum + (|memory_taint[i] & liveness_mask);
