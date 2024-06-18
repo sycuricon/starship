@@ -178,7 +178,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 endmodule
 
 module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_taint, D_taint, Q_taint,
-    LIVENESS_OP0, LIVENESS_OP1, taint_sum);
+    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
 
     parameter WIDTH = 0;
     parameter CLK_POLARITY = 1'b1;
@@ -198,7 +198,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     input SRST_taint, ARST_taint, EN_taint;
     input [WIDTH-1:0] D_taint;
     output [WIDTH-1:0] Q_taint;
-    input [LIVENESS_SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1;
+    input [LIVENESS_SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2;
     output taint_sum;
 
     reg [WIDTH-1:0] register_taint;
@@ -271,7 +271,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
                     end
                     else begin
-                        liveness_mask = 0;
+                        liveness_mask = LIVENESS_OP2;
                     end
                 end
                 "bitmap": begin: bitmapmask
@@ -496,7 +496,7 @@ endmodule
 //     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint, taint_sum);
 module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, WR_ADDR,
     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint,
-    LIVENESS_OP0, LIVENESS_OP1, taint_sum);
+    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
 
     parameter MEMID = "";
     parameter signed SIZE = 4;
@@ -546,7 +546,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     // input [WR_PORTS*WIDTH-1:0] WR_DATA;
     input [WR_PORTS*WIDTH-1:0] WR_DATA_taint;
 
-    input [SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1;
+    input [SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2;
     output reg [ABITS:0] taint_sum;
 
     int i, j;
@@ -649,7 +649,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             liveness_mask = LIVENESS_OP1 <= i || i < LIVENESS_OP0;
                         end
                         else begin
-                            liveness_mask = 0;
+                            liveness_mask = LIVENESS_OP2;
                         end
                     end
                     "bitmap": begin: bitmapmask

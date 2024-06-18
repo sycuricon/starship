@@ -84,7 +84,7 @@ index 695a9434..197a275d 100644
    // --------------------------------------------------------------
    // Read ports.
 diff --git a/src/main/scala/exu/rob.scala b/src/main/scala/exu/rob.scala
-index 2f0e4aee..fa6a2930 100644
+index 2f0e4aee..e5b9cbd8 100644
 --- a/src/main/scala/exu/rob.scala
 +++ b/src/main/scala/exu/rob.scala
 @@ -34,6 +34,8 @@ import freechips.rocketchip.util._
@@ -96,7 +96,7 @@ index 2f0e4aee..fa6a2930 100644
  /**
   * IO bundle to interact with the ROB
   *
-@@ -314,6 +316,31 @@ class Rob(
+@@ -314,6 +316,23 @@ class Rob(
  
      val rob_debug_wdata = Mem(numRobRows, UInt(xLen.W))
  
@@ -108,28 +108,20 @@ index 2f0e4aee..fa6a2930 100644
 +        firrtl.AttributeAnnotation(rob_valid_vector.toTarget, "keep"),
 +        firrtl.AttributeAnnotation(rob_debug_wdata.toTarget, s"divaift_liveness_mask = \"bitmap,${rob_valid_vector.name}\"")
 +      ) ++ (0 until numRobRows).flatMap(vec_idx => Seq(
-+        firrtl.AttributeAnnotation(rob_val(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(rob_bsy(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(rob_unsafe(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(rob_uop(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(rob_exception(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(rob_predicated(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,${rob_valid_vector.name},$vec_idx\"")
++        firrtl.AttributeAnnotation(rob_val(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_bsy(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_unsafe(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_uop(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_exception(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_predicated(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\"")
 +      ))
 +    })
-+
-+    for (vec_idx <- 0 until numRobRows) {
-+      annotate(new ChiselMultiAnnotation {
-+        override def toFirrtl = Seq(
-+
-+        )
-+      })
-+    }
 +
      //-----------------------------------------------
      // Dispatch: Add Entry to ROB
  
 diff --git a/src/main/scala/ifu/fetch-buffer.scala b/src/main/scala/ifu/fetch-buffer.scala
-index 9226b7df..fce3e929 100644
+index 9226b7df..b0d245d2 100644
 --- a/src/main/scala/ifu/fetch-buffer.scala
 +++ b/src/main/scala/ifu/fetch-buffer.scala
 @@ -22,6 +22,8 @@ import freechips.rocketchip.rocket.{MStatus, BP, BreakpointUnit}
@@ -141,7 +133,7 @@ index 9226b7df..fce3e929 100644
  /**
   * Bundle that is made up of converted MicroOps from the Fetch Bundle
   * input to the Fetch Buffer. This is handed to the Decode stage.
-@@ -160,6 +162,23 @@ class FetchBuffer(implicit p: Parameters) extends BoomModule
+@@ -160,6 +162,24 @@ class FetchBuffer(implicit p: Parameters) extends BoomModule
  
    val deq_valids = (~MaskUpper(slot_will_hit_tail)).asBools
  
@@ -152,13 +144,14 @@ index 9226b7df..fce3e929 100644
 +  fb_queue_deq := OHToUInt(Cat(head, 0.U(coreWidth.W)))
 +  dontTouch(fb_queue_enq)
 +  dontTouch(fb_queue_deq)
-+
++  dontTouch(maybe_full)
 +  annotate(new ChiselMultiAnnotation {
 +    override def toFirrtl = Seq(
 +      firrtl.AttributeAnnotation(fb_queue_enq.toTarget, "keep"),
-+      firrtl.AttributeAnnotation(fb_queue_deq.toTarget, "keep")
++      firrtl.AttributeAnnotation(fb_queue_deq.toTarget, "keep"),
++      firrtl.AttributeAnnotation(maybe_full.toTarget, "keep")
 +    ) ++ (0 until numEntries).map(vec_idx =>
-+      firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$numEntries,${fb_queue_enq.name},${fb_queue_deq.name},$vec_idx\"")
++      firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$numEntries,$vec_idx,${fb_queue_enq.name},${fb_queue_deq.name},${maybe_full.name}\"")
 +    )
 +  })
 +
@@ -166,7 +159,7 @@ index 9226b7df..fce3e929 100644
    for (i <- 0 until numEntries) {
      deq_vec(i/coreWidth)(i%coreWidth) := ram(i)
 diff --git a/src/main/scala/ifu/fetch-target-queue.scala b/src/main/scala/ifu/fetch-target-queue.scala
-index 5af74617..81c22d19 100644
+index 5af74617..9bfdaf8b 100644
 --- a/src/main/scala/ifu/fetch-target-queue.scala
 +++ b/src/main/scala/ifu/fetch-target-queue.scala
 @@ -26,6 +26,8 @@ import boom.common._
@@ -178,21 +171,23 @@ index 5af74617..81c22d19 100644
  /**
   * FTQ Parameters used in configurations
   *
-@@ -148,6 +150,21 @@ class FetchTargetQueue(implicit p: Parameters) extends BoomModule
+@@ -148,6 +150,23 @@ class FetchTargetQueue(implicit p: Parameters) extends BoomModule
      None
    }
  
 +  val module_hook = this
 +  dontTouch(enq_ptr)
 +  dontTouch(deq_ptr)
++  dontTouch(full)
 +  annotate(new ChiselMultiAnnotation {
 +    override def toFirrtl = Seq(
 +      firrtl.AttributeAnnotation(enq_ptr.toTarget, "keep"),
 +      firrtl.AttributeAnnotation(deq_ptr.toTarget, "keep"),
-+      firrtl.AttributeAnnotation(module_hook.toTarget, s"divaift_sram_liveness = \"queue,${enq_ptr.name},${deq_ptr.name},${meta.toTarget.name};${ghist(0).toTarget.name};${ghist(1).toTarget.name}\"")
++      firrtl.AttributeAnnotation(full.toTarget, "keep"),
++      firrtl.AttributeAnnotation(module_hook.toTarget, s"divaift_sram_liveness = \"queue,${enq_ptr.name},${deq_ptr.name},${full.name},${meta.toTarget.name};${ghist(0).toTarget.name};${ghist(1).toTarget.name}\"")
 +    ) ++ (0 until num_entries).flatMap(vec_idx => Seq(
-+        firrtl.AttributeAnnotation(pcs(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,${enq_ptr.name},${deq_ptr.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,${enq_ptr.name},${deq_ptr.name},$vec_idx\"")
++        firrtl.AttributeAnnotation(pcs(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,$vec_idx,${enq_ptr.name},${deq_ptr.name},${full.name}\""),
++        firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,$vec_idx,${enq_ptr.name},${deq_ptr.name},${full.name}\"")
 +    ))
 +  })
 +
@@ -201,7 +196,7 @@ index 5af74617..81c22d19 100644
  
  
 diff --git a/src/main/scala/lsu/lsu.scala b/src/main/scala/lsu/lsu.scala
-index 1eb8ba24..d285e55f 100644
+index 1eb8ba24..b6699a3b 100644
 --- a/src/main/scala/lsu/lsu.scala
 +++ b/src/main/scala/lsu/lsu.scala
 @@ -53,6 +53,8 @@ import boom.common._
@@ -231,9 +226,9 @@ index 1eb8ba24..d285e55f 100644
 +      firrtl.AttributeAnnotation(ldq_valid_vector.toTarget, "keep"),
 +      firrtl.AttributeAnnotation(stq_valid_vector.toTarget, "keep")
 +    ) ++ (0 until numLdqEntries).map(vec_idx => {
-+      firrtl.AttributeAnnotation(ldq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numLdqEntries,${ldq_valid_vector.name},$vec_idx\"")
++      firrtl.AttributeAnnotation(ldq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numLdqEntries,$vec_idx,${ldq_valid_vector.name}\"")
 +    }) ++ (0 until numStqEntries).map(vec_idx => {
-+      firrtl.AttributeAnnotation(stq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numStqEntries,${stq_valid_vector.name},$vec_idx\"")
++      firrtl.AttributeAnnotation(stq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numStqEntries,$vec_idx,${stq_valid_vector.name}\"")
 +    })
 +  })
  
@@ -290,7 +285,7 @@ index 88bf5194..613431f0 100644
    io.meta_write <> meta_write_arb.io.out
    io.meta_read  <> meta_read_arb.io.out
 diff --git a/src/main/scala/util/util.scala b/src/main/scala/util/util.scala
-index ac4da10c..47a39847 100644
+index ac4da10c..e480da51 100644
 --- a/src/main/scala/util/util.scala
 +++ b/src/main/scala/util/util.scala
 @@ -23,6 +23,8 @@ import freechips.rocketchip.tile.{TileKey}
@@ -302,18 +297,20 @@ index ac4da10c..47a39847 100644
  /**
   * Object to XOR fold a input register of fullLength into a compressedLength.
   */
-@@ -469,6 +471,17 @@ class BranchKillableQueue[T <: boom.common.HasBoomUOP](gen: T, entries: Int, flu
+@@ -469,6 +471,19 @@ class BranchKillableQueue[T <: boom.common.HasBoomUOP](gen: T, entries: Int, flu
    val deq_ptr = Counter(entries)
    val maybe_full = RegInit(false.B)
  
++  dontTouch(maybe_full)
 +  annotate(new ChiselMultiAnnotation {
 +      override def toFirrtl = Seq(
 +        firrtl.AttributeAnnotation(enq_ptr.value.toTarget, "keep"),
 +        firrtl.AttributeAnnotation(deq_ptr.value.toTarget, "keep"),
-+        firrtl.AttributeAnnotation(ram.toTarget, s"divaift_liveness_mask = \"queue,${enq_ptr.value.name},${deq_ptr.value.name}\""),
++        firrtl.AttributeAnnotation(maybe_full.toTarget, "keep"),
++        firrtl.AttributeAnnotation(ram.toTarget, s"divaift_liveness_mask = \"queue,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\""),
 +      ) ++ (0 until entries).flatMap(vec_idx => Seq(
-+        firrtl.AttributeAnnotation(valids(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,${enq_ptr.value.name},${deq_ptr.value.name},$vec_idx\""),
-+        firrtl.AttributeAnnotation(uops(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,${enq_ptr.value.name},${deq_ptr.value.name},$vec_idx\"")
++        firrtl.AttributeAnnotation(valids(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,$vec_idx,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\""),
++        firrtl.AttributeAnnotation(uops(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,$vec_idx,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\"")
 +      ))
 +  })
 +
