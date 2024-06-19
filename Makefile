@@ -478,7 +478,7 @@ $(VCS_WAVE)/$(SIMULATION_LABEL).vcd: $(VCS_WAVE)/$(SIMULATION_LABEL).fsdb
 	fsdb2vcd $(SIMULATION_LABEL).fsdb -f $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sink -keep_last_time -o $(SIMULATION_LABEL).vcd
 
 plot_vcs_local_taint: $(VCS_WAVE)/$(SIMULATION_LABEL).vcd
-	$(SCRIPT)/parse_vcd.py -i $^ -o $(VCS_OUTPUT)/$(SIMULATION_LABEL).html
+	$(SCRIPT)/parse_vcd.py -i $^ -o $(VCS_OUTPUT)/$(SIMULATION_LABEL).html -l $(VCS_OUTPUT)/$(SIMULATION_LABEL).hjson
 
 clean:
 	rm -rf $(BUILD)

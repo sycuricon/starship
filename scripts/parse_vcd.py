@@ -6,15 +6,15 @@ from vcdvcd import VCDVCD
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import hjson
 
-def draw(fig, vcd, dut_signal, idx):
-    dut_t = [x[0] for x in vcd[dut_signal].tv]
-    dut_v = [x[1] for x in vcd[dut_signal].tv]
+def draw(fig, dut_tv, vnt_tv, idx):
+    dut_t = [x[0] for x in dut_tv]
+    dut_v = [x[1] for x in dut_tv]
     fig.add_trace(go.Scatter(x=dut_t, y=dut_v, name="dut"), row=idx+1, col=1)
-    
-    vnt_signal = dut_signal.replace("testHarness", "testHarness_variant")
-    vnt_t = [x[0] for x in vcd[vnt_signal].tv]
-    vnt_v = [x[1] for x in vcd[vnt_signal].tv]
+
+    vnt_t = [x[0] for x in vnt_tv]
+    vnt_v = [x[1] for x in vnt_tv]
     fig.add_trace(go.Scatter(x=vnt_t, y=vnt_v, name="vnt"), row=idx+1, col=1)
 
 def expand_trace(tv, max_cycle):
@@ -48,8 +48,8 @@ def process_signal(raw_signal_list, vcd):
         max_cycle = max(max_cycle, vcd[signal].tv[-1][0]/100)
 
         # for xiangshan
-        # if signal.find("l2top") != -1:
-        #     continue
+        if signal.find("l2") != -1:
+            continue
 
         if signal.find("Testbench.testHarness.ldut") != -1:
             vnt_signal = signal.replace("testHarness", "testHarness_variant")
@@ -72,19 +72,35 @@ def main(args):
     raw_signal_list = sorted(vcd.references_to_ids.keys())
 
     signal_list = process_signal(raw_signal_list, vcd)
+    signal_name_list = ["/".join(s.split(".")[5:-1]) for s in signal_list]
+
+    potential_leakage = {}
 
     if len(signal_list) > 0:
         fig = make_subplots(
             rows=len(signal_list), cols=1, 
-            subplot_titles=(["/".join(s.split(".")[5:-1]) for s in signal_list]),
+            subplot_titles=(signal_name_list),
             shared_xaxes=True
         )
 
         for i, signal in enumerate(signal_list):
-            draw(fig, vcd, signal, i)
+            dut_signal = signal
+            vnt_signal = dut_signal.replace("testHarness", "testHarness_variant")
+            dut_tv = vcd[dut_signal].tv
+            vnt_tv = vcd[vnt_signal].tv
+
+            draw(fig, dut_tv, vnt_tv, i)
+
+            if (dut_tv[-1][1] > 0):
+                print(f"[!] catch {signal_name_list[i]}: {dut_tv[-1][1]}")
+                potential_leakage[signal_name_list[i]] = dut_tv[-1][1]
 
         fig.update_layout(height=len(signal_list)*200, title_text="Taint Analysis")
         fig.write_html(args.output)
+
+        with open(args.leak, "w") as leak_list:
+            hjson.dump(potential_leakage, leak_list)
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Taint Analysis")
@@ -93,10 +109,10 @@ if __name__ == "__main__":
         "-i", "--input", type=str, required=True, help="input vcd file"
     )
     parser.add_argument(
-        "-o", "--output", type=str, default="build/analysis.html", help="output file name"
+        "-o", "--output", type=str, default="build/analysis.html", help="output plot name"
     )
     parser.add_argument(
-        "-t", "--cycle", type=int, default=2000, help="start cycle"
+        "-l", "--leak", type=str, default="build/analysis.hjson", help="potential leakage signal list"
     )
 
     args = parser.parse_args()
