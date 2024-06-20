@@ -105,7 +105,7 @@ if __name__ == "__main__":
         "-o", "--output", type=str, required=True, help="output file name"
     )
     parser.add_argument(
-        "-p", "--prefix", nargs="*", type=str, default=["TL", "AXI", "XS_TL", "XS_AXI"],
+        "-p", "--prefix", nargs="*", type=str, default=["TL", "AXI", "XS_TL", "XS_AXI", "XS_SRAMTemplate"],
         help="ignored module prefix"
     )
 
