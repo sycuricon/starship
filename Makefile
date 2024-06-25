@@ -126,7 +126,7 @@ $(ROCKET_INCLUDE): | $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE)
 	cat $(ROCKET_TH_INCLUDE) $(ROCKET_TOP_INCLUDE) 2> /dev/null | sort -u > $@
 	echo $(VERILOG_SRC) | tr ' ' '\n' >> $@
 	sed -i "s/.*\.f$$/-f &/g" $@
-ifeq ($(SIMULATION_MODE),variant)
+ifneq (,$(filter $(SIMULATION_MODE),taint variant))
   ifeq ($(STARSHIP_CORE),XiangShan)
 	sed -i "/XSList.f/d" $@
   endif
@@ -192,35 +192,18 @@ ifneq (,$(filter $(SIMULATION_MODE),taint variant))
 endif
 
 $(YOSYS_TOP_VERILOG_OPT): $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
-ifeq ($(STARSHIP_CORE),BOOM)
-	$(YOSYS_SRC)/boom_vec_collect.sh
-	yosys -c $(YOSYS_SRC)/boom_opt.tcl
-else ifeq ($(STARSHIP_CORE),XiangShan)
-	$(YOSYS_SRC)/xiangshan_vec_collect.sh
-	yosys -c $(YOSYS_SRC)/xiangshan_opt.tcl
-else
-$(error Unsupported core yet!)
-endif
+	$(YOSYS_SRC)/$(STARSHIP_CORE)_vec_collect.sh
+	yosys -c $(YOSYS_SRC)/$(STARSHIP_CORE)_opt.tcl
 
 $(YOSYS_TOP_VERILOG_IFT): $(YOSYS_TOP_VERILOG_OPT) | $(ROCKET_INCLUDE)
-ifeq ($(STARSHIP_CORE),BOOM)
-	yosys -c $(YOSYS_SRC)/boom_ift.tcl
-else ifeq ($(STARSHIP_CORE),XiangShan)
-	yosys -c $(YOSYS_SRC)/xiangshan_ift.tcl
-endif
+	yosys -c $(YOSYS_SRC)/$(STARSHIP_CORE)_ift.tcl
 
 verilog-instrument: $(YOSYS_TOP_VERILOG_OPT)
 	rm -f $(YOSYS_TOP_VERILOG_IFT)
 	$(MAKE) $(YOSYS_TOP_VERILOG_IFT)
 
 collect_array: $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
-ifeq ($(STARSHIP_CORE),BOOM)
-	$(YOSYS_SRC)/boom_vec_collect.sh
-else ifeq ($(STARSHIP_CORE),XiangShan)
-	$(YOSYS_SRC)/xiangshan_vec_collect.sh
-else
-$(error Unsupported core yet!)
-endif
+	$(YOSYS_SRC)/$(STARSHIP_CORE)_vec_collect.sh
 
 #######################################
 #

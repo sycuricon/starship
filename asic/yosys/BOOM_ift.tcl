@@ -9,8 +9,8 @@ yosys opt -purge
 
 # yosys tee -o build/rocket-chip/sink_summary.log tsink --verbose --top $::env(YOSYS_TOP)
 
-yosys tee -o build/rocket-chip/boom_ift.log pift --verbose --ignore-ports clock,reset --vec_anno build/rocket-chip/BOOM.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).vec
-yosys anno_chisel_sram --verbose
+yosys tee -o build/rocket-chip/boom_ift.log pift --verbose --liveness --ignore-ports clock,reset --vec_anno build/rocket-chip/BOOM.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).vec
+yosys tee -o build/rocket-chip/boom_sram.log  anno_chisel_sram --verbose
 yosys tcov --verbose
 yosys opt -purge
 
