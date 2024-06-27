@@ -38,13 +38,21 @@ def parseVecRegister(file):
                                 try:
                                     item_index = list(map(lambda x: x.isdigit() or len(x) == 0, sub_fields)).index(True)
                                     bundle_name = "_".join(list(map(lambda x: "" if x.isdigit() else x, sub_fields)))
-                                except ValueError:
-                                    item_index = -1
-                                    bundle_name = reg_name
-                                
-                                if item_index >= 0:
+
+                                    # ignore pipeline registers and io buffer
+                                    if sub_fields[0] in ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"] or \
+                                       sub_fields[0] in ["f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7"] or \
+                                       sub_fields[0] in ["io"]:
+                                        continue
+
+                                    # ignore RegNext buffer
+                                    if "REG" in sub_fields:
+                                        continue
+
                                     vec_list[bundle_name].add(reg_name)
-                                    # target_list[working_module].add(f"@{reg_name}")
+
+                                except ValueError:
+                                    continue
 
                     for _, vec_set in vec_list.items():
                         if len(vec_set) > 1:
@@ -105,7 +113,7 @@ if __name__ == "__main__":
         "-o", "--output", type=str, required=True, help="output file name"
     )
     parser.add_argument(
-        "-p", "--prefix", nargs="*", type=str, default=["TL", "AXI", "XS_TL", "XS_AXI", "XS_SRAMTemplate"],
+        "-p", "--prefix", nargs="*", type=str, default=["TL", "AXI", "XS_TL", "XS_AXI", "XS_SRAMTemplate", "XS_SyncDataModuleTemplate"],
         help="ignored module prefix"
     )
 
