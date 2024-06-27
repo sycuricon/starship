@@ -235,7 +235,7 @@ index 1eb8ba24..b6699a3b 100644
    val ldq_head         = Reg(UInt(ldqAddrSz.W))
    val ldq_tail         = Reg(UInt(ldqAddrSz.W))
 diff --git a/src/main/scala/lsu/mshrs.scala b/src/main/scala/lsu/mshrs.scala
-index 88bf5194..613431f0 100644
+index 88bf5194..127ea940 100644
 --- a/src/main/scala/lsu/mshrs.scala
 +++ b/src/main/scala/lsu/mshrs.scala
 @@ -20,6 +20,8 @@ import boom.common._
@@ -267,18 +267,33 @@ index 88bf5194..613431f0 100644
    val req     = Reg(new BoomDCacheReqInternal)
    val req_idx = req.addr(untagBits-1, blockOffBits)
    val req_tag = req.addr >> untagBits
-@@ -706,7 +714,15 @@ class BoomMSHRFile(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()
+@@ -570,6 +578,14 @@ class BoomMSHRFile(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()
+   val sdq_enq      = req.fire && cacheable && isWrite(req.bits.uop.mem_cmd)
+   val sdq          = Mem(cfg.nSDQ, UInt(coreDataBits.W))
+ 
++  dontTouch(sdq_val)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(sdq_val.toTarget, "keep"),
++      firrtl.AttributeAnnotation(sdq.toTarget, s"divaift_liveness_mask = \"bitmap,${sdq_val.name}\"")
++    )
++  })
++
+   when (sdq_enq) {
+     sdq(sdq_alloc_id) := req.bits.data
+   }
+@@ -706,7 +722,15 @@ class BoomMSHRFile(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()
    mshr_alloc_idx    := RegNext(AgePriorityEncoder(mshrs.map(m=>m.io.req_pri_rdy), mshr_head))
    when (pri_rdy && pri_val) { mshr_head := WrapInc(mshr_head, cfg.nMSHRs) }
  
 -
 +  val lb_valid_vector = Wire(UInt((nLBEntries * cacheDataBeats).W))
-+  lb_valid_vector := VecInit(mshrs.flatMap(mshr => Seq.fill(cacheDataBeats){ mshr.io.debug.mshr_done })).asUInt
++  lb_valid_vector := VecInit(mshrs.flatMap(mshr => Seq.fill(cacheDataBeats){ ~mshr.io.debug.mshr_done })).asUInt
 +  dontTouch(lb_valid_vector)
 +  annotate(new ChiselMultiAnnotation {
 +    override def toFirrtl = Seq(
 +      firrtl.AttributeAnnotation(lb_valid_vector.toTarget, "keep"),
-+      firrtl.AttributeAnnotation(lb.toTarget, s"divaift_liveness_mask = \"bitmap_n,${lb_valid_vector.name}\"")
++      firrtl.AttributeAnnotation(lb.toTarget, s"divaift_liveness_mask = \"bitmap,${lb_valid_vector.name}\"")
 +    )
 +  })
  
