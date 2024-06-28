@@ -213,7 +213,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
     reg liveness_mask = 1;
-    reg merged = 0;
     int unsigned ref_id = 0;
     initial begin
 `ifdef HASVARIANT
@@ -251,16 +250,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     reg en_diff = 1, srst_diff = 1, arst_diff = 1;
 
     generate
-        always @(negedge pos_clk) begin
-            if (!merged && Testbench.smon.victim_done) begin
-`ifdef HASVARIANT
-                query_taint = xref_merge_dff_taint(ref_id);
-                register_taint <= {WIDTH{query_taint}};
-`endif
-                merged = 1;
-            end
-        end
-
         always @(*) begin
             case (LIVENESS_TYPE)
                 "queue": begin: queuemask
@@ -553,7 +542,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     wire pos_rd_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
     wire pos_wt_clk = WR_CLK[0] == WR_CLK_POLARITY[0];
 
-    reg merged = 0;
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
     reg [WIDTH-1:0] cell_old_taint;
@@ -565,7 +553,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         cell_old_taint = 0;
         cell_new_taint = 0;
         taint_sum = 0;
-        merged = 0;
         ref_id = register_reference($sformatf("%m"));
         #(`RESET_DELAY)
         for (i = 0; i < EXT_SIZE; i = i+1)
@@ -629,15 +616,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         reg query_taint = 0;
         reg liveness_mask = 1;
         always @(negedge Testbench.clock) begin
-            if (!merged && Testbench.smon.victim_done) begin
-                taint_sum = 0;
-                for (i = 0; i < SIZE; i = i+1) begin
-                    query_taint = xref_merge_mem_taint(ref_id, i);
-                    memory_taint[i] = {WIDTH{query_taint}};
-                    taint_sum = taint_sum + |memory_taint[i];
-                end
-                merged = 1;
-            end
             taint_sum = 0;
             for (i = 0; i < SIZE; i = i+1) begin
                 case (LIVENESS_TYPE)
@@ -667,7 +645,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                 endcase
                 taint_sum = taint_sum + (|memory_taint[i] & liveness_mask);
             end
-                
         end
 
         if (RD_CLK_ENABLE == 0) begin: async_read
