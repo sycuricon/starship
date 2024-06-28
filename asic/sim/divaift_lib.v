@@ -87,20 +87,20 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
                 assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
             end
             "eq", "ne", "lt", "le", "gt", "ge": begin: gencmp
-                reg [Y_WIDTH-1:0] gate_taint;
-                reg cmp_diff = 1;
+`ifdef HASVARIANT
+                reg cmp_diff;
                 always @(*) begin
                     if (|{At_san, Bt_san}) begin
-`ifdef HASVARIANT
                         cmp_diff = xref_diff_gate_cmp(ref_id);
-`endif
-                        gate_taint = cmp_diff;
                     end
                     else begin
-                        gate_taint = 0;
+                        cmp_diff = 0;
                     end
                 end
-                assign Y_taint = gate_taint;
+                assign Y_taint = cmp_diff;
+`else
+                assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san)));
+`endif
             end
             "shl": begin: genshl
                 assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
