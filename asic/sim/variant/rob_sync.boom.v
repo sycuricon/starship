@@ -22,35 +22,3 @@ always @(posedge clock) begin
     `endif
   end
 end
-
-`ifdef HASVARIANT
-always @(posedge clock) begin
-  if (reset) begin
-    sync <= 1'b1;
-  end
-  else begin
-    if (`DUT_ROB_ENQ_EN_0 != `VNT_ROB_ENQ_EN_0) begin
-      sync <= 1'b0;
-    end
-    else begin
-      if (`DUT_ROB_ENQ_INST_0 != `VNT_ROB_ENQ_INST_0) begin
-        sync <= 1'b0;
-      end
-    end
-  end
-end
-
-always @(negedge clock) begin
-  if (reset) begin
-    victim_done <= 1'b0;
-  end
-  if (!sync) begin
-    if (`DUT_ROB_DEQ_EN_0 && (`DUT_ROB_DEQ_INST_0 == `INFO_DELAY_END)) begin
-      victim_done <= 1;
-    end
-    if (`VNT_ROB_DEQ_EN_0 && (`VNT_ROB_DEQ_INST_0 == `INFO_DELAY_END)) begin
-      victim_done <= 1;
-    end
-  end
-end
-`endif

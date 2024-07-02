@@ -18,9 +18,6 @@ module SyncMonitor (
   input reset
 );
 
-  reg victim_done = 0;
-  reg sync = 1'b1;
-
   string log_name = "default";
   int taint_fd;
   int event_fd;
@@ -37,17 +34,15 @@ module SyncMonitor (
 `endif
   end
 
-always @(posedge clock) begin
-  if (!reset) begin
-`ifdef HASVARIANT
-    $fwrite(taint_fd, "%t, %d, %d\n", $time, `DUT_SOC_TOP.taint_sum, `VNT_SOC_TOP.taint_sum);
-`elsif HASTAINT
-    $fwrite(taint_fd, "%t, %d\n", $time, `DUT_SOC_TOP.taint_sum);
-`endif
+  always @(posedge clock) begin
+    if (!reset) begin
+  `ifdef HASVARIANT
+      $fwrite(taint_fd, "%t, %d, %d\n", $time, `DUT_SOC_TOP.taint_sum, `VNT_SOC_TOP.taint_sum);
+  `elsif HASTAINT
+      $fwrite(taint_fd, "%t, %d\n", $time, `DUT_SOC_TOP.taint_sum);
+  `endif
+    end
   end
-end
-
-
 
   function void event_handler;
     input valid;
