@@ -1,6 +1,8 @@
 import "DPI-C" function longint unsigned parafuzz_probebuff_tick(byte unsigned is_variant, longint unsigned data);
 import "DPI-C" function byte unsigned is_variant_hierachy(string hierarchy);
 
+`define CMD_MASK           64'hFFFF_FFFF_FFFF_0000
+`define CMD_POWER_OFF      64'hAF1B_608E_883B_0000
 `define CMD_GIVE_ME_SECRET 64'hAF1B_608E_883D_0000
 
 module ProbeBufferBB (
@@ -24,12 +26,15 @@ module ProbeBufferBB (
         if (!reset) begin
             if (wen) begin
                 read <= parafuzz_probebuff_tick(is_variant, write);
-                if (write == `CMD_GIVE_ME_SECRET) begin
-                    read_taint_0 <= {64{1'b1}};
-                end
-                else begin
-                    read_taint_0 <= {64{1'b0}};
-                end
+                read_taint_0 <= {64{1'b0}};
+                case (write & `CMD_MASK)
+                    `CMD_GIVE_ME_SECRET: begin
+                        read_taint_0 <= {64{1'b1}};
+                    end
+                    `CMD_POWER_OFF: begin
+                        $finish();    
+                    end
+                endcase
             end
         end
     end

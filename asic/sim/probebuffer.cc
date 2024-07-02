@@ -50,7 +50,7 @@ extern "C" unsigned long int parafuzz_probebuff_tick(unsigned char is_variant, u
                 return testbench_memory_do_swap(is_variant);
             case CMD_POWER_OFF:
                 printf("[*] simulation exit with %ld\n", data & OP_MASK);
-                exit(0);
+                return 0;
             default:
                 break;
         }
