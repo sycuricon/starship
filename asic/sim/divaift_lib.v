@@ -71,7 +71,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 `endif
     end
 
-    import "DPI-C" function byte unsigned xref_diff_gate_cmp(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_gate_cmp(longint now, int unsigned ref_id);
     export "DPI-C" function get_gate_cmp;
     function void get_gate_cmp();
         output byte unsigned cmp;
@@ -91,7 +91,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
                 reg cmp_diff;
                 always @(*) begin
                     if (|{At_san, Bt_san}) begin
-                        cmp_diff = xref_diff_gate_cmp(ref_id);
+                        cmp_diff = xref_diff_gate_cmp($time, ref_id);
                     end
                     else begin
                         cmp_diff = 0;
@@ -154,7 +154,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 `endif
     end
 
-    import "DPI-C" function byte unsigned xref_diff_mux_sel(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_mux_sel(longint now, int unsigned ref_id);
     export "DPI-C" function get_mux_sel;
     function void get_mux_sel();
         output byte select;
@@ -166,7 +166,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
     always @(*) begin
         if (S_taint) begin
 `ifdef HASVARIANT
-            S_diff = xref_diff_mux_sel(ref_id);
+            S_diff = xref_diff_mux_sel($time, ref_id);
 `endif
             Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
         end
@@ -221,14 +221,13 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         #(`RESET_DELAY) register_taint = 0;
     end
 
-    import "DPI-C" function byte unsigned xref_diff_dff_en(int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_diff_dff_srst(int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_diff_dff_arst(int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_merge_dff_taint(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_en(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_srst(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_arst(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_merge_dff_taint(longint now, int unsigned ref_id);
     export "DPI-C" function get_dff_en;
     export "DPI-C" function get_dff_srst;
     export "DPI-C" function get_dff_arst;
-    export "DPI-C" function get_dff_taint;
     function void get_dff_en();
         output byte unsigned en;
         en = pos_en;
@@ -240,10 +239,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     function void get_dff_arst();
         output byte unsigned arst;
         arst = pos_arst;
-    endfunction
-    function void get_dff_taint();
-        output byte unsigned tainted;
-        tainted = |register_taint;
     endfunction
 
     reg query_taint;
@@ -290,7 +285,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (pos_srst) begin
                         if (SRST_taint) begin
 `ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst(ref_id);
+                            srst_diff = xref_diff_dff_srst($time, ref_id);
 `endif
                             register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                         end
@@ -301,7 +296,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     else begin
                         if (SRST_taint) begin
 `ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst(ref_id);
+                            srst_diff = xref_diff_dff_srst($time, ref_id);
 `endif
                             register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
                         end
@@ -316,7 +311,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (pos_arst) begin
                         if (ARST_taint) begin
 `ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst(ref_id);
+                            arst_diff = xref_diff_dff_arst($time, ref_id);
 `endif
                             register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                         end
@@ -327,7 +322,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     else begin
                         if (ARST_taint) begin
 `ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst(ref_id);
+                            arst_diff = xref_diff_dff_arst($time, ref_id);
 `endif
                             register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
                         end
@@ -342,7 +337,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (pos_en) begin
                         if (EN_taint) begin
 `ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en(ref_id);
+                            en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                             register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
@@ -353,7 +348,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     else begin
                         if (EN_taint) begin
 `ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en(ref_id);
+                            en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                             register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
@@ -365,7 +360,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (pos_srst) begin
                         if (SRST_taint) begin
 `ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst(ref_id);
+                            srst_diff = xref_diff_dff_srst($time, ref_id);
 `endif
                             register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                         end
@@ -377,7 +372,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         if (pos_en) begin
                             if (EN_taint) begin
 `ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en(ref_id);
+                                en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -388,7 +383,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         else begin
                             if (EN_taint) begin
 `ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en(ref_id);
+                                en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                                 register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -401,7 +396,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     if (pos_arst) begin
                         if (ARST_taint) begin
 `ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst(ref_id);
+                            arst_diff = xref_diff_dff_arst($time, ref_id);
 `endif
                             register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                         end
@@ -413,7 +408,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         if (pos_en) begin
                             if (EN_taint) begin
 `ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en(ref_id);
+                                en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -424,7 +419,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         else begin
                             if (EN_taint) begin
 `ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en(ref_id);
+                                en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                                 register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -438,7 +433,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         if (pos_srst) begin
                             if (SRST_taint) begin
 `ifdef HASVARIANT
-                                srst_diff = xref_diff_dff_srst(ref_id);
+                                srst_diff = xref_diff_dff_srst($time, ref_id);
 `endif
                                 register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                             end
@@ -449,7 +444,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         else begin
                             if (EN_taint) begin
 `ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en(ref_id);
+                                en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                                 register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                             end
@@ -461,13 +456,13 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     else begin
                         if (EN_taint) begin
 `ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en(ref_id);
+                            en_diff = xref_diff_dff_en($time, ref_id);
 `endif
                             register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                         end
                         else if (SRST_taint) begin
 `ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst(ref_id);
+                            srst_diff = xref_diff_dff_srst($time, ref_id);
 `endif
                             register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
                         end
@@ -568,7 +563,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     export "DPI-C" function get_mem_wt_en;
     export "DPI-C" function get_mem_rd_srst;
     export "DPI-C" function get_mem_rd_arst;
-    export "DPI-C" function get_mem_taint;
     function void get_mem_rd_en();
         input int unsigned index;
         output byte unsigned en;
@@ -588,11 +582,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         input int unsigned index;
         output byte unsigned arst;
         arst = RD_ARST[index];
-    endfunction
-    function void get_mem_taint();
-        input int unsigned index;
-        output byte unsigned tainted;
-        tainted = |memory_taint[index];
     endfunction
 
     // reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
