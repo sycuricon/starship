@@ -189,6 +189,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     parameter int    WIDTH = 0;
     parameter string TYPE = "dff";
+    parameter int    TAINT_SINK = 0;
     parameter string LIVENESS_TYPE = "none";
     parameter int    LIVENESS_SIZE = 0;
     parameter int    LIVENESS_IDX = 0;
@@ -214,9 +215,8 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
     reg [WIDTH-1:0] register_taint = 0;
-    reg liveness_mask = 1;
     assign Q_taint = register_taint;
-    assign taint_sum = |register_taint & liveness_mask;
+    assign taint_sum = |register_taint;
     assign taint_hash = register_taint ? COVERAGE_ID : 0;
 
     int unsigned ref_id = 0;
@@ -224,6 +224,43 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 `ifdef HASVARIANT
         ref_id = register_reference($sformatf("%m"));
 `endif
+    end
+
+    final begin
+        if (TAINT_SINK) begin
+            if (|register_taint) begin
+                reg liveness_mask = 1;
+                case (LIVENESS_TYPE)
+                    "queue": begin: queuemask
+                        if (LIVENESS_OP1 < LIVENESS_OP0) begin
+                            liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX && LIVENESS_IDX < LIVENESS_OP0;
+                        end
+                        else if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                            liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
+                        end
+                        else begin
+                            liveness_mask = LIVENESS_OP2;
+                        end
+                    end
+                    "bitmap": begin: bitmapmask
+                        liveness_mask = LIVENESS_OP0[LIVENESS_IDX];
+                    end
+                    "bitmap_n": begin: bitmapnmask
+                        liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
+                    end
+                    "cond": begin: bitmapsmask
+                        liveness_mask = LIVENESS_OP0;
+                    end
+                    "cond_n": begin: bitmapsnmask
+                        liveness_mask = ~LIVENESS_OP0;
+                    end
+                endcase
+
+                if (liveness_mask) begin
+                    $fwrite(Testbench.smon.live_fd, "%m\n");
+                end
+            end
+        end
     end
 
     import "DPI-C" function byte unsigned xref_diff_dff_en(longint now, int unsigned ref_id);
@@ -249,34 +286,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     reg en_diff = 1, srst_diff = 1, arst_diff = 1;
 
     generate
-        always @(*) begin
-            case (LIVENESS_TYPE)
-                "queue": begin: queuemask
-                    if (LIVENESS_OP1 < LIVENESS_OP0) begin
-                        liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX && LIVENESS_IDX < LIVENESS_OP0;
-                    end
-                    else if (LIVENESS_OP0 < LIVENESS_OP1) begin
-                        liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
-                    end
-                    else begin
-                        liveness_mask = LIVENESS_OP2;
-                    end
-                end
-                "bitmap": begin: bitmapmask
-                    liveness_mask = LIVENESS_OP0[LIVENESS_IDX];
-                end
-                "bitmap_n": begin: bitmapnmask
-                    liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
-                end
-                "cond": begin: bitmapsmask
-                    liveness_mask = LIVENESS_OP0;
-                end
-                "cond_n": begin: bitmapsnmask
-                    liveness_mask = ~LIVENESS_OP0;
-                end
-            endcase
-        end
-
         case (TYPE)
             "dff": begin: gendff
                 always @(posedge pos_clk) begin
@@ -504,6 +513,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter int    WIDTH = 8;
     parameter int    RD_PORTS = 1;
     parameter int    WR_PORTS = 1;
+    parameter int    TAINT_SINK = 0;
     parameter string LIVENESS_TYPE = "none";
 
     localparam int   EXT_SIZE = $pow(2, $clog2(SIZE));
