@@ -41,12 +41,12 @@ endmodule
 
 module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 
-    parameter A_SIGNED = 0;
-    parameter A_WIDTH = 0;
-    parameter B_SIGNED = 0;
-    parameter B_WIDTH = 0;
-    parameter TYPE = "default";
-    parameter Y_WIDTH = 0;
+    parameter integer A_SIGNED = 0;
+    parameter integer A_WIDTH = 0;
+    parameter integer B_SIGNED = 0;
+    parameter integer B_WIDTH = 0;
+    parameter integer Y_WIDTH = 0;
+    parameter string  TYPE = "default";
 
     localparam integer INPUT_WIDTH = A_WIDTH > B_WIDTH ? A_WIDTH : B_WIDTH;
     localparam integer OUTPUT_WIDTH = Y_WIDTH;
@@ -131,8 +131,8 @@ endmodule
 // module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
 module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
-    parameter WIDTH = 32'd64;
-    parameter TYPE = "mux";
+    parameter integer WIDTH = 32'd64;
+    parameter string  TYPE = "mux";
 
     input [WIDTH-1:0] A;
     input [WIDTH-1:0] B;
@@ -180,15 +180,16 @@ endmodule
 module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_taint, D_taint, Q_taint,
     LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
 
-    parameter WIDTH = 0;
     parameter CLK_POLARITY = 1'b1;
     parameter EN_POLARITY = 1'b1;
     parameter SRST_POLARITY = 1'b1;
     parameter SRST_VALUE = 0;
     parameter ARST_POLARITY = 1'b1;
     parameter ARST_VALUE = 0;
-    parameter TYPE = "dff";
-    parameter LIVENESS_TYPE = "none";
+
+    parameter integer WIDTH = 0;
+    parameter string TYPE = "dff";
+    parameter string LIVENESS_TYPE = "none";
     parameter integer LIVENESS_SIZE = 0;
     parameter integer LIVENESS_IDX = 0;
 
@@ -224,7 +225,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     import "DPI-C" function byte unsigned xref_diff_dff_en(longint now, int unsigned ref_id);
     import "DPI-C" function byte unsigned xref_diff_dff_srst(longint now, int unsigned ref_id);
     import "DPI-C" function byte unsigned xref_diff_dff_arst(longint now, int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_merge_dff_taint(longint now, int unsigned ref_id);
     export "DPI-C" function get_dff_en;
     export "DPI-C" function get_dff_srst;
     export "DPI-C" function get_dff_arst;
@@ -482,13 +482,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     RD_EN_taint, RD_ARST_taint, RD_SRST_taint, RD_ADDR_taint, RD_DATA_taint, WR_EN_taint, WR_ADDR_taint, WR_DATA_taint,
     LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
 
-    parameter MEMID = "";
-    parameter signed SIZE = 4;
-    parameter signed OFFSET = 0;
-    parameter signed ABITS = 2;
-    parameter signed WIDTH = 8;
-
-    parameter signed RD_PORTS = 1;
     parameter RD_CLK_ENABLE = 1'b1;
     parameter RD_CLK_POLARITY = 1'b1;
     parameter RD_TRANSPARENCY_MASK = 1'b0;
@@ -496,14 +489,19 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter RD_CE_OVER_SRST = 1'b0;
     parameter RD_ARST_VALUE = 1'b0;
     parameter RD_SRST_VALUE = 1'b0;
-
-    parameter signed WR_PORTS = 1;
     parameter WR_CLK_ENABLE = 1'b1;
     parameter WR_CLK_POLARITY = 1'b1;
     parameter WR_PRIORITY_MASK = 1'b0;
     parameter WR_WIDE_CONTINUATION = 1'b0;
 
-    parameter LIVENESS_TYPE = "none";
+    parameter string MEMID = "";
+    parameter integer SIZE = 4;
+    parameter integer OFFSET = 0;
+    parameter integer ABITS = 2;
+    parameter integer WIDTH = 8;
+    parameter integer RD_PORTS = 1;
+    parameter integer WR_PORTS = 1;
+    parameter string LIVENESS_TYPE = "none";
 
     localparam integer EXT_SIZE = $pow(2, $clog2(SIZE));
 
@@ -558,7 +556,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     import "DPI-C" function byte unsigned xref_diff_mem_wt_en(int unsigned ref_id, int unsigned index);
     import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(int unsigned ref_id, int unsigned index);
     import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_merge_mem_taint(int unsigned ref_id, int unsigned index);
     export "DPI-C" function get_mem_rd_en;
     export "DPI-C" function get_mem_wt_en;
     export "DPI-C" function get_mem_rd_srst;
@@ -732,5 +729,4 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             end
         end
     endgenerate
-
 endmodule
