@@ -21,12 +21,17 @@ module SyncMonitor (
   string log_name = "default";
   int taint_fd;
   int event_fd;
+  int cov_fd;
+  int live_fd;
 
   initial begin
     $timeformat(-9, 0, "", 20);
     $value$plusargs("label=%s", log_name);
     taint_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.csv"}, "w");
     event_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.log"}, "w");
+    cov_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.cov"}, "w");
+    live_fd = $fopen({`TOP_DIR, "/wave/", log_name, ".taint.live"}, "w");
+
 `ifdef HASVARIANT
     $fwrite(taint_fd,"time,dut,vnt\n");
 `else

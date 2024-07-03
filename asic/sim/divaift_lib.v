@@ -3,13 +3,13 @@ import "DPI-C" function int unsigned register_reference(string hierarchy);
 // module taintcell_1I1O(A, Y, A_taint, Y_taint);
 module taintcell_1I1O(A, A_taint, Y_taint);
 
-    parameter A_SIGNED = 0;
-    parameter A_WIDTH = 0;
-    parameter TYPE = "default";
-    parameter Y_WIDTH = 0;
+    parameter int    A_SIGNED = 0;
+    parameter int    A_WIDTH = 0;
+    parameter int    Y_WIDTH = 0;
+    parameter string TYPE = "default";
 
-    localparam integer INPUT_WIDTH = A_WIDTH;
-    localparam integer OUTPUT_WIDTH = Y_WIDTH;
+    localparam int   INPUT_WIDTH = A_WIDTH;
+    localparam int   OUTPUT_WIDTH = Y_WIDTH;
 
     input [A_WIDTH-1:0] A;
     input [A_WIDTH-1:0] A_taint;
@@ -41,15 +41,15 @@ endmodule
 
 module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 
-    parameter integer A_SIGNED = 0;
-    parameter integer A_WIDTH = 0;
-    parameter integer B_SIGNED = 0;
-    parameter integer B_WIDTH = 0;
-    parameter integer Y_WIDTH = 0;
-    parameter string  TYPE = "default";
+    parameter int    A_SIGNED = 0;
+    parameter int    A_WIDTH = 0;
+    parameter int    B_SIGNED = 0;
+    parameter int    B_WIDTH = 0;
+    parameter int    Y_WIDTH = 0;
+    parameter string TYPE = "default";
 
-    localparam integer INPUT_WIDTH = A_WIDTH > B_WIDTH ? A_WIDTH : B_WIDTH;
-    localparam integer OUTPUT_WIDTH = Y_WIDTH;
+    localparam int   INPUT_WIDTH = A_WIDTH > B_WIDTH ? A_WIDTH : B_WIDTH;
+    localparam int   OUTPUT_WIDTH = Y_WIDTH;
 
     input [A_WIDTH-1:0] A;
     input [B_WIDTH-1:0] B;
@@ -131,8 +131,8 @@ endmodule
 // module taintcell_mux (A, B, S, Y, A_taint, B_taint, S_taint, Y_taint);
 module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
-    parameter integer WIDTH = 32'd64;
-    parameter string  TYPE = "mux";
+    parameter int    WIDTH = 32'd64;
+    parameter string TYPE = "mux";
 
     input [WIDTH-1:0] A;
     input [WIDTH-1:0] B;
@@ -178,7 +178,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 endmodule
 
 module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_taint, D_taint, Q_taint,
-    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
+    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum, taint_hash);
 
     parameter CLK_POLARITY = 1'b1;
     parameter EN_POLARITY = 1'b1;
@@ -187,11 +187,13 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     parameter ARST_POLARITY = 1'b1;
     parameter ARST_VALUE = 0;
 
-    parameter integer WIDTH = 0;
+    parameter int    WIDTH = 0;
     parameter string TYPE = "dff";
     parameter string LIVENESS_TYPE = "none";
-    parameter integer LIVENESS_SIZE = 0;
-    parameter integer LIVENESS_IDX = 0;
+    parameter int    LIVENESS_SIZE = 0;
+    parameter int    LIVENESS_IDX = 0;
+    parameter int    COVERAGE_WIDTH = 0;
+    parameter int    COVERAGE_ID = 0;
 
     input CLK, ARST, SRST, EN;
     input [WIDTH-1:0] D;
@@ -201,9 +203,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     output [WIDTH-1:0] Q_taint;
     input [LIVENESS_SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2;
     output taint_sum;
-
-    reg [WIDTH-1:0] register_taint;
-    assign Q_taint = register_taint;
+    output [COVERAGE_WIDTH-1:0] taint_hash;
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -213,13 +213,17 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     wire [WIDTH-1:0] D_san = $isunknown(D) ? {WIDTH{1'b0}} : D;
     wire [WIDTH-1:0] Q_san = $isunknown(Q) ? {WIDTH{1'b0}} : Q;
 
+    reg [WIDTH-1:0] register_taint = 0;
     reg liveness_mask = 1;
+    assign Q_taint = register_taint;
+    assign taint_sum = |register_taint & liveness_mask;
+    assign taint_hash = register_taint ? COVERAGE_ID : 0;
+
     int unsigned ref_id = 0;
     initial begin
 `ifdef HASVARIANT
         ref_id = register_reference($sformatf("%m"));
 `endif
-        #(`RESET_DELAY) register_taint = 0;
     end
 
     import "DPI-C" function byte unsigned xref_diff_dff_en(longint now, int unsigned ref_id);
@@ -272,7 +276,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 end
             endcase
         end
-        assign taint_sum = |register_taint & liveness_mask;
 
         case (TYPE)
             "dff": begin: gendff
@@ -495,15 +498,15 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter WR_WIDE_CONTINUATION = 1'b0;
 
     parameter string MEMID = "";
-    parameter integer SIZE = 4;
-    parameter integer OFFSET = 0;
-    parameter integer ABITS = 2;
-    parameter integer WIDTH = 8;
-    parameter integer RD_PORTS = 1;
-    parameter integer WR_PORTS = 1;
+    parameter int    SIZE = 4;
+    parameter int    OFFSET = 0;
+    parameter int    ABITS = 2;
+    parameter int    WIDTH = 8;
+    parameter int    RD_PORTS = 1;
+    parameter int    WR_PORTS = 1;
     parameter string LIVENESS_TYPE = "none";
 
-    localparam integer EXT_SIZE = $pow(2, $clog2(SIZE));
+    localparam int   EXT_SIZE = $pow(2, $clog2(SIZE));
 
     input [RD_PORTS-1:0] RD_CLK;
     input [RD_PORTS-1:0] RD_EN;
@@ -537,8 +540,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
+    // bit bitmap[bit [31:0]];
+
     reg [WIDTH-1:0] cell_old_taint;
     reg [WIDTH-1:0] cell_new_taint;
+    
     initial begin
         // if (EXT_SIZE != SIZE) begin
         //     $display("Unmatched memory size %d/%d for %m", SIZE, EXT_SIZE);
@@ -547,7 +553,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         cell_new_taint = 0;
         taint_sum = 0;
         ref_id = register_reference($sformatf("%m"));
-        #(`RESET_DELAY)
+
         for (i = 0; i < EXT_SIZE; i = i+1)
             memory_taint[i] = 0;
     end
@@ -599,7 +605,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     // end
 
     generate
-        reg query_taint = 0;
         reg liveness_mask = 1;
         always @(negedge Testbench.clock) begin
             taint_sum = 0;
@@ -729,4 +734,25 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             end
         end
     endgenerate
+endmodule
+
+module tainthelp_coverage (COV_HASH);
+
+    parameter signed COVERAGE_WIDTH = 0;
+    input [COVERAGE_WIDTH-1:0] COV_HASH;
+
+    bit bitmap[bit [COVERAGE_WIDTH-1:0]];
+
+    always @(posedge Testbench.clock) begin
+        bitmap[COV_HASH] = 1;
+    end
+
+    final begin
+        // $display("[%d] %m", bitmap.size());
+        $fwrite(Testbench.smon.cov_fd, "%m:");
+        foreach(bitmap[hash])
+            $fwrite(Testbench.smon.cov_fd, " %h", hash);
+        $fwrite(Testbench.smon.cov_fd, "\n");
+    end
+
 endmodule
