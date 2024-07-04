@@ -549,7 +549,8 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
-    // bit bitmap[bit [31:0]];
+    reg [31:0] current_hash = 0;
+    bit bitmap[bit [31:0]];
   
     initial begin
         // if (EXT_SIZE != SIZE) begin
@@ -607,6 +608,17 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             $fwrite(Testbench.smon.live_fd, "%m: %d\n", liveness_sum);
         end
     end
+
+    final begin
+        // $display("[%d] %m", bitmap.size());
+        if (bitmap.size() > 0) begin
+            $fwrite(Testbench.smon.cov_fd, "%m:");
+            foreach(bitmap[hash])
+                $fwrite(Testbench.smon.cov_fd, " %h", hash);
+            $fwrite(Testbench.smon.cov_fd, "\n");
+        end
+    end
+
 
     import "DPI-C" function byte unsigned xref_diff_mem_rd_en(longint now, int unsigned ref_id, int unsigned index);
     import "DPI-C" function byte unsigned xref_diff_mem_wt_en(longint now, int unsigned ref_id, int unsigned index);
@@ -810,6 +822,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             taint_sum = taint_sum + 1;
                         else
                             taint_sum = taint_sum - 1;
+
+                        current_hash = (current_hash << 1) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                        bitmap[current_hash] = 1;
                     end
                 end
             end
@@ -853,6 +868,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             taint_sum = taint_sum + 1;
                         else
                             taint_sum = taint_sum - 1;
+
+                        current_hash = (current_hash << 1) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                        bitmap[current_hash] = 1;
                     end
                 end
             end
@@ -873,10 +891,12 @@ module tainthelp_coverage (COV_HASH);
 
     final begin
         // $display("[%d] %m", bitmap.size());
-        $fwrite(Testbench.smon.cov_fd, "%m:");
-        foreach(bitmap[hash])
-            $fwrite(Testbench.smon.cov_fd, " %h", hash);
-        $fwrite(Testbench.smon.cov_fd, "\n");
+        if (bitmap.size() > 1) begin
+            $fwrite(Testbench.smon.cov_fd, "%m:");
+            foreach(bitmap[hash])
+                $fwrite(Testbench.smon.cov_fd, " %h", hash);
+            $fwrite(Testbench.smon.cov_fd, "\n");
+        end
     end
 
 endmodule
