@@ -228,7 +228,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     final begin
         if (TAINT_SINK) begin
-            if (|register_taint) begin
+            if (register_taint) begin
                 reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
@@ -282,7 +282,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         arst = pos_arst;
     endfunction
 
-    reg query_taint;
     reg en_diff = 1, srst_diff = 1, arst_diff = 1;
 
     generate
@@ -551,16 +550,18 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
     // bit bitmap[bit [31:0]];
-
-    reg [WIDTH-1:0] cell_old_taint;
-    reg [WIDTH-1:0] cell_new_taint;
-    
+  
     initial begin
         // if (EXT_SIZE != SIZE) begin
         //     $display("Unmatched memory size %d/%d for %m", SIZE, EXT_SIZE);
         // end
-        cell_old_taint = 0;
-        cell_new_taint = 0;
+        if (RD_PORTS > 8) begin
+            $error("Too many read ports %d for %m", RD_PORTS);
+        end
+        if (WR_PORTS > 8) begin
+            $error("Too many write ports %d for %m", WR_PORTS);
+        end
+
         taint_sum = 0;
         ref_id = register_reference($sformatf("%m"));
 
@@ -568,57 +569,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             memory_taint[i] = 0;
     end
 
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(int unsigned ref_id, int unsigned index);
-    export "DPI-C" function get_mem_rd_en;
-    export "DPI-C" function get_mem_wt_en;
-    export "DPI-C" function get_mem_rd_srst;
-    export "DPI-C" function get_mem_rd_arst;
-    function void get_mem_rd_en();
-        input int unsigned index;
-        output byte unsigned en;
-        en = RD_EN[index];
-    endfunction
-    function void get_mem_wt_en();
-        input int unsigned index;
-        output byte unsigned en;
-        en = WR_EN[index];
-    endfunction
-    function void get_mem_rd_srst();
-        input int unsigned index;
-        output byte unsigned srst;
-        srst = RD_SRST[index];
-    endfunction
-    function void get_mem_rd_arst();
-        input int unsigned index;
-        output byte unsigned arst;
-        arst = RD_ARST[index];
-    endfunction
-
-    // reg [RD_PORTS-1:0] rd_en_diff, rd_srst_diff, rd_arst_diff;
-    // reg [WR_PORTS*WIDTH-1:0] wt_en_diff;
-
-    // disable variant rule for performance optimization
-    // always @(negedge Testbench.clock) begin
-    //     for (i = 0; i < RD_PORTS; i = i+1) begin
-    //         rd_en_diff[i] = xref_diff_mem_rd_en(ref_id, i);
-    //         rd_srst_diff[i] = xref_diff_mem_rd_srst(ref_id, i);
-    //         rd_arst_diff[i] = xref_diff_mem_rd_arst(ref_id, i);
-    //     end
-    //     for (i = 0; i < WR_PORTS; i = i+1) begin
-    //         for (j = 0; j < WIDTH; j = j+1) begin
-    //             wt_en_diff[i*WIDTH + j] = xref_diff_mem_wt_en(ref_id, i*WIDTH + j);
-    //         end
-    //     end
-    // end
-
-    generate
-        reg liveness_mask = 1;
-        always @(negedge Testbench.clock) begin
-            taint_sum = 0;
-            for (i = 0; i < SIZE; i = i+1) begin
+    final begin
+        reg [ABITS:0] liveness_sum = 0;
+        for (i = 0; i < SIZE; i = i+1) begin
+            if (memory_taint[i]) begin
+                reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
                         if (LIVENESS_OP1 < LIVENESS_OP0) begin
@@ -644,16 +599,79 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         liveness_mask = ~LIVENESS_OP0;
                     end
                 endcase
-                taint_sum = taint_sum + (|memory_taint[i] & liveness_mask);
+                liveness_sum = liveness_sum + liveness_mask;
             end
         end
 
+        if (liveness_sum) begin
+            $fwrite(Testbench.smon.live_fd, "%m: %d\n", liveness_sum);
+        end
+    end
+
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(longint now, int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(longint now, int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(longint now, int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(longint now, int unsigned ref_id, int unsigned index);
+    export "DPI-C" function get_mem_rd_en;
+    export "DPI-C" function get_mem_wt_en;
+    export "DPI-C" function get_mem_rd_srst;
+    export "DPI-C" function get_mem_rd_arst;
+    function void get_mem_rd_en();
+        input int unsigned index;
+        output byte unsigned en;
+        en = RD_EN[index];
+    endfunction
+    function void get_mem_wt_en();
+        input int unsigned index;
+        output byte unsigned en;
+        en = |WR_EN[index*WIDTH +: WIDTH];
+    endfunction
+    function void get_mem_rd_srst();
+        input int unsigned index;
+        output byte unsigned srst;
+        srst = RD_SRST[index];
+    endfunction
+    function void get_mem_rd_arst();
+        input int unsigned index;
+        output byte unsigned arst;
+        arst = RD_ARST[index];
+    endfunction
+
+    reg wt_en_diff = 1;
+    reg rd_en_diff = 1, rd_srst_diff = 1, rd_arst_diff = 1;
+    reg previous_taint, current_taint;
+
+    generate
         if (RD_CLK_ENABLE == 0) begin: async_read
             always @(*) begin
-                for (i = 0; i < RD_PORTS; i = i+1)
-                    memory_rd_taint[i*WIDTH +: WIDTH] = 
-                        (RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) |
-                        RD_ARST_taint[i] /* & rd_arst_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}};
+                for (i = 0; i < RD_PORTS; i = i+1) begin
+                    if (RD_ARST[i]) begin
+                        if (RD_ARST_taint[i]) begin
+`ifdef HASVARIANT
+                            rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+`endif
+                            memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                rd_arst_diff ? {WIDTH{1'b1}} : 0;
+                        end
+                        else begin
+                            memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                        end
+                    end
+                    else begin
+                        if (RD_ARST_taint[i]) begin
+`ifdef HASVARIANT
+                            rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+`endif
+                            memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                rd_arst_diff ? {WIDTH{1'b1}} : 0;
+                        end
+                        else begin
+                            memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                        end
+                    end
+                end
             end
         end
         else if (&RD_CLK_ENABLE != 1) begin: mix_read
@@ -665,49 +683,134 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
                 initial $error("Mixed read clock polarities are not supported: %s at %m", MEMID);
             always @(posedge pos_rd_clk) begin
-                for (i = 0; i < RD_PORTS; i = i+1)
-                    if (RD_CE_OVER_SRST[i])
-                        memory_rd_taint[i*WIDTH +: WIDTH] <= 
-                            (RD_EN[i] ? 
-                                (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}}) : 
-                                0) |
-                            RD_EN_taint[i] /* & rd_en_diff[i] */ ? 
-                                {WIDTH{1'b1}} : 
-                                (RD_SRST_taint[i] /* & rd_srst_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
-                    else
-                        memory_rd_taint[i*WIDTH +: WIDTH] <= 
-                            (RD_SRST[i] ? 
-                                0 : (RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} : 0)) |
-                            RD_SRST_taint[i] /* & rd_srst_diff[i] */ ? 
-                                {WIDTH{1'b1}} : 
-                                (RD_EN_taint[i] /* & rd_en_diff[i] */ ? {WIDTH{1'b1}} : {WIDTH{1'b0}});
+                for (i = 0; i < RD_PORTS; i = i+1) begin
+                    if (RD_CE_OVER_SRST[i]) begin
+                        if (RD_EN[i]) begin
+                            if (RD_SRST[i]) begin
+                                if (RD_SRST_taint[i]) begin
+`ifdef HASVARIANT
+                                    rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+`endif
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                                else begin
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                end
+                            end
+                            else begin
+                                if (RD_EN_taint[i]) begin
+`ifdef HASVARIANT
+                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+`endif
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                                else begin
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                end
+                            end
+                        end
+                        else begin
+                            if (RD_EN_taint[i]) begin
+`ifdef HASVARIANT
+                                rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+`endif
+                                memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
+                            end
+                            else if (RD_SRST_taint[i]) begin
+`ifdef HASVARIANT
+                                rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+`endif
+                                memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                            end
+                            else begin
+                                memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
+                            end
+                        end
+                    end
+                    else begin
+                        if (RD_SRST[i]) begin
+                            if (RD_SRST_taint[i]) begin
+`ifdef HASVARIANT
+                                rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+`endif
+                                memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                    rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                            end
+                            else begin
+                                memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                            end
+                        end
+                        else begin
+                            if (RD_EN[i]) begin
+                                if (RD_EN_taint[i]) begin
+`ifdef HASVARIANT
+                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+`endif
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                                else begin
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                end
+                            end
+                            else begin
+                                if (RD_EN_taint[i]) begin
+`ifdef HASVARIANT
+                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+`endif
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                                else begin
+                                    memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
+                                end
+                            end
+                        end
+                    end
+                end
             end
         end
 
         if (WR_CLK_ENABLE == 0) begin: async_write
             always @(*) begin
                 for (i = 0; i < WR_PORTS; i = i+1) begin
-                    // cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = 
-                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
-                        WR_EN_taint[i*WIDTH +: WIDTH];
+                    previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    if (WR_EN[i*WIDTH +: WIDTH]) begin
+                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+`ifdef HASVARIANT
+                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+`endif
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
+                                wt_en_diff ? {WIDTH{1'b1}} : 0;
+                        end
+                        else begin
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+                        end
+                    end
+                    else begin
+                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+`ifdef HASVARIANT
+                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+`endif
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                wt_en_diff ? {WIDTH{1'b1}} : 0;
+                        end
+                    end
+                    current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
 
-                    // for (j = 0; j < WIDTH; j = j+1) begin
-                    //     if (WR_EN[i*WIDTH+j]) begin
-                    //         memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
-                    //             WR_DATA_taint[i*WIDTH+j] |
-                    //             |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                    //             WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
-                    //     end
-                    // end
-                    // cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    // if (cell_old_taint ^ cell_new_taint) begin
-                    //     if (cell_new_taint)
-                    //         taint_sum = taint_sum + 1;
-                    //     else
-                    //         taint_sum = taint_sum - 1;
-                    // end
+                    if (previous_taint ^ current_taint) begin
+                        if (current_taint)
+                            taint_sum = taint_sum + 1;
+                        else
+                            taint_sum = taint_sum - 1;
+                    end
                 end
             end
         end
@@ -719,27 +822,38 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                 initial $error("Mixed write clock polarities are not supported: %s at %m", MEMID);
             always @(posedge pos_wt_clk) begin
                 for (i = 0; i < WR_PORTS; i = i+1) begin
-                    // cell_old_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = 
-                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
-                        WR_EN_taint[i*WIDTH +: WIDTH];
-                    // for (j = 0; j < WIDTH; j = j+1) begin
-                    //     if (WR_EN[i*WIDTH+j]) begin
-                    //         // use blocking assigment here, because verilator doesn't support non-blocking assignments in generate blocks
-                    //         memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET][j] = 
-                    //             WR_DATA_taint[i*WIDTH+j] | 
-                    //             |WR_ADDR_taint[i*ABITS +: ABITS] | 
-                    //             WR_EN_taint[i*WIDTH+j] /* & wt_en_diff[i*WIDTH+j] */;
-                    //     end
-                    // end
-                    // cell_new_taint = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    // if (cell_old_taint ^ cell_new_taint) begin
-                    //     if (cell_new_taint)
-                    //         taint_sum = taint_sum + 1;
-                    //     else
-                    //         taint_sum = taint_sum - 1;
-                    // end
+                    previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                    if (WR_EN[i*WIDTH +: WIDTH]) begin
+                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+`ifdef HASVARIANT
+                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+`endif
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
+                                wt_en_diff ? (WR_EN[i*WIDTH +: WIDTH] & WR_EN_taint[i*WIDTH +: WIDTH]) : 0;
+                        end
+                        else begin
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+                        end
+                    end
+                    else begin
+                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+`ifdef HASVARIANT
+                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+`endif
+                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                wt_en_diff ? {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} | WR_EN_taint[i*WIDTH +: WIDTH] : 0;
+                        end
+                    end
+                    current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+
+                    if (previous_taint ^ current_taint) begin
+                        if (current_taint)
+                            taint_sum = taint_sum + 1;
+                        else
+                            taint_sum = taint_sum - 1;
+                    end
                 end
             end
         end

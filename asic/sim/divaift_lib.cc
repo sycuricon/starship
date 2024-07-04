@@ -214,62 +214,96 @@ extern "C" unsigned char xref_diff_dff_arst(time_stamp_t now, unsigned int idx) 
     }
 }
 
-extern "C" void get_mem_rd_en(unsigned int index, unsigned char* en);
-extern "C" unsigned char xref_diff_mem_rd_en(unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
-
-    unsigned char dut_en, vnt_en;
-    svSetScope(svGetScopeFromName(h.dut()));
-    get_mem_rd_en(index, &dut_en);
-
-    svSetScope(svGetScopeFromName(h.vnt()));
-    get_mem_rd_en(index, &vnt_en);
-
-    unsigned char result = dut_en ^ vnt_en;
-    return result;
-}
+#define IDX_MEM_WEN(idx)  (0 + idx)
 
 extern "C" void get_mem_wt_en(unsigned int index, unsigned char* en);
-extern "C" unsigned char xref_diff_mem_wt_en(unsigned int idx, unsigned int index) {
+extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int idx, unsigned int index) {
     Reference& h = refMap.at(group_idx(idx));
 
-    unsigned char dut_en, vnt_en;
-    svSetScope(svGetScopeFromName(h.dut()));
-    get_mem_wt_en(index, &dut_en);
+    if (h.has_cache(now, IDX_MEM_WEN(idx))) {
+        h.clean_cache(IDX_MEM_WEN(idx));
+        return h.get_cache(IDX_MEM_WEN(idx));
+    }
+    else {
+        unsigned char dut_en, vnt_en;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_wt_en(index, &dut_en);
 
-    svSetScope(svGetScopeFromName(h.vnt()));
-    get_mem_wt_en(index, &vnt_en);
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_wt_en(index, &vnt_en);
 
-    unsigned char result = dut_en ^ vnt_en;
-    return result;
+        unsigned char result = dut_en ^ vnt_en;
+        h.set_cache(now, IDX_MEM_WEN(idx), result);
+        return result;
+    }
+}
+
+#define IDX_MEM_RRST(idx)  (8 + idx)
+
+extern "C" void get_mem_rd_arst(unsigned int index, unsigned char* arst);
+extern "C" unsigned char xref_diff_mem_rd_arst(time_stamp_t now, unsigned int idx, unsigned int index) {
+    Reference& h = refMap.at(group_idx(idx));
+
+    if (h.has_cache(now, IDX_MEM_RRST(idx))) {
+        h.clean_cache(IDX_MEM_RRST(idx));
+        return h.get_cache(IDX_MEM_RRST(idx));
+    }
+    else {
+        unsigned char dut_arst, vnt_arst;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_rd_arst(index, &dut_arst);
+
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_rd_arst(index, &vnt_arst);
+
+        unsigned char result = dut_arst ^ vnt_arst;
+        h.set_cache(now, IDX_MEM_RRST(idx), result);
+        return result;
+    }
 }
 
 extern "C" void get_mem_rd_srst(unsigned int index, unsigned char* srst);
-extern "C" unsigned char xref_diff_mem_rd_srst(unsigned int idx, unsigned int index) {
+extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int idx, unsigned int index) {
     Reference& h = refMap.at(group_idx(idx));
 
-    unsigned char dut_srst, vnt_srst;
-    svSetScope(svGetScopeFromName(h.dut()));
-    get_mem_rd_srst(index, &dut_srst);
+    if (h.has_cache(now, IDX_MEM_RRST(idx))) {
+        h.clean_cache(IDX_MEM_RRST(idx));
+        return h.get_cache(IDX_MEM_RRST(idx));
+    }
+    else {
+        unsigned char dut_srst, vnt_srst;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_rd_srst(index, &dut_srst);
 
-    svSetScope(svGetScopeFromName(h.vnt()));
-    get_mem_rd_srst(index, &vnt_srst);
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_rd_srst(index, &vnt_srst);
 
-    unsigned char result = dut_srst ^ vnt_srst;
-    return result;
+        unsigned char result = dut_srst ^ vnt_srst;
+        h.set_cache(now, IDX_MEM_RRST(idx), result);
+        return result;
+    }
 }
 
-extern "C" void get_mem_rd_arst(unsigned int index, unsigned char* arst);
-extern "C" unsigned char xref_diff_mem_rd_arst(unsigned int idx, unsigned int index) {
+#define IDX_MEM_REN(idx)  (16 + idx)
+
+extern "C" void get_mem_rd_en(unsigned int index, unsigned char* en);
+extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int idx, unsigned int index) {
     Reference& h = refMap.at(group_idx(idx));
 
-    unsigned char dut_arst, vnt_arst;
-    svSetScope(svGetScopeFromName(h.dut()));
-    get_mem_rd_srst(index, &dut_arst);
+    if (h.has_cache(now, IDX_MEM_REN(idx))) {
+        h.clean_cache(IDX_MEM_REN(idx));
+        return h.get_cache(IDX_MEM_REN(idx));
+    }
+    else {
+        unsigned char dut_en, vnt_en;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_rd_en(index, &dut_en);
 
-    svSetScope(svGetScopeFromName(h.vnt()));
-    get_mem_rd_srst(index, &vnt_arst);
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_rd_en(index, &vnt_en);
 
-    unsigned char result = dut_arst ^ vnt_arst;
-    return result;
+        unsigned char result = dut_en ^ vnt_en;
+        h.set_cache(now, IDX_MEM_REN(idx), result);
+        return result;
+    }
 }
