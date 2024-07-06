@@ -559,7 +559,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         if (RD_PORTS > 8) begin
             $error("Too many read ports %d for %m", RD_PORTS);
         end
-        if (WR_PORTS > 8) begin
+        if (WR_PORTS > 16) begin
             $error("Too many write ports %d for %m", WR_PORTS);
         end
 
@@ -687,13 +687,13 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             end
         end
         else if (&RD_CLK_ENABLE != 1) begin: mix_read
-            initial $error("Mixed read ports are not supported: %s at %m", MEMID);
+            initial $fatal("Mixed read ports are not supported: %s at %m", MEMID);
         end
         else begin: sync_read
             if (|RD_TRANSPARENCY_MASK | |RD_COLLISION_X_MASK)
-                initial $error("Transparency and collision masks are not supported: %s at %m", MEMID);
+                initial $fatal("Transparency and collision masks are not supported: %s at %m", MEMID);
             if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
-                initial $error("Mixed read clock polarities are not supported: %s at %m", MEMID);
+                initial $fatal("Mixed read clock polarities are not supported: %s at %m", MEMID);
             always @(posedge pos_rd_clk) begin
                 for (i = 0; i < RD_PORTS; i = i+1) begin
                     if (RD_CE_OVER_SRST[i]) begin
@@ -823,18 +823,18 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         else
                             taint_sum = taint_sum - 1;
 
-                        current_hash = (current_hash << 1) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                        current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
                         bitmap[current_hash] = 1;
                     end
                 end
             end
         end
         else if (&WR_CLK_ENABLE != 1) begin: mix_write
-            initial $error("Mixed write ports are not supported: %s at %m", MEMID);
+            initial $fatal("Mixed write ports are not supported: %s at %m", MEMID);
         end
         else begin: sync_write
             if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
-                initial $error("Mixed write clock polarities are not supported: %s at %m", MEMID);
+                initial $fatal("Mixed write clock polarities are not supported: %s at %m", MEMID);
             always @(posedge pos_wt_clk) begin
                 for (i = 0; i < WR_PORTS; i = i+1) begin
                     previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
@@ -869,7 +869,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         else
                             taint_sum = taint_sum - 1;
 
-                        current_hash = (current_hash << 1) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                        current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
                         bitmap[current_hash] = 1;
                     end
                 end
@@ -886,12 +886,13 @@ module tainthelp_coverage (COV_HASH);
     bit bitmap[bit [COVERAGE_WIDTH-1:0]];
 
     always @(posedge Testbench.clock) begin
-        bitmap[COV_HASH] = 1;
+        if (COV_HASH)
+            bitmap[COV_HASH] = 1;
     end
 
     final begin
         // $display("[%d] %m", bitmap.size());
-        if (bitmap.size() > 1) begin
+        if (bitmap.size() > 0) begin
             $fwrite(Testbench.smon.cov_fd, "%m:");
             foreach(bitmap[hash])
                 $fwrite(Testbench.smon.cov_fd, " %h", hash);

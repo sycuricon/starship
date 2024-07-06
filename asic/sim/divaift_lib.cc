@@ -238,7 +238,7 @@ extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int idx,
     }
 }
 
-#define IDX_MEM_RRST(idx)  (8 + idx)
+#define IDX_MEM_RRST(idx)  (16 + idx)
 
 extern "C" void get_mem_rd_arst(unsigned int index, unsigned char* arst);
 extern "C" unsigned char xref_diff_mem_rd_arst(time_stamp_t now, unsigned int idx, unsigned int index) {
@@ -284,7 +284,7 @@ extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int id
     }
 }
 
-#define IDX_MEM_REN(idx)  (16 + idx)
+#define IDX_MEM_REN(idx)  (24 + idx)
 
 extern "C" void get_mem_rd_en(unsigned int index, unsigned char* en);
 extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int idx, unsigned int index) {
