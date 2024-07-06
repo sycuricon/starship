@@ -227,7 +227,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     end
 
     final begin
-        if (TAINT_SINK) begin
+        if (TAINT_SINK && (ref_id % 2 == 0)) begin
             if (register_taint) begin
                 reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
@@ -573,7 +573,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     final begin
         reg [ABITS:0] liveness_sum = 0;
         for (i = 0; i < SIZE; i = i+1) begin
-            if (memory_taint[i]) begin
+            if (memory_taint[i] && (ref_id % 2 == 0)) begin
                 reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
@@ -611,7 +611,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     final begin
         // $display("[%d] %m", bitmap.size());
-        if (bitmap.size() > 0) begin
+        if ((bitmap.size() > 0) && (ref_id % 2 == 0)) begin
             $fwrite(Testbench.smon.cov_fd, "%m:");
             foreach(bitmap[hash])
                 $fwrite(Testbench.smon.cov_fd, " %h", hash);
@@ -884,9 +884,14 @@ module tainthelp_coverage (COV_HASH);
     input [COVERAGE_WIDTH-1:0] COV_HASH;
 
     bit bitmap[bit [COVERAGE_WIDTH-1:0]];
+    byte unsigned is_variant;
+
+    initial begin
+        is_variant = is_variant_hierachy($sformatf("%m"));
+    end
 
     always @(posedge Testbench.clock) begin
-        if (COV_HASH)
+        if (COV_HASH && (is_variant == 0))
             bitmap[COV_HASH] = 1;
     end
 
