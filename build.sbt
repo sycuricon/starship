@@ -60,7 +60,8 @@ lazy val fpga_shells = (project in file("repo/rocket-chip-fpga-shells"))
   .dependsOn(rocket_chip, peripheral_blocks, cde)
   .settings(
     commonSettings,
-    Compile / unmanagedBase := baseDirectory.value
+    Compile / unmanagedBase := baseDirectory.value,
+    Compile / resourceDirectory := baseDirectory.value
   )
 
 lazy val ucb_testchipip = (project in file("repo/testchipip/src"))
