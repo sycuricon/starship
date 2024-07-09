@@ -120,23 +120,33 @@ unsigned long int SwappableMem::do_mem_swap() {
     #define DEJAVUZZ_PRIV_S     0b01
     #define DEJAVUZZ_PRIV_U     0b00
     #define DEJAVUZZ_VM_FLAG    0b100
+    #define DEJAVUZZ_ATK_TVC    0x1000
     
     // TODO: replace this vector
+    size_t return_info = start_addr;
+    // setup address prefix
+    if ((swap_block_map[current_swap][0].priv == 'S') && swap_block_map[current_swap][0].is_vm) {
+        return_info = (start_addr | DEJAVUZZ_VM_MASK) | DEJAVUZZ_VM_FLAG;
+    }
+    else if ((swap_block_map[current_swap][0].priv == 'U') && swap_block_map[current_swap][0].is_vm) {
+        return_info = (start_addr & ~DEJAVUZZ_VM_MASK) | DEJAVUZZ_VM_FLAG;
+    }
+
     if (swap_block_map[current_swap][0].priv == 'S') {
-        if (swap_block_map[current_swap][0].is_vm) {
-            start_addr = start_addr | DEJAVUZZ_VM_MASK | DEJAVUZZ_VM_FLAG;
-        }
-        return start_addr | DEJAVUZZ_PRIV_S;
+        return_info |= DEJAVUZZ_PRIV_S;
     }
     else if (swap_block_map[current_swap][0].priv == 'U') {
-        if (swap_block_map[current_swap][0].is_vm) {
-            start_addr = start_addr & ~DEJAVUZZ_VM_MASK | DEJAVUZZ_VM_FLAG;
-        }
-        return start_addr | DEJAVUZZ_PRIV_U;
+        return_info |= DEJAVUZZ_PRIV_U;
     }
     else {
-        return start_addr | DEJAVUZZ_PRIV_M;
+        return_info |= DEJAVUZZ_PRIV_M;
     }
+
+    if (swap_block_map[current_swap][0].attack) {
+        return_info |= DEJAVUZZ_ATK_TVC;
+    }
+
+    return return_info;
 }
 
 void SwappableMem::print_swap_mem() {
@@ -179,7 +189,7 @@ void SwappableMem::initial_mem(size_t mem_start_addr, size_t max_mem_size, std::
     }
 }
 
-void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode) {
+void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode, std::string &phase) {
     block_len = UpPage(block_len);
     except_examine(block_begin % TB_MEM_PAGE_SIZE == 0, "the memory is not aligned to page");
     except_examine(mem_begin <= block_begin && block_len > 0 && block_begin + block_len <= mem_begin + mem_len,
@@ -189,7 +199,7 @@ void SwappableMem::register_swap_blocks(size_t block_begin, size_t block_len, st
     uint8_t *mem_block = malloc_mem_blocks(block_len, &file_name);
 
     size_t block_end = block_begin + block_len;
-    SwapBlock swap_block(mem_block, block_begin, block_len, mode);
+    SwapBlock swap_block(mem_block, block_begin, block_len, mode, phase);
     swap_block_map[swap_index].push_back(swap_block);
 }
 

@@ -24,6 +24,7 @@ struct SwapBlock {
     size_t swap_block_len;
     bool is_vm;
     char priv;
+    bool attack;
 
     SwapBlock() {
         swap_block = NULL;
@@ -31,13 +32,15 @@ struct SwapBlock {
         swap_block_len = 0;
         is_vm = false;
         priv = 'M';
+        attack = false;
     }
 
-    SwapBlock(uint8_t *swap_block, size_t swap_block_begin, size_t swap_block_len, std::string &mode)
+    SwapBlock(uint8_t *swap_block, size_t swap_block_begin, size_t swap_block_len, std::string &mode, std::string &phase)
         : swap_block(swap_block), swap_block_begin(swap_block_begin), swap_block_len(swap_block_len) {
             except_examine(mode.length() == 2, "Invalid execution mode length");
             priv = mode[0];
             is_vm = mode[1] == 'v';
+            attack = phase == "attack";
         }
 };
 
@@ -66,7 +69,7 @@ public:
     }
 
     void initial_mem(size_t mem_start_addr, size_t max_mem_size, std::vector<int>& schedule_list);
-    void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode);
+    void register_swap_blocks(size_t block_begin, size_t block_len, std::string &file_name, int swap_index, std::string &mode, std::string &phase);
     void register_normal_blocks(size_t block_begin, size_t block_len, std::string &file_name);
 
     unsigned long int do_mem_swap();

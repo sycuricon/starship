@@ -21,8 +21,11 @@ struct MemRegionConfig {
     size_t start_addr;
     size_t max_len;
     std::string init_file;
+
+    // swap only
     int swap_id;
     std::string mode;
+    std::string phase;
 };
 
 struct TBConfig {
@@ -112,12 +115,17 @@ struct TBConfig {
                     }
 
                     if (new_region.type == "swap" && !region_cfg.lookupValue("swap_id", new_region.swap_id)) {
-                        std::cerr << "Swap memory region requires a swap_id!" << std::endl;
+                        std::cerr << "Swap memory region requires a id!" << std::endl;
                         exit(EXIT_FAILURE);
                     }
 
                     if (new_region.type == "swap" && !region_cfg.lookupValue("mode", new_region.mode)) {
                         std::cerr << "Swap memory region requires a execution mode!" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if (new_region.type == "swap" && !region_cfg.lookupValue("phase", new_region.phase)) {
+                        std::cerr << "Swap memory region requires a phase type!" << std::endl;
                         exit(EXIT_FAILURE);
                     }
 
@@ -208,9 +216,9 @@ extern "C" void testbench_memory_initial(const char *input_file, unsigned long i
             mem_pool[VNT_MEM].register_normal_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file);
         }
         else if (mem_region.type == "swap") {
-            mem_pool[DUT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode);
+            mem_pool[DUT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode, mem_region.phase);
             if (tb_config.has_variant){
-                mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode);
+                mem_pool[VNT_MEM].register_swap_blocks(mem_region.start_addr, mem_region.max_len, mem_region.init_file, mem_region.swap_id, mem_region.mode, mem_region.phase);
             }
         }
         else {
