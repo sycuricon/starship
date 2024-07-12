@@ -17,6 +17,6 @@ yosys tsum --verbose
 
 yosys opt -purge
 
-yosys tsink --verbose --output build/rocket-chip/XiangShan.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).sink
+yosys thook
 
 yosys write_verilog -simple-lhs build/rocket-chip/XiangShan.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).top.ift.v

@@ -197,6 +197,8 @@ $(YOSYS_TOP_VERILOG_OPT): $(ROCKET_TOP_SRAM) $(ROCKET_ROM) $(ROCKET_TOP_VERILOG)
 
 $(YOSYS_TOP_VERILOG_IFT): $(YOSYS_TOP_VERILOG_OPT) | $(ROCKET_INCLUDE)
 	yosys -c $(YOSYS_SRC)/$(STARSHIP_CORE)_ift.tcl
+	sed -i "s/.IFT_RULE(\"REPLACE_ME_TO_IFT_RULE\")/.IFT_RULE(IFT_RULE)/g" $(YOSYS_TOP_VERILOG_IFT)
+	sed -i "/module/{:a;N;/);/!ba;s/\(module[^\)]*\));/&\nparameter string IFT_RULE = \"none\";/}" $(YOSYS_TOP_VERILOG_IFT)
 
 verilog-instrument: $(YOSYS_TOP_VERILOG_OPT)
 	rm -f $(YOSYS_TOP_VERILOG_IFT)
