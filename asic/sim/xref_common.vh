@@ -14,8 +14,8 @@
   `define DUT_PIPELINE  `DUT_CPU_TOP.core.i_ariane.i_cva6
   `define DUT_INTERRUPT `DUT_PIPELINE.ipi_i
 `elsif TARGET_XiangShan
-  `define DUT_CPU_TOP   `DUT_TILE_TOP.tile_reset_domain_xiangshan_tile
-  `define DUT_PIPELINE  `DUT_CPU_TOP.core.core.backend
+  `define DUT_CPU_TOP   `DUT_TILE_TOP.tile_reset_domain_xiangshan_tile.core.core
+  `define DUT_PIPELINE  `DUT_CPU_TOP.backend
   `define DUT_INTERRUPT `DUT_PIPELINE.io_externalInterrupt_msip
 `else // TARGET_ROCKET
   `define DUT_CPU_TOP   `DUT_TILE_TOP.tile_reset_domain_tile

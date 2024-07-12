@@ -7,6 +7,7 @@ module taintcell_1I1O(A, A_taint, Y_taint);
     parameter int    A_WIDTH = 0;
     parameter int    Y_WIDTH = 0;
     parameter string TYPE = "default";
+    parameter string IFT_RULE = "none";
 
     localparam int   INPUT_WIDTH = A_WIDTH;
     localparam int   OUTPUT_WIDTH = Y_WIDTH;
@@ -21,18 +22,25 @@ module taintcell_1I1O(A, A_taint, Y_taint);
     wire [INPUT_WIDTH-1:0] At_san = A_SIGNED ? $signed(A_taint) : A_taint;
 
     generate
-        case (TYPE)
-            "logic_not", "reduce_or", "reduce_bool": begin: genreducenot
-                assign Y_taint = !(~At_san & A_san) & |At_san;
-            end
-            "reduce_and": begin: genreduceand
-                assign Y_taint = &(At_san | A_san) & |At_san;
-            end
-            "reduce_xor": begin: genreducexor
-                assign Y_taint = |At_san;
+        case (IFT_RULE)
+            "diva", "data": begin
+                case (TYPE)
+                    "logic_not", "reduce_or", "reduce_bool": begin: genreducenot
+                        assign Y_taint = !(~At_san & A_san) & |At_san;
+                    end
+                    "reduce_and": begin: genreduceand
+                        assign Y_taint = &(At_san | A_san) & |At_san;
+                    end
+                    "reduce_xor": begin: genreducexor
+                        assign Y_taint = |At_san;
+                    end
+                    default: begin: gendefault
+                        assign Y_taint = At_san;
+                    end
+                endcase
             end
             default: begin: gendefault
-                assign Y_taint = At_san;
+                assign Y_taint = 0;
             end
         endcase
     endgenerate
@@ -47,6 +55,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     parameter int    B_WIDTH = 0;
     parameter int    Y_WIDTH = 0;
     parameter string TYPE = "default";
+    parameter string IFT_RULE = "none";
 
     localparam int   INPUT_WIDTH = A_WIDTH > B_WIDTH ? A_WIDTH : B_WIDTH;
     localparam int   OUTPUT_WIDTH = Y_WIDTH;
@@ -66,9 +75,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
 
     int unsigned ref_id = 0;
     initial begin
-`ifdef HASVARIANT
         ref_id = register_reference($sformatf("%m"));
-`endif
     end
 
     import "DPI-C" function byte unsigned xref_diff_gate_cmp(longint now, int unsigned ref_id);
@@ -79,49 +86,57 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
     endfunction
 
     generate
-        case (TYPE)
-            "and": begin: genand
-                assign Y_taint = (At_san & B_san) | (Bt_san & A_san) | (At_san & Bt_san);
-            end
-            "or": begin: genor
-                assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
-            end
-            "eq", "ne", "lt", "le", "gt", "ge": begin: gencmp
-`ifdef HASVARIANT
-                reg cmp_diff;
-                always @(*) begin
-                    if (|{At_san, Bt_san}) begin
-                        cmp_diff = xref_diff_gate_cmp($time, ref_id);
+        case (IFT_RULE)
+            "diva", "data": begin
+                case (TYPE)
+                    "and": begin: genand
+                        assign Y_taint = (At_san & B_san) | (Bt_san & A_san) | (At_san & Bt_san);
                     end
-                    else begin
-                        cmp_diff = 0;
+                    "or": begin: genor
+                        assign Y_taint = (At_san & ~B_san) | (Bt_san & ~A_san) | (At_san & Bt_san);
                     end
-                end
-                assign Y_taint = cmp_diff;
-`else
-                assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san)));
-`endif
+                    "eq", "ne", "lt", "le", "gt", "ge": begin: gencmp
+                        if (IFT_RULE == "diva") begin
+                            reg cmp_diff;
+                            always @(*) begin
+                                if (|{At_san, Bt_san}) begin
+                                    cmp_diff = xref_diff_gate_cmp($time, ref_id);
+                                end
+                                else begin
+                                    cmp_diff = 0;
+                                end
+                            end
+                            assign Y_taint = cmp_diff;
+                        end
+                        else begin
+                            assign Y_taint = ((A_san & ~(At_san | Bt_san)) == (B_san & ~(At_san | Bt_san))) & |{At_san, Bt_san};
+                        end
+                    end
+                    "shl": begin: genshl
+                        assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
+                    end
+                    "sshl": begin: gensshl
+                        assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san <<< B_san;
+                    end
+                    "shr": begin: genshr
+                        assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >> B_san;
+                    end
+                    "sshr", "shift", "shiftx": begin: gensshr
+                        assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
+                    end
+                    "add": begin: genadd
+                        assign Y_taint = (((A_san & ~At_san) + (B_san & ~Bt_san)) ^ ((A_san | At_san) + (B_san | Bt_san))) | At_san | Bt_san;
+                    end
+                    "sub": begin: gensub
+                        assign Y_taint = (((A_san & ~At_san) - (B_san & ~Bt_san)) ^ ((A_san | At_san) - (B_san | Bt_san))) | At_san | Bt_san;
+                    end
+                    default: begin: gendefault
+                        assign Y_taint = {Y_WIDTH{|{At_san, Bt_san}}};
+                    end
+                endcase
             end
-            "shl": begin: genshl
-                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san << B_san;
-            end
-            "sshl": begin: gensshl
-                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san <<< B_san;
-            end
-            "shr": begin: genshr
-                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >> B_san;
-            end
-            "sshr", "shift", "shiftx": begin: gensshr
-                assign Y_taint = Bt_san ? {Y_WIDTH{1'b1}} : At_san >>> B_san;
-            end
-            "add": begin: genadd
-                assign Y_taint = (((A_san & ~At_san) + (B_san & ~Bt_san)) ^ ((A_san | At_san) + (B_san | Bt_san))) | At_san | Bt_san;
-            end
-            "sub": begin: gensub
-                assign Y_taint = (((A_san & ~At_san) - (B_san & ~Bt_san)) ^ ((A_san | At_san) - (B_san | Bt_san))) | At_san | Bt_san;
-            end
-            default: begin: gendefault
-                assign Y_taint = {Y_WIDTH{|{At_san, Bt_san}}};
+            default: begin
+                assign Y_taint = 0;
             end
         endcase
     endgenerate
@@ -133,6 +148,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
     parameter int    WIDTH = 32'd64;
     parameter string TYPE = "mux";
+    parameter string IFT_RULE = "none";
 
     input [WIDTH-1:0] A;
     input [WIDTH-1:0] B;
@@ -149,9 +165,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 
     int unsigned ref_id = 0;
     initial begin
-`ifdef HASVARIANT
         ref_id = register_reference($sformatf("%m"));
-`endif
     end
 
     import "DPI-C" function byte unsigned xref_diff_mux_sel(longint now, int unsigned ref_id);
@@ -161,19 +175,32 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
         select = S_san;
     endfunction
 
-    reg S_diff = 1;
-
-    always @(*) begin
-        if (S_taint) begin
-`ifdef HASVARIANT
-            S_diff = xref_diff_mux_sel($time, ref_id);
-`endif
-            Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
-        end
-        else begin
-            Y_taint = S_san ? B_taint : A_taint;
-        end
-    end
+    generate
+        case (IFT_RULE)
+            "diva": begin
+                reg S_diff = 1;
+                always @(*) begin
+                    if (S_taint) begin
+                        S_diff = xref_diff_mux_sel($time, ref_id);
+                        Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
+                    end
+                    else begin
+                        Y_taint = S_san ? B_taint : A_taint;
+                    end
+                end
+            end
+            "data": begin
+                always @(*) begin
+                    Y_taint = S_san ? B_taint : A_taint;
+                end
+            end
+            default: begin
+                always @(*) begin
+                    Y_taint = 0;
+                end
+            end
+        endcase
+    endgenerate
 
 endmodule
 
@@ -189,6 +216,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 
     parameter int    WIDTH = 0;
     parameter string TYPE = "dff";
+    parameter string IFT_RULE = "none";
     parameter int    TAINT_SINK = 0;
     parameter string LIVENESS_TYPE = "none";
     parameter int    LIVENESS_SIZE = 0;
@@ -227,7 +255,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     end
 
     final begin
-        if (TAINT_SINK && (ref_id % 2 == 0)) begin
+        if (TAINT_SINK && (IFT_RULE == "diva")) begin
             if (register_taint) begin
                 reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
@@ -282,208 +310,227 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         arst = pos_arst;
     endfunction
 
-    reg en_diff = 1, srst_diff = 1, arst_diff = 1;
-
     generate
-        case (TYPE)
-            "dff": begin: gendff
-                always @(posedge pos_clk) begin
-                    register_taint <= D_taint;
-                end
-            end
-            "sdff": begin: gensdff
-                always @(posedge pos_clk) begin
-                    if (pos_srst) begin
-                        if (SRST_taint) begin
-`ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst($time, ref_id);
-`endif
-                            register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
-                        end
-                        else begin
-                            register_taint <= 0;
-                        end
-                    end
-                    else begin
-                        if (SRST_taint) begin
-`ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst($time, ref_id);
-`endif
-                            register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
-                        end
-                        else begin
+        case (IFT_RULE)
+            "diva": begin
+                reg en_diff = 1, srst_diff = 1, arst_diff = 1;
+                case (TYPE)
+                    "dff": begin: gendff
+                        always @(posedge pos_clk) begin
                             register_taint <= D_taint;
                         end
                     end
-                end
-            end
-            "adff": begin: genadff
-                always @(posedge pos_clk, posedge pos_arst) begin
-                    if (pos_arst) begin
-                        if (ARST_taint) begin
-`ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst($time, ref_id);
-`endif
-                            register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
-                        end
-                        else begin
-                            register_taint <= 0;
+                    "sdff": begin: gensdff
+                        always @(posedge pos_clk) begin
+                            if (pos_srst) begin
+                                if (SRST_taint) begin
+                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                end
+                                else begin
+                                    register_taint <= 0;
+                                end
+                            end
+                            else begin
+                                if (SRST_taint) begin
+                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
+                                end
+                                else begin
+                                    register_taint <= D_taint;
+                                end
+                            end
                         end
                     end
-                    else begin
-                        if (ARST_taint) begin
-`ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst($time, ref_id);
-`endif
-                            register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
+                    "adff": begin: genadff
+                        always @(posedge pos_clk, posedge pos_arst) begin
+                            if (pos_arst) begin
+                                if (ARST_taint) begin
+                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
+                                end
+                                else begin
+                                    register_taint <= 0;
+                                end
+                            end
+                            else begin
+                                if (ARST_taint) begin
+                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
+                                end
+                                else begin
+                                    register_taint <= D_taint;
+                                end
+                            end
                         end
-                        else begin
+                    end
+                    "dffe": begin: gendffe
+                        always @(posedge pos_clk) begin
+                            if (pos_en) begin
+                                if (EN_taint) begin
+                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                end
+                                else begin
+                                    register_taint <= D_taint;
+                                end
+                            end
+                            else begin
+                                if (EN_taint) begin
+                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                end
+                            end
+                        end
+                    end
+                    "sdffe": begin: gensdffe
+                        always @(posedge pos_clk) begin
+                            if (pos_srst) begin
+                                if (SRST_taint) begin
+                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                end
+                                else begin
+                                    register_taint <= 0;
+                                end
+                            end
+                            else begin
+                                if (pos_en) begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
+                                end
+                                else begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    "adffe": begin: genadffe
+                        always @(posedge pos_clk, posedge pos_arst) begin
+                            if (pos_arst) begin
+                                if (ARST_taint) begin
+                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
+                                end
+                                else begin
+                                    register_taint <= 0;
+                                end
+                            end
+                            else begin
+                                if (pos_en) begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
+                                end
+                                else begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    "sdffce": begin: gensdffce
+                        always @(posedge pos_clk) begin
+                            if (pos_en) begin
+                                if (pos_srst) begin
+                                    if (SRST_taint) begin
+                                        srst_diff = xref_diff_dff_srst($time, ref_id);
+                                        register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                    end
+                                    else begin
+                                        register_taint <= 0;
+                                    end
+                                end
+                                else begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
+                                end
+                            end
+                            else begin
+                                if (EN_taint) begin
+                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                end
+                                else if (SRST_taint) begin
+                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
+                                end
+                            end
+                        end
+                    end
+                    default: begin: generror
+                        initial $error("Unknown dff type %s at %m", TYPE);
+                    end
+                endcase
+            end
+            "data": begin
+                case (TYPE)
+                    "dff": begin: gendff
+                        always @(posedge pos_clk) begin
                             register_taint <= D_taint;
                         end
                     end
-                end
+                    "sdff": begin: gensdff
+                        always @(posedge pos_clk) begin
+                            register_taint <= pos_srst ? 0 : D_taint;
+                        end
+                    end
+                    "adff": begin: genadff
+                        always @(posedge pos_clk, posedge pos_arst) begin
+                            register_taint <= pos_arst ? 0 : D_taint;
+                        end
+                    end
+                    "dffe": begin: gendffe
+                        always @(posedge pos_clk) begin
+                            register_taint <= pos_en ? D_taint : register_taint;
+                        end
+                    end
+                    "sdffe": begin: gensdffe
+                        always @(posedge pos_clk) begin
+                            register_taint <= pos_srst ? 0 : pos_en ? D_taint : register_taint;
+                        end
+                    end
+                    "adffe": begin: genadffe
+                        always @(posedge pos_clk, posedge pos_arst) begin
+                            register_taint <= pos_arst ? 0 : pos_en ? D_taint : register_taint;
+                        end
+                    end
+                    "sdffce": begin: gensdffce
+                        always @(posedge pos_clk) begin
+                            register_taint <= pos_en ? (pos_srst ? 0 : D_taint) : register_taint;
+                        end
+                    end
+                    default: begin: generror
+                        initial $error("Unknown dff type %s at %m", TYPE);
+                    end
+                endcase
             end
-            "dffe": begin: gendffe
-                always @(posedge pos_clk) begin
-                    if (pos_en) begin
-                        if (EN_taint) begin
-`ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                            register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
-                        end
-                        else begin
-                            register_taint <= D_taint;
-                        end
-                    end
-                    else begin
-                        if (EN_taint) begin
-`ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                            register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
-                        end
-                    end
+            default: begin
+                always @(*) begin
+                    register_taint <= 0;
                 end
-            end
-            "sdffe": begin: gensdffe
-                always @(posedge pos_clk) begin
-                    if (pos_srst) begin
-                        if (SRST_taint) begin
-`ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst($time, ref_id);
-`endif
-                            register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
-                        end
-                        else begin
-                            register_taint <= 0;
-                        end
-                    end
-                    else begin
-                        if (pos_en) begin
-                            if (EN_taint) begin
-`ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                                register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
-                            end
-                            else begin
-                                register_taint <= D_taint;
-                            end
-                        end
-                        else begin
-                            if (EN_taint) begin
-`ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                                register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
-                            end
-                        end
-                    end
-                end
-            end
-            "adffe": begin: genadffe
-                always @(posedge pos_clk, posedge pos_arst) begin
-                    if (pos_arst) begin
-                        if (ARST_taint) begin
-`ifdef HASVARIANT
-                            arst_diff = xref_diff_dff_arst($time, ref_id);
-`endif
-                            register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
-                        end
-                        else begin
-                            register_taint <= 0;
-                        end
-                    end
-                    else begin
-                        if (pos_en) begin
-                            if (EN_taint) begin
-`ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                                register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
-                            end
-                            else begin
-                                register_taint <= D_taint;
-                            end
-                        end
-                        else begin
-                            if (EN_taint) begin
-`ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                                register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
-                            end
-                        end
-                    end
-                end
-            end
-            "sdffce": begin: gensdffce
-                always @(posedge pos_clk) begin
-                    if (pos_en) begin
-                        if (pos_srst) begin
-                            if (SRST_taint) begin
-`ifdef HASVARIANT
-                                srst_diff = xref_diff_dff_srst($time, ref_id);
-`endif
-                                register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
-                            end
-                            else begin
-                                register_taint <= 0;
-                            end
-                        end
-                        else begin
-                            if (EN_taint) begin
-`ifdef HASVARIANT
-                                en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                                register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
-                            end
-                            else begin
-                                register_taint <= D_taint;
-                            end
-                        end
-                    end
-                    else begin
-                        if (EN_taint) begin
-`ifdef HASVARIANT
-                            en_diff = xref_diff_dff_en($time, ref_id);
-`endif
-                            register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
-                        end
-                        else if (SRST_taint) begin
-`ifdef HASVARIANT
-                            srst_diff = xref_diff_dff_srst($time, ref_id);
-`endif
-                            register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
-                        end
-                    end
-                end
-            end
-            default: begin: generror
-                initial $error("Unknown dff type %s at %m", TYPE);
             end
         endcase
+
     endgenerate
 endmodule
 
@@ -506,6 +553,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     parameter WR_WIDE_CONTINUATION = 1'b0;
 
     parameter string MEMID = "";
+    parameter string IFT_RULE = "none";
     parameter int    SIZE = 4;
     parameter int    OFFSET = 0;
     parameter int    ABITS = 2;
@@ -573,7 +621,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     final begin
         reg [ABITS:0] liveness_sum = 0;
         for (i = 0; i < SIZE; i = i+1) begin
-            if (memory_taint[i] && (ref_id % 2 == 0)) begin
+            if (memory_taint[i] && (IFT_RULE == "diva")) begin
                 reg liveness_mask = 1;
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
@@ -611,7 +659,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     final begin
         // $display("[%d] %m", bitmap.size());
-        if ((bitmap.size() > 0) && (ref_id % 2 == 0)) begin
+        if ((bitmap.size() > 0) && (IFT_RULE == "diva")) begin
             $fwrite(Testbench.smon.cov_fd, "%m:");
             foreach(bitmap[hash])
                 $fwrite(Testbench.smon.cov_fd, " %h", hash);
@@ -649,255 +697,298 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
         arst = RD_ARST[index];
     endfunction
 
-    reg wt_en_diff = 1;
-    reg rd_en_diff = 1, rd_srst_diff = 1, rd_arst_diff = 1;
     reg previous_taint, current_taint;
 
     generate
-        if (RD_CLK_ENABLE == 0) begin: async_read
-            always @(*) begin
-                for (i = 0; i < RD_PORTS; i = i+1) begin
-                    if (RD_ARST[i]) begin
-                        if (RD_ARST_taint[i]) begin
-`ifdef HASVARIANT
-                            rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
-`endif
-                            memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                rd_arst_diff ? {WIDTH{1'b1}} : 0;
-                        end
-                        else begin
-                            memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
-                        end
-                    end
-                    else begin
-                        if (RD_ARST_taint[i]) begin
-`ifdef HASVARIANT
-                            rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
-`endif
-                            memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                rd_arst_diff ? {WIDTH{1'b1}} : 0;
-                        end
-                        else begin
-                            memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
-                        end
-                    end
-                end
-            end
-        end
-        else if (&RD_CLK_ENABLE != 1) begin: mix_read
-            initial $fatal("Mixed read ports are not supported: %s at %m", MEMID);
-        end
-        else begin: sync_read
-            if (|RD_TRANSPARENCY_MASK | |RD_COLLISION_X_MASK)
-                initial $fatal("Transparency and collision masks are not supported: %s at %m", MEMID);
-            if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
-                initial $fatal("Mixed read clock polarities are not supported: %s at %m", MEMID);
-            always @(posedge pos_rd_clk) begin
-                for (i = 0; i < RD_PORTS; i = i+1) begin
-                    if (RD_CE_OVER_SRST[i]) begin
-                        if (RD_EN[i]) begin
-                            if (RD_SRST[i]) begin
-                                if (RD_SRST_taint[i]) begin
-`ifdef HASVARIANT
-                                    rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
-`endif
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                        rd_srst_diff ? {WIDTH{1'b1}} : 0;
+        case (IFT_RULE)
+            "diva": begin
+                reg wt_en_diff = 1;
+                reg rd_en_diff = 1, rd_srst_diff = 1, rd_arst_diff = 1;
+                if (RD_CLK_ENABLE == 0) begin: async_read
+                    always @(*) begin
+                        for (i = 0; i < RD_PORTS; i = i+1) begin
+                            if (RD_ARST[i]) begin
+                                if (RD_ARST_taint[i]) begin
+                                    rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+                                    memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        rd_arst_diff ? {WIDTH{1'b1}} : 0;
                                 end
                                 else begin
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                    memory_rd_taint[i*WIDTH +: WIDTH] = {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
                                 end
                             end
                             else begin
-                                if (RD_EN_taint[i]) begin
-`ifdef HASVARIANT
-                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
-`endif
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                if (RD_ARST_taint[i]) begin
+                                    rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+                                    memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
                                         {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                        rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                        rd_arst_diff ? {WIDTH{1'b1}} : 0;
                                 end
                                 else begin
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                    memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
                                         {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
                                 end
                             end
                         end
-                        else begin
-                            if (RD_EN_taint[i]) begin
-`ifdef HASVARIANT
-                                rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
-`endif
-                                memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
-                            end
-                            else if (RD_SRST_taint[i]) begin
-`ifdef HASVARIANT
-                                rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
-`endif
-                                memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
-                            end
-                            else begin
-                                memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
-                            end
-                        end
                     end
-                    else begin
-                        if (RD_SRST[i]) begin
-                            if (RD_SRST_taint[i]) begin
-`ifdef HASVARIANT
-                                rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
-`endif
-                                memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                    rd_srst_diff ? {WIDTH{1'b1}} : 0;
-                            end
-                            else begin
-                                memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
-                            end
-                        end
-                        else begin
-                            if (RD_EN[i]) begin
-                                if (RD_EN_taint[i]) begin
-`ifdef HASVARIANT
-                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
-`endif
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
-                                        rd_en_diff ? {WIDTH{1'b1}} : 0;
+                end
+                else if (&RD_CLK_ENABLE != 1) begin: mix_read
+                    initial $fatal("Mixed read ports are not supported: %s at %m", MEMID);
+                end
+                else begin: sync_read
+                    if (|RD_TRANSPARENCY_MASK | |RD_COLLISION_X_MASK)
+                        initial $fatal("Transparency and collision masks are not supported: %s at %m", MEMID);
+                    if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
+                        initial $fatal("Mixed read clock polarities are not supported: %s at %m", MEMID);
+                    always @(posedge pos_rd_clk) begin
+                        for (i = 0; i < RD_PORTS; i = i+1) begin
+                            if (RD_CE_OVER_SRST[i]) begin
+                                if (RD_EN[i]) begin
+                                    if (RD_SRST[i]) begin
+                                        if (RD_SRST_taint[i]) begin
+                                            rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                                rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                                        end
+                                        else begin
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                        end
+                                    end
+                                    else begin
+                                        if (RD_EN_taint[i]) begin
+                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                                rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                        end
+                                        else begin
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                        end
+                                    end
                                 end
                                 else begin
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                        {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                    if (RD_EN_taint[i]) begin
+                                        rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                        memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                    end
+                                    else if (RD_SRST_taint[i]) begin
+                                        rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                        memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                                    end
+                                    else begin
+                                        memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
+                                    end
                                 end
                             end
                             else begin
-                                if (RD_EN_taint[i]) begin
-`ifdef HASVARIANT
-                                    rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
-`endif
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                if (RD_SRST[i]) begin
+                                    if (RD_SRST_taint[i]) begin
+                                        rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                        memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                            rd_srst_diff ? {WIDTH{1'b1}} : 0;
+                                    end
+                                    else begin
+                                        memory_rd_taint[i*WIDTH +: WIDTH] <= {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                    end
                                 end
                                 else begin
-                                    memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
+                                    if (RD_EN[i]) begin
+                                        if (RD_EN_taint[i]) begin
+                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}} |
+                                                rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                        end
+                                        else begin
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                                {WIDTH{|RD_ADDR_taint[i*ABITS +: ABITS]}};
+                                        end
+                                    end
+                                    else begin
+                                        if (RD_EN_taint[i]) begin
+                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
+                                        end
+                                        else begin
+                                            memory_rd_taint[i*WIDTH +: WIDTH] <= 0;
+                                        end
+                                    end
                                 end
                             end
                         end
                     end
                 end
-            end
-        end
 
-        if (WR_CLK_ENABLE == 0) begin: async_write
-            always @(*) begin
-                for (i = 0; i < WR_PORTS; i = i+1) begin
-                    previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    if (WR_EN[i*WIDTH +: WIDTH]) begin
-                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-`ifdef HASVARIANT
-                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
-`endif
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
-                                wt_en_diff ? {WIDTH{1'b1}} : 0;
-                        end
-                        else begin
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+                if (WR_CLK_ENABLE == 0) begin: async_write
+                    always @(*) begin
+                        for (i = 0; i < WR_PORTS; i = i+1) begin
+                            previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                            if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                                else begin
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+                                end
+                            end
+                            else begin
+                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                end
+                            end
+                            current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+
+                            if (previous_taint ^ current_taint) begin
+                                if (current_taint)
+                                    taint_sum = taint_sum + 1;
+                                else
+                                    taint_sum = taint_sum - 1;
+
+                                current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                                bitmap[current_hash] = 1;
+                            end
                         end
                     end
-                    else begin
-                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-`ifdef HASVARIANT
-                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
-`endif
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                wt_en_diff ? {WIDTH{1'b1}} : 0;
+                end
+                else if (&WR_CLK_ENABLE != 1) begin: mix_write
+                    initial $fatal("Mixed write ports are not supported: %s at %m", MEMID);
+                end
+                else begin: sync_write
+                    if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
+                        initial $fatal("Mixed write clock polarities are not supported: %s at %m", MEMID);
+                    always @(posedge pos_wt_clk) begin
+                        for (i = 0; i < WR_PORTS; i = i+1) begin
+                            previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                            if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
+                                        wt_en_diff ? (WR_EN[i*WIDTH +: WIDTH] & WR_EN_taint[i*WIDTH +: WIDTH]) : 0;
+                                end
+                                else begin
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
+                                        {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+                                end
+                            end
+                            else begin
+                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                        wt_en_diff ? {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} | WR_EN_taint[i*WIDTH +: WIDTH] : 0;
+                                end
+                            end
+                            current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+
+                            if (previous_taint ^ current_taint) begin
+                                if (current_taint)
+                                    taint_sum = taint_sum + 1;
+                                else
+                                    taint_sum = taint_sum - 1;
+
+                                current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
+                                bitmap[current_hash] = 1;
+                            end
                         end
-                    end
-                    current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-
-                    if (previous_taint ^ current_taint) begin
-                        if (current_taint)
-                            taint_sum = taint_sum + 1;
-                        else
-                            taint_sum = taint_sum - 1;
-
-                        current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
-                        bitmap[current_hash] = 1;
                     end
                 end
             end
-        end
-        else if (&WR_CLK_ENABLE != 1) begin: mix_write
-            initial $fatal("Mixed write ports are not supported: %s at %m", MEMID);
-        end
-        else begin: sync_write
-            if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
-                initial $fatal("Mixed write clock polarities are not supported: %s at %m", MEMID);
-            always @(posedge pos_wt_clk) begin
-                for (i = 0; i < WR_PORTS; i = i+1) begin
-                    previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                    if (WR_EN[i*WIDTH +: WIDTH]) begin
-                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-`ifdef HASVARIANT
-                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
-`endif
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} |
-                                wt_en_diff ? (WR_EN[i*WIDTH +: WIDTH] & WR_EN_taint[i*WIDTH +: WIDTH]) : 0;
-                        end
-                        else begin
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) |
-                                {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}};
+            "data": begin
+                if (RD_CLK_ENABLE == 0) begin: async_read
+                    always @(*) begin
+                        for (i = 0; i < RD_PORTS; i = i+1) begin
+                            memory_rd_taint[i*WIDTH +: WIDTH] = RD_ARST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET];
                         end
                     end
-                    else begin
-                        if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-`ifdef HASVARIANT
-                            wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
-`endif
-                            memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                wt_en_diff ? {WIDTH{|WR_ADDR_taint[i*ABITS +: ABITS]}} | WR_EN_taint[i*WIDTH +: WIDTH] : 0;
+                end
+                else if (&RD_CLK_ENABLE != 1) begin: mix_read
+                    initial $fatal("Mixed read ports are not supported: %s at %m", MEMID);
+                end
+                else begin: sync_read
+                    if (|RD_TRANSPARENCY_MASK | |RD_COLLISION_X_MASK)
+                        initial $fatal("Transparency and collision masks are not supported: %s at %m", MEMID);
+                    if (|RD_CLK_POLARITY && !&RD_CLK_POLARITY)
+                        initial $fatal("Mixed read clock polarities are not supported: %s at %m", MEMID);
+                    always @(posedge pos_rd_clk) begin
+                        for (i = 0; i < RD_PORTS; i = i+1) begin
+                            if (RD_CE_OVER_SRST[i]) begin
+                                memory_rd_taint[i*WIDTH +: WIDTH] = RD_EN[i] ? (RD_SRST[i] ? 0 : memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET]) : 0;
+                            end
+                            else begin
+                                memory_rd_taint[i*WIDTH +: WIDTH] = RD_SRST[i] ? 0 : RD_EN[i] ? memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] : 0;
+                            end
                         end
                     end
-                    current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                end
 
-                    if (previous_taint ^ current_taint) begin
-                        if (current_taint)
-                            taint_sum = taint_sum + 1;
-                        else
-                            taint_sum = taint_sum - 1;
-
-                        current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
-                        bitmap[current_hash] = 1;
+                if (WR_CLK_ENABLE == 0) begin: async_write
+                    always @(*) begin
+                        for (i = 0; i < WR_PORTS; i = i+1) begin
+                            if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                    (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]);
+                            end
+                        end
+                    end
+                end
+                else if (&WR_CLK_ENABLE != 1) begin: mix_write
+                    initial $fatal("Mixed write ports are not supported: %s at %m", MEMID);
+                end
+                else begin: sync_write
+                    if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
+                        initial $fatal("Mixed write clock polarities are not supported: %s at %m", MEMID);
+                    always @(posedge pos_wt_clk) begin
+                        for (i = 0; i < WR_PORTS; i = i+1) begin
+                            if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]);
+                            end
+                        end
                     end
                 end
             end
-        end
+            default: begin
+                always @(*) begin
+                    memory_rd_taint[i*WIDTH +: WIDTH] = 0;
+                end
+            end
+        endcase
     endgenerate
 endmodule
 
 module tainthelp_coverage (COV_HASH);
 
     parameter signed COVERAGE_WIDTH = 0;
+    parameter string IFT_RULE = "none";
     input [COVERAGE_WIDTH-1:0] COV_HASH;
 
     bit bitmap[bit [COVERAGE_WIDTH-1:0]];
-    byte unsigned is_variant;
 
-    initial begin
-        is_variant = is_variant_hierachy($sformatf("%m"));
-    end
-
-    always @(posedge Testbench.clock) begin
-        if (COV_HASH && (is_variant == 0))
-            bitmap[COV_HASH] = 1;
-    end
+    generate
+        case (IFT_RULE)
+            "diva": begin
+                always @(posedge Testbench.clock) begin
+                    if (COV_HASH)
+                        bitmap[COV_HASH] = 1;
+                end
+            end
+        endcase
+    endgenerate
 
     final begin
         // $display("[%d] %m", bitmap.size());
-        if (bitmap.size() > 0) begin
+        if ((bitmap.size() > 0) && (IFT_RULE == "diva")) begin
             $fwrite(Testbench.smon.cov_fd, "%m:");
             foreach(bitmap[hash])
                 $fwrite(Testbench.smon.cov_fd, " %h", hash);

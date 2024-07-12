@@ -142,6 +142,9 @@ module Testbench;
   // .io_uart_tx(uart_tx),
   // .io_uart_rx(uart_rx)
   );
+
+  defparam `DUT_SOC_TOP.IFT_RULE = "data";
+  defparam `DUT_CPU_TOP.IFT_RULE = "diva";
 `endif
 
   // tty #(115200, 0) u0_tty(
