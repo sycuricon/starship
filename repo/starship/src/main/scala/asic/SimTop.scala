@@ -92,26 +92,37 @@ class TaintSource() extends Module {
     val mem_axi4_0_r_ready = Input(Bool())
     val mem_axi4_0_r_valid = Input(Bool())
     val mem_axi4_0_r_bits_id = Input(UInt(4.W))
+    val mem_axi4_0_r_bits_last = Input(Bool())
     val mem_axi4_0_r_bits_data_taint_0 = Output(UInt(64.W))
   })
-
-  val reg_last_addr = RegInit(0.U(32.W))
-  val reg_last_id = RegInit(0.U(32.W))
 
   val secret_addr = PlusArg("secret_addr", 0x80004000L, "Secret Section Start Address", 64)
   val secret_size = PlusArg("secret_size", 0x00001000, "Secret Section Length")
 
-  when (io.mem_axi4_0_ar_ready & io.mem_axi4_0_ar_valid) {
-    reg_last_addr := io.mem_axi4_0_ar_bits_addr
-    reg_last_id := io.mem_axi4_0_ar_bits_id
+  val reg_busy = RegInit(false.B)
+  val reg_matched_addr = RegInit(0.U(32.W))
+  val reg_matched_id = RegInit(0.U(32.W))
+
+  val mem_axi_ar_fire = io.mem_axi4_0_ar_ready & io.mem_axi4_0_ar_valid
+  val mem_axi_ar_match = (io.mem_axi4_0_ar_bits_addr >= secret_addr) && (io.mem_axi4_0_ar_bits_addr < (secret_addr + secret_size))
+  val mem_axi_r_fire = io.mem_axi4_0_r_ready & io.mem_axi4_0_r_valid
+  val mem_axi_r_match = io.mem_axi4_0_r_bits_id === reg_matched_id
+
+  // todo detect length
+
+  when (!reg_busy && mem_axi_ar_fire && mem_axi_ar_match) {
+    reg_busy := true.B
+    reg_matched_addr := io.mem_axi4_0_ar_bits_addr
+    reg_matched_id := io.mem_axi4_0_ar_bits_id
   }
 
   io.mem_axi4_0_r_bits_data_taint_0 := 0.U
-  when ((io.mem_axi4_0_r_ready & io.mem_axi4_0_r_valid) &&
-    (reg_last_addr >= secret_addr && reg_last_addr < (secret_addr + secret_size)) &&
-    (reg_last_id === io.mem_axi4_0_r_bits_id)
-  ) {
+  when (reg_busy && mem_axi_r_fire && mem_axi_r_match) {
     io.mem_axi4_0_r_bits_data_taint_0 := -1.S(64.W).asUInt
+
+    when (io.mem_axi4_0_r_bits_last) {
+      reg_busy := false.B
+    }
   }
 }
 
@@ -167,6 +178,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   tsrc.io.mem_axi4_0_r_ready := ldut.mem_axi4(0).r.ready
   tsrc.io.mem_axi4_0_r_valid := ldut.mem_axi4(0).r.valid
   tsrc.io.mem_axi4_0_r_bits_id := ldut.mem_axi4(0).r.bits.id
+  tsrc.io.mem_axi4_0_r_bits_last := ldut.mem_axi4(0).r.bits.last
   dut.tainted.get("mem_axi4_0_r_bits_data_taint_0").get := tsrc.io.mem_axi4_0_r_bits_data_taint_0
 
   dut.uart.headOption.foreach(uart => {
