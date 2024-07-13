@@ -65,6 +65,9 @@ module SyncMonitor (
         `INFO_VCTM_END: begin
           $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("VCTM_END_%s", suffix);
+          if(is_dut && suffix=="DEQ")begin
+            $finish;
+          end
         end
         `INFO_DELAY_START: begin
           $fwrite(event_fd, "%t, DELAY_START_%s, %d, %d\n", $time, suffix, id, is_dut);
@@ -77,6 +80,9 @@ module SyncMonitor (
         `INFO_TEXE_START: begin
           $fwrite(event_fd, "%t, TEXE_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("TEXE_START_%s", suffix);
+          if(is_dut && suffix=="DEQ")begin
+            $finish;
+          end
         end
         `INFO_TEXE_END: begin
           $fwrite(event_fd, "%t, TEXE_END_%s, %d, %d\n", $time, suffix, id, is_dut);
