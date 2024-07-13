@@ -120,7 +120,7 @@ unsigned long int SwappableMem::do_mem_swap() {
     #define DEJAVUZZ_PRIV_S     0b01
     #define DEJAVUZZ_PRIV_U     0b00
     #define DEJAVUZZ_VM_FLAG    0b100
-    #define DEJAVUZZ_ATK_TVC    0x1000
+    #define DEJAVUZZ_ATK_TVC    0b1000
     
     // TODO: replace this vector
     size_t return_info = start_addr;
