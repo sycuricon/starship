@@ -10,7 +10,7 @@
 #include <map>
 
 typedef long long int time_stamp_t;
-typedef unsigned int state_t;
+typedef unsigned long long int state_t;
 
 inline unsigned int group_idx(unsigned int idx) {
     return idx / 2;
@@ -214,6 +214,7 @@ extern "C" unsigned char xref_diff_dff_arst(time_stamp_t now, unsigned int idx) 
     }
 }
 
+// wt en 0 ~ 16
 #define IDX_MEM_WEN(idx)  (0 + idx)
 
 extern "C" void get_mem_wt_en(unsigned int index, unsigned char* en);
@@ -238,6 +239,7 @@ extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int idx,
     }
 }
 
+// rd [a|s]rst 16 ~ 24
 #define IDX_MEM_RRST(idx)  (16 + idx)
 
 extern "C" void get_mem_rd_arst(unsigned int index, unsigned char* arst);
@@ -284,6 +286,7 @@ extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int id
     }
 }
 
+// rd en 24 ~ 32
 #define IDX_MEM_REN(idx)  (24 + idx)
 
 extern "C" void get_mem_rd_en(unsigned int index, unsigned char* en);
@@ -304,6 +307,56 @@ extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int idx,
 
         unsigned char result = dut_en ^ vnt_en;
         h.set_cache(now, IDX_MEM_REN(idx), result);
+        return result;
+    }
+}
+
+// rd addr 32 ~ 40
+#define IDX_MEM_RADDR(idx)  (32 + idx)
+
+extern "C" void get_mem_rd_addr(unsigned int index, unsigned int* addr);
+extern "C" unsigned char xref_diff_mem_rd_addr(time_stamp_t now, unsigned int idx, unsigned int index) {
+    Reference& h = refMap.at(group_idx(idx));
+
+    if (h.has_cache(now, IDX_MEM_RADDR(idx))) {
+        h.clean_cache(IDX_MEM_RADDR(idx));
+        return h.get_cache(IDX_MEM_RADDR(idx));
+    }
+    else {
+        unsigned int dut_addr, vnt_addr;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_rd_addr(index, &dut_addr);
+
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_rd_addr(index, &vnt_addr);
+
+        unsigned char result = dut_addr != vnt_addr;
+        h.set_cache(now, IDX_MEM_RADDR(idx), result);
+        return result;
+    }
+}
+
+// wt addr 40 ~ 56
+#define IDX_MEM_WADDR(idx)  (40 + idx)
+
+extern "C" void get_mem_wt_addr(unsigned int index, unsigned int* addr);
+extern "C" unsigned char xref_diff_mem_wt_addr(time_stamp_t now, unsigned int idx, unsigned int index) {
+    Reference& h = refMap.at(group_idx(idx));
+
+    if (h.has_cache(now, IDX_MEM_WADDR(idx))) {
+        h.clean_cache(IDX_MEM_WADDR(idx));
+        return h.get_cache(IDX_MEM_WADDR(idx));
+    }
+    else {
+        unsigned int dut_addr, vnt_addr;
+        svSetScope(svGetScopeFromName(h.dut()));
+        get_mem_wt_addr(index, &dut_addr);
+
+        svSetScope(svGetScopeFromName(h.vnt()));
+        get_mem_wt_addr(index, &vnt_addr);
+
+        unsigned char result = dut_addr != vnt_addr;
+        h.set_cache(now, IDX_MEM_WADDR(idx), result);
         return result;
     }
 }
