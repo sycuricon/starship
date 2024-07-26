@@ -323,8 +323,8 @@ VCS_PARAL_RUN	:= # -fgp=num_threads:4,num_fsdb_threads:1 # -fgp=num_cores:$(shel
 
 VCS_OPTION	:= -quiet -notice -line +rad -full64 +nospecify +notimingcheck -deraceclockdata 		\
 			   -sverilog +systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+ -assert svaext 			\
-			   +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps +incdir+$(VCS_INCLUDE) 	\
-			   $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" -lconfig++									\
+			   +vcs+lic+wait +vcs+initreg+random +v2k -debug_acc+all -timescale=1ns/10ps 			\
+			   +incdir+$(VCS_INCLUDE) $(VCS_PARAL_COM) -CFLAGS "$(VCS_CFLAGS)" -lconfig++			\
 			   $(CHISEL_DEFINE) $(VCS_DEFINE)
 VCS_SIM_OPTION	:= +vcs+initreg+0 $(VCS_PARAL_RUN) +testcase=$(STARSHIP_TESTCASE) +label=$(SIMULATION_LABEL)
 
