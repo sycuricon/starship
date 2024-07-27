@@ -245,7 +245,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     reg [WIDTH-1:0] register_taint = 0;
     assign Q_taint = register_taint;
     assign taint_sum = |register_taint;
-    assign taint_hash = register_taint ? COVERAGE_ID : 0;
+    assign taint_hash = taint_sum;
 
     int unsigned ref_id = 0;
     initial begin
@@ -589,7 +589,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     input [WR_PORTS*WIDTH-1:0] WR_DATA_taint;
 
     input [SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2;
-    output reg [ABITS:0] taint_sum;
+    output reg [ABITS:0] taint_sum = 0;
 
     int i, j;
     wire pos_rd_clk = RD_CLK[0] == RD_CLK_POLARITY[0];
@@ -597,7 +597,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
     int unsigned ref_id;
     reg [WIDTH-1:0] memory_taint [EXT_SIZE-1:0];
-    reg [31:0] current_hash = 0;
     bit bitmap[bit [31:0]];
   
     initial begin
@@ -614,7 +613,6 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             $error("Too deep memory 2^%d for %m", ABITS);
         end
 
-        taint_sum = 0;
         ref_id = register_reference($sformatf("%m"));
 
         for (i = 0; i < EXT_SIZE; i = i+1)
@@ -863,8 +861,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 else
                                     taint_sum = taint_sum - 1;
 
-                                current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
-                                bitmap[current_hash] = 1;
+                                bitmap[taint_sum] = 1;
                             end
                         end
                     end
@@ -906,8 +903,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 else
                                     taint_sum = taint_sum - 1;
 
-                                current_hash = (current_hash << ABITS) ^ (WR_ADDR[i*ABITS +: ABITS] - OFFSET);
-                                bitmap[current_hash] = 1;
+                                bitmap[taint_sum] = 1;
                             end
                         end
                     end
