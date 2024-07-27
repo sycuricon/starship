@@ -17,6 +17,7 @@ yosys tsum --verbose
 
 yosys opt -purge
 
+yosys setattr -mod -set pift_ignore_module 0 XS_L2Top
 yosys thook
 
 yosys write_verilog -simple-lhs build/rocket-chip/XiangShan.$::env(YOSYS_TOP).$::env(YOSYS_CONFIG).top.ift.v
