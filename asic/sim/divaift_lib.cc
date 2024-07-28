@@ -12,12 +12,12 @@
 typedef long long int time_stamp_t;
 typedef unsigned long long int state_t;
 
-inline unsigned int group_idx(unsigned int idx) {
-    return idx / 2;
+inline unsigned int group_idx(unsigned int ref_id) {
+    return ref_id / 2;
 }
 
-inline bool is_variant_idx(unsigned int idx) {
-    return (idx % 2) != 0;
+inline bool is_variant_id(unsigned int ref_id) {
+    return (ref_id % 2) != 0;
 }
 
 struct Reference {
@@ -98,8 +98,8 @@ extern "C" unsigned int register_reference(const char* hierarchy) {
 #define IDX_GATE_CMP   0
 
 extern "C" void get_gate_cmp(unsigned char* cmp);
-extern "C" unsigned char xref_diff_gate_cmp(time_stamp_t now, unsigned int idx) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_gate_cmp(time_stamp_t now, unsigned int ref_id) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_GATE_CMP)) {
         h.clean_cache(IDX_GATE_CMP);
@@ -121,8 +121,8 @@ extern "C" unsigned char xref_diff_gate_cmp(time_stamp_t now, unsigned int idx) 
 #define IDX_MUX_S   0
 
 extern "C" void get_mux_sel(unsigned char* select);
-extern "C" unsigned char xref_diff_mux_sel(time_stamp_t now, unsigned int idx) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mux_sel(time_stamp_t now, unsigned int ref_id) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MUX_S)) {
         h.clean_cache(IDX_MUX_S);
@@ -145,8 +145,8 @@ extern "C" unsigned char xref_diff_mux_sel(time_stamp_t now, unsigned int idx) {
 #define IDX_DFF_EN  0
 
 extern "C" void get_dff_en(unsigned char* en);
-extern "C" unsigned char xref_diff_dff_en(time_stamp_t now, unsigned int idx) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_dff_en(time_stamp_t now, unsigned int ref_id) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_DFF_EN)) {
         h.clean_cache(IDX_DFF_EN);
@@ -169,8 +169,8 @@ extern "C" unsigned char xref_diff_dff_en(time_stamp_t now, unsigned int idx) {
 #define IDX_DFF_SRST  1
 
 extern "C" void get_dff_srst(unsigned char* srst);
-extern "C" unsigned char xref_diff_dff_srst(time_stamp_t now, unsigned int idx) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_dff_srst(time_stamp_t now, unsigned int ref_id) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_DFF_SRST)) {
         h.clean_cache(IDX_DFF_SRST);
@@ -193,8 +193,8 @@ extern "C" unsigned char xref_diff_dff_srst(time_stamp_t now, unsigned int idx) 
 #define IDX_DFF_ARST  2
 
 extern "C" void get_dff_arst(unsigned char* arst);
-extern "C" unsigned char xref_diff_dff_arst(time_stamp_t now, unsigned int idx) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_dff_arst(time_stamp_t now, unsigned int ref_id) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_DFF_ARST)) {
         h.clean_cache(IDX_DFF_ARST);
@@ -218,8 +218,8 @@ extern "C" unsigned char xref_diff_dff_arst(time_stamp_t now, unsigned int idx) 
 #define IDX_MEM_WEN(index)  (0 + index)
 
 extern "C" void get_mem_wt_en(unsigned int index, unsigned char* en);
-extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_WEN(index))) {
         h.clean_cache(IDX_MEM_WEN(index));
@@ -243,8 +243,8 @@ extern "C" unsigned char xref_diff_mem_wt_en(time_stamp_t now, unsigned int idx,
 #define IDX_MEM_RRST(index)  (16 + index)
 
 extern "C" void get_mem_rd_arst(unsigned int index, unsigned char* arst);
-extern "C" unsigned char xref_diff_mem_rd_arst(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_rd_arst(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_RRST(index))) {
         h.clean_cache(IDX_MEM_RRST(index));
@@ -265,8 +265,8 @@ extern "C" unsigned char xref_diff_mem_rd_arst(time_stamp_t now, unsigned int id
 }
 
 extern "C" void get_mem_rd_srst(unsigned int index, unsigned char* srst);
-extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_RRST(index))) {
         h.clean_cache(IDX_MEM_RRST(index));
@@ -290,8 +290,8 @@ extern "C" unsigned char xref_diff_mem_rd_srst(time_stamp_t now, unsigned int id
 #define IDX_MEM_REN(index)  (24 + index)
 
 extern "C" void get_mem_rd_en(unsigned int index, unsigned char* en);
-extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_REN(index))) {
         h.clean_cache(IDX_MEM_REN(index));
@@ -315,8 +315,8 @@ extern "C" unsigned char xref_diff_mem_rd_en(time_stamp_t now, unsigned int idx,
 #define IDX_MEM_RADDR(index)  (32 + index)
 
 extern "C" void get_mem_rd_addr(unsigned int index, unsigned int* addr);
-extern "C" unsigned char xref_diff_mem_rd_addr(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_rd_addr(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_RADDR(index))) {
         h.clean_cache(IDX_MEM_RADDR(index));
@@ -340,8 +340,8 @@ extern "C" unsigned char xref_diff_mem_rd_addr(time_stamp_t now, unsigned int id
 #define IDX_MEM_WADDR(index)  (40 + index)
 
 extern "C" void get_mem_wt_addr(unsigned int index, unsigned int* addr);
-extern "C" unsigned char xref_diff_mem_wt_addr(time_stamp_t now, unsigned int idx, unsigned int index) {
-    Reference& h = refMap.at(group_idx(idx));
+extern "C" unsigned char xref_diff_mem_wt_addr(time_stamp_t now, unsigned int ref_id, unsigned int index) {
+    Reference& h = refMap.at(group_idx(ref_id));
 
     if (h.has_cache(now, IDX_MEM_WADDR(index))) {
         h.clean_cache(IDX_MEM_WADDR(index));
