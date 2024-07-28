@@ -110,7 +110,7 @@ module SyncMonitor (
         end
         `INFO_BIM_END: begin
           $fwrite(event_fd, "%t, BIM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
-          $display("VCTM_END_%s", suffix);
+          $display("BIM_END_%s", suffix);
         end
         `INFO_TRAIN_START: begin
           $fwrite(event_fd, "%t, TRAIN_START_%s, %d, %d\n", $time, suffix, id, is_dut);
