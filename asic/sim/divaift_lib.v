@@ -205,7 +205,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
 endmodule
 
 module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_taint, D_taint, Q_taint,
-    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum, taint_hash);
+    LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, taint_sum);
 
     parameter CLK_POLARITY = 1'b1;
     parameter EN_POLARITY = 1'b1;
@@ -221,8 +221,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     parameter string LIVENESS_TYPE = "none";
     parameter int    LIVENESS_SIZE = 0;
     parameter int    LIVENESS_IDX = 0;
-    parameter int    COVERAGE_WIDTH = 0;
-    parameter int    COVERAGE_ID = 0;
 
     input CLK, ARST, SRST, EN;
     input [WIDTH-1:0] D;
@@ -232,7 +230,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     output [WIDTH-1:0] Q_taint;
     input [LIVENESS_SIZE-1:0] LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2;
     output taint_sum;
-    output [COVERAGE_WIDTH-1:0] taint_hash;
 
     wire pos_clk = CLK == CLK_POLARITY;
     wire pos_srst = SRST == SRST_POLARITY;
@@ -245,7 +242,6 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     reg [WIDTH-1:0] register_taint = 0;
     assign Q_taint = register_taint;
     assign taint_sum = |register_taint;
-    assign taint_hash = taint_sum;
 
     int unsigned ref_id = 0;
     initial begin
