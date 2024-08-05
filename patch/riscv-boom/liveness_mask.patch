@@ -195,6 +195,36 @@ index 5af74617..9bfdaf8b 100644
    val do_enq = io.enq.fire
  
  
+diff --git a/src/main/scala/lsu/dcache.scala b/src/main/scala/lsu/dcache.scala
+index 9f326f50..26b83a73 100644
+--- a/src/main/scala/lsu/dcache.scala
++++ b/src/main/scala/lsu/dcache.scala
+@@ -20,6 +20,7 @@ import boom.common._
+ import boom.exu.BrUpdateInfo
+ import boom.util.{IsKilledByBranch, GetNewBrMask, BranchKillableQueue, IsOlder, UpdateBrMask, AgePriorityEncoder, WrapInc, Transpose}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
+ 
+ class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCacheModule()(p) {
+   val io = IO(new Bundle {
+@@ -46,6 +47,17 @@ class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1Hella
+   val wb_buffer = Reg(Vec(refillCycles, UInt(encRowBits.W)))
+   val acked = RegInit(false.B)
+ 
++  val wb_valid_cond = Wire(Bool())
++  wb_valid_cond := state =/= s_invalid
++  dontTouch(wb_valid_cond)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(wb_valid_cond.toTarget, "keep"),
++    ) ++ (0 until refillCycles).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(wb_buffer(vec_idx).toTarget, s"divaift_liveness_mask = \"cond,${wb_valid_cond.name}\"")
++    ))
++  })
++
+   io.idx.valid       := state =/= s_invalid
+   io.idx.bits        := req.idx
+   io.release.valid   := false.B
 diff --git a/src/main/scala/lsu/lsu.scala b/src/main/scala/lsu/lsu.scala
 index 1eb8ba24..b6699a3b 100644
 --- a/src/main/scala/lsu/lsu.scala
