@@ -94,8 +94,8 @@ def main(args):
                 
     with open(args.output, "w") as f:
         for module, target_set in final_array_list.items():
-            if args.prefix is not None:
-                if any(map(lambda x: module.startswith(x), args.prefix)):
+            if args.ignore is not None:
+                if any(map(lambda x: module.startswith(x), args.ignore)):
                     continue
 
             f.write(f"{module}\n")
@@ -113,7 +113,10 @@ if __name__ == "__main__":
         "-o", "--output", type=str, required=True, help="output file name"
     )
     parser.add_argument(
-        "-p", "--prefix", nargs="*", type=str, default=["TL", "AXI", "XS_TL", "XS_AXI", "XS_SRAMTemplate", "XS_SyncDataModuleTemplate"],
+        "-p", "--ignore", nargs="*", type=str, default=[
+            "TL", "AXI", "XS_TL", "XS_AXI", 
+            "XS_SRAMTemplate", "XS_SyncDataModuleTemplate",
+            "XS_FADD_pipe", "XS_BypassNetwork"],
         help="ignored module prefix"
     )
 
