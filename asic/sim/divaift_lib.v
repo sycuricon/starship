@@ -278,6 +278,12 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                     "cond_n": begin: bitmapsnmask
                         liveness_mask = ~LIVENESS_OP0;
                     end
+                    "bitmap_self": begin: bitmapselfmask
+                        liveness_mask = |(register_taint & Q_san);
+                    end
+                    "bitmap_self_n": begin: bitmapselfnmask
+                        liveness_mask = |(register_taint & ~Q_san);
+                    end
                 endcase
 
                 if (liveness_mask) begin
