@@ -12,6 +12,7 @@
 `define INFO_BIM_END        32'h00b02013
 `define INFO_TRAIN_START    32'h00c02013
 `define INFO_TRAIN_END      32'h00d02013
+`define INFO_SIM_EXIT       32'h00e02013
 
 module SyncMonitor (
   input clock,
@@ -65,6 +66,10 @@ module SyncMonitor (
         `INFO_VCTM_END: begin
           $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("VCTM_END_%s", suffix);
+        end
+        `INFO_SIM_EXIT: begin
+          $fwrite(event_fd, "%t, SIM_EXIT_%s, %d, %d\n", $time, suffix, id, is_dut);
+          $display("SIM_EXIT_%s", suffix);
           if(is_dut)begin
             $finish;
           end
