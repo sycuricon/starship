@@ -21,6 +21,38 @@ index 0f8d39e3..d43294e9 100644
    val pregfile         = Module(new RegisterFileSynthesizable(
                              ftqSz,
                              exe_units.numIrfReaders,
+diff --git a/src/main/scala/exu/execution-units/functional-unit.scala b/src/main/scala/exu/execution-units/functional-unit.scala
+index f615ccd5..900a0f48 100644
+--- a/src/main/scala/exu/execution-units/functional-unit.scala
++++ b/src/main/scala/exu/execution-units/functional-unit.scala
+@@ -29,6 +29,8 @@ import boom.common._
+ import boom.ifu._
+ import boom.util._
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**t
+  * Functional unit constants
+  */
+@@ -241,6 +243,18 @@ abstract class PipelinedFunctionalUnit(
+     r_uops(0)   := io.req.bits.uop
+     r_uops(0).br_mask := GetNewBrMask(io.brupdate, io.req.bits.uop)
+ 
++    val func_valid_vector = Wire(UInt(numStages.W))
++    func_valid_vector := r_valids.asTypeOf(func_valid_vector)
++    dontTouch(func_valid_vector)
++    annotate(new ChiselMultiAnnotation {
++      override def toFirrtl = Seq(
++        firrtl.AttributeAnnotation(func_valid_vector.toTarget, "keep"),
++      ) ++ (0 until numStages).flatMap(vec_idx => Seq(
++        firrtl.AttributeAnnotation(r_valids(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numStages,$vec_idx,${func_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(r_uops(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numStages,$vec_idx,${func_valid_vector.name}\"")
++      ))
++    })
++
+     // handle middle of the pipeline
+     for (i <- 1 until numStages) {
+       r_valids(i) := r_valids(i-1) && !IsKilledByBranch(io.brupdate, r_uops(i-1)) && !io.req.bits.kill
 diff --git a/src/main/scala/exu/fp-pipeline.scala b/src/main/scala/exu/fp-pipeline.scala
 index f2f358df..8f934e0d 100644
 --- a/src/main/scala/exu/fp-pipeline.scala
@@ -83,6 +115,32 @@ index 695a9434..197a275d 100644
  
    // --------------------------------------------------------------
    // Read ports.
+diff --git a/src/main/scala/exu/rename/rename-freelist.scala b/src/main/scala/exu/rename/rename-freelist.scala
+index ef623da0..1cc7ec5c 100644
+--- a/src/main/scala/exu/rename/rename-freelist.scala
++++ b/src/main/scala/exu/rename/rename-freelist.scala
+@@ -17,6 +17,8 @@ import boom.common._
+ import boom.util._
+ import org.chipsalliance.cde.config.Parameters
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class RenameFreeList(
+   val plWidth: Int,
+   val numPregs: Int,
+@@ -50,6 +52,12 @@ class RenameFreeList(
+   val free_list = RegInit(UInt(numPregs.W), ~(1.U(numPregs.W)))
+   val br_alloc_lists = Reg(Vec(maxBrCount, UInt(numPregs.W)))
+ 
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = (0 until maxBrCount).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(br_alloc_lists(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap_self_n\"")
++    ))
++  })
++
+   // Select pregs from the free list.
+   val sels = SelectFirstN(free_list, plWidth)
+   val sel_fire  = Wire(Vec(plWidth, Bool()))
 diff --git a/src/main/scala/exu/rob.scala b/src/main/scala/exu/rob.scala
 index 2f0e4aee..e5b9cbd8 100644
 --- a/src/main/scala/exu/rob.scala
