@@ -65,7 +65,7 @@ module SyncMonitor (
         `INFO_VCTM_END: begin
           $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("VCTM_END_%s", suffix);
-          if(is_dut && suffix=="DEQ")begin
+          if(is_dut)begin
             $finish;
           end
         end
