@@ -64,7 +64,8 @@ struct Reference {
     }
 
     bool has_cache(time_stamp_t now, unsigned char state_idx) {
-        return ((cached >> state_idx) & 1) && (time_stamp == now);
+        return false;
+        // return ((cached >> state_idx) & 1) && (time_stamp == now);
     }
 
     void set_cache(time_stamp_t now, unsigned char state_idx, unsigned char update) {
