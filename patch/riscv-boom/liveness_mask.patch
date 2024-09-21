@@ -1,19 +1,23 @@
 diff --git a/src/main/scala/exu/core.scala b/src/main/scala/exu/core.scala
-index 0f8d39e3..d43294e9 100644
+index 0f8d39e3..3e77ea88 100644
 --- a/src/main/scala/exu/core.scala
 +++ b/src/main/scala/exu/core.scala
-@@ -105,6 +105,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
+@@ -105,6 +105,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
    val pred_rename_stage = Module(new PredRenameStage(coreWidth, ftqSz, 1))
    val rename_stages    = if (usingFPU) Seq(rename_stage, fp_rename_stage, pred_rename_stage) else Seq(rename_stage, pred_rename_stage)
  
++  rename_stage.io.debug_branch_mask := dec_brmask_logic.io.debug_branch_mask
++  pred_rename_stage.io.debug_branch_mask := 0.U
++
 +  if (usingFPU) {
 +    fp_pipeline.io.debug.freelist := fp_rename_stage.io.debug.freelist
++    fp_rename_stage.io.debug_branch_mask := dec_brmask_logic.io.debug_branch_mask
 +  }
 +
    val mem_iss_unit     = Module(new IssueUnitCollapsing(memIssueParam, numIntIssueWakeupPorts))
    mem_iss_unit.suggestName("mem_issue_unit")
    val int_iss_unit     = Module(new IssueUnitCollapsing(intIssueParam, numIntIssueWakeupPorts))
-@@ -119,6 +123,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
+@@ -119,6 +127,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
                               numIrfWritePorts,
                               xLen,
                               Seq.fill(memWidth) {true} ++ exe_units.bypassable_write_port_mask)) // bypassable ll_wb
@@ -141,6 +145,73 @@ index ef623da0..1cc7ec5c 100644
    // Select pregs from the free list.
    val sels = SelectFirstN(free_list, plWidth)
    val sel_fire  = Wire(Vec(plWidth, Bool()))
+diff --git a/src/main/scala/exu/rename/rename-maptable.scala b/src/main/scala/exu/rename/rename-maptable.scala
+index 938cfc9b..c0156f1b 100644
+--- a/src/main/scala/exu/rename/rename-maptable.scala
++++ b/src/main/scala/exu/rename/rename-maptable.scala
+@@ -17,6 +17,8 @@ import boom.common._
+ import boom.util._
+ import org.chipsalliance.cde.config.Parameters
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class MapReq(val lregSz: Int) extends Bundle
+ {
+   val lrs1 = UInt(lregSz.W)
+@@ -64,12 +66,32 @@ class RenameMapTable(
+     // Signals for restoring state following misspeculation.
+     val brupdate      = Input(new BrUpdateInfo)
+     val rollback    = Input(Bool())
++
++    val debug_rob_empty   = Input(Bool())
++    val debug_branch_mask = Input(UInt(maxBrCount.W))
+   })
+ 
+   // The map table register array and its branch snapshots.
+   val map_table = RegInit(VecInit(Seq.fill(numLregs){0.U(pregSz.W)}))
+   val br_snapshots = Reg(Vec(maxBrCount, Vec(numLregs, UInt(pregSz.W))))
+ 
++  val brmask_valid_vector = Wire(UInt(maxBrCount.W))
++  val maptable_valid_cond = Wire(UInt(1.W))
++  brmask_valid_vector := io.debug_branch_mask
++  maptable_valid_cond := (!io.debug_rob_empty).asUInt
++  dontTouch(brmask_valid_vector)
++  dontTouch(maptable_valid_cond)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(brmask_valid_vector.toTarget, "keep"),
++      firrtl.AttributeAnnotation(maptable_valid_cond.toTarget, "keep"),
++      firrtl.AttributeAnnotation(map_table.toTarget, s"divaift_liveness_mask = \"cond,${maptable_valid_cond.name}\"")
++    ) ++ (0 until maxBrCount).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(br_snapshots(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$maxBrCount,$vec_idx,${brmask_valid_vector.name}\""),
++    ))
++  })
++
++
+   // The intermediate states of the map table following modification by each pipeline slot.
+   val remap_table = Wire(Vec(plWidth+1, Vec(numLregs, UInt(pregSz.W))))
+ 
+diff --git a/src/main/scala/exu/rename/rename-stage.scala b/src/main/scala/exu/rename/rename-stage.scala
+index 4456697b..f9c1d25e 100644
+--- a/src/main/scala/exu/rename/rename-stage.scala
++++ b/src/main/scala/exu/rename/rename-stage.scala
+@@ -86,6 +86,7 @@ abstract class AbstractRenameStage(
+ 
+     val debug_rob_empty = Input(Bool())
+     val debug = Output(new DebugRenameStageIO(numPhysRegs))
++    val debug_branch_mask = Input(UInt(maxBrCount.W))
+   })
+ 
+   io.ren_stalls.foreach(_ := false.B)
+@@ -271,6 +272,8 @@ class RenameStage(
+   maptable.io.ren_br_tags := ren2_br_tags
+   maptable.io.brupdate      := io.brupdate
+   maptable.io.rollback    := io.rollback
++  maptable.io.debug_branch_mask := io.debug_branch_mask
++  maptable.io.debug_rob_empty   := io.debug_rob_empty
+ 
+   // Maptable outputs.
+   for ((uop, w) <- ren1_uops.zipWithIndex) {
 diff --git a/src/main/scala/exu/rob.scala b/src/main/scala/exu/rob.scala
 index 2f0e4aee..e5b9cbd8 100644
 --- a/src/main/scala/exu/rob.scala

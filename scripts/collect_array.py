@@ -133,8 +133,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-p", "--ignore", nargs="*", type=str, default=[
-            "TL", "AXI", "XS_TL", "XS_AXI", 
-            "RenameMapTable",
+            "TL", "AXI", "XS_TL", "XS_AXI",
             "XS_SRAMTemplate", "XS_SyncDataModuleTemplate",
             "XS_FADD_pipe", "XS_BypassNetwork"],
         help="ignored module prefix"
