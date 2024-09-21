@@ -251,40 +251,42 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
     end
 
     reg liveness_mask = 1;
-    always @(posedge pos_clk) begin
-        if (TAINT_SINK && (IFT_RULE == "diva")) begin
-            if (Testbench.smon.tsx_done & liveness_mask) begin
-                case (LIVENESS_TYPE)
-                    "queue": begin: queuemask
-                        if (LIVENESS_OP1 < LIVENESS_OP0) begin
-                            liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX && LIVENESS_IDX < LIVENESS_OP0;
+    always @(LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, Testbench.smon.tsx_done) begin
+        if (Testbench.smon.tsx_done) begin
+            if (TAINT_SINK && (IFT_RULE == "diva")) begin
+                if (liveness_mask) begin
+                    case (LIVENESS_TYPE)
+                        "queue": begin: queuemask
+                            if (LIVENESS_OP1 < LIVENESS_OP0) begin
+                                liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX && LIVENESS_IDX < LIVENESS_OP0;
+                            end
+                            else if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                                liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
+                            end
+                            else begin
+                                liveness_mask = LIVENESS_OP2;
+                            end
                         end
-                        else if (LIVENESS_OP0 < LIVENESS_OP1) begin
-                            liveness_mask = LIVENESS_OP1 <= LIVENESS_IDX || LIVENESS_IDX < LIVENESS_OP0;
+                        "bitmap": begin: bitmapmask
+                            liveness_mask = LIVENESS_OP0[LIVENESS_IDX];
                         end
-                        else begin
-                            liveness_mask = LIVENESS_OP2;
+                        "bitmap_n": begin: bitmapnmask
+                            liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
                         end
-                    end
-                    "bitmap": begin: bitmapmask
-                        liveness_mask = LIVENESS_OP0[LIVENESS_IDX];
-                    end
-                    "bitmap_n": begin: bitmapnmask
-                        liveness_mask = ~LIVENESS_OP0[LIVENESS_IDX];
-                    end
-                    "cond": begin: bitmapsmask
-                        liveness_mask = LIVENESS_OP0;
-                    end
-                    "cond_n": begin: bitmapsnmask
-                        liveness_mask = ~LIVENESS_OP0;
-                    end
-                    "bitmap_self": begin: bitmapselfmask
-                        liveness_mask = |(register_taint & Q_san);
-                    end
-                    "bitmap_self_n": begin: bitmapselfnmask
-                        liveness_mask = |(register_taint & ~Q_san);
-                    end
-                endcase
+                        "cond": begin: bitmapsmask
+                            liveness_mask = LIVENESS_OP0;
+                        end
+                        "cond_n": begin: bitmapsnmask
+                            liveness_mask = ~LIVENESS_OP0;
+                        end
+                        "bitmap_self": begin: bitmapselfmask
+                            liveness_mask = |(register_taint & Q_san);
+                        end
+                        "bitmap_self_n": begin: bitmapselfnmask
+                            liveness_mask = |(register_taint & ~Q_san);
+                        end
+                    endcase
+                end
             end
         end
     end
@@ -627,37 +629,48 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
             memory_taint[i] = 0;
     end
 
+    reg [SIZE-1:0] liveness_mask = {SIZE{1'b1}};
+    always @(LIVENESS_OP0, LIVENESS_OP1, LIVENESS_OP2, Testbench.smon.tsx_done) begin
+        if (Testbench.smon.tsx_done) begin
+            for (i = 0; i < SIZE; i = i+1) begin
+                if (memory_taint[i] && (IFT_RULE == "diva")) begin
+                    if (liveness_mask[i]) begin
+                        case (LIVENESS_TYPE)
+                            "queue": begin: queuemask
+                                if (LIVENESS_OP1 < LIVENESS_OP0) begin
+                                    liveness_mask[i] = LIVENESS_OP1 <= i && i < LIVENESS_OP0;
+                                end
+                                else if (LIVENESS_OP0 < LIVENESS_OP1) begin
+                                    liveness_mask[i] = LIVENESS_OP1 <= i || i < LIVENESS_OP0;
+                                end
+                                else begin
+                                    liveness_mask[i] = LIVENESS_OP2;
+                                end
+                            end
+                            "bitmap": begin: bitmapmask
+                                liveness_mask[i] = LIVENESS_OP0[i];
+                            end
+                            "bitmap_n": begin: bitmapnmask
+                                liveness_mask[i] = ~LIVENESS_OP0[i];
+                            end
+                            "cond": begin: bitmapsmask
+                                liveness_mask[i] = LIVENESS_OP0;
+                            end
+                            "cond_n": begin: bitmapsnmask
+                                liveness_mask[i] = ~LIVENESS_OP0;
+                            end
+                        endcase
+                    end
+                end
+            end
+        end
+    end
+
     final begin
         reg [ABITS:0] liveness_sum = 0;
         for (i = 0; i < SIZE; i = i+1) begin
             if (memory_taint[i] && (IFT_RULE == "diva")) begin
-                reg liveness_mask = 1;
-                case (LIVENESS_TYPE)
-                    "queue": begin: queuemask
-                        if (LIVENESS_OP1 < LIVENESS_OP0) begin
-                            liveness_mask = LIVENESS_OP1 <= i && i < LIVENESS_OP0;
-                        end
-                        else if (LIVENESS_OP0 < LIVENESS_OP1) begin
-                            liveness_mask = LIVENESS_OP1 <= i || i < LIVENESS_OP0;
-                        end
-                        else begin
-                            liveness_mask = LIVENESS_OP2;
-                        end
-                    end
-                    "bitmap": begin: bitmapmask
-                        liveness_mask = LIVENESS_OP0[i];
-                    end
-                    "bitmap_n": begin: bitmapnmask
-                        liveness_mask = ~LIVENESS_OP0[i];
-                    end
-                    "cond": begin: bitmapsmask
-                        liveness_mask = LIVENESS_OP0;
-                    end
-                    "cond_n": begin: bitmapsnmask
-                        liveness_mask = ~LIVENESS_OP0;
-                    end
-                endcase
-                liveness_sum = liveness_sum + liveness_mask;
+                liveness_sum = liveness_sum + liveness_mask[i];
             end
         end
 
