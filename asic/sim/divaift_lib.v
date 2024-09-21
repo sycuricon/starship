@@ -78,7 +78,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
         ref_id = register_reference($sformatf("%m"));
     end
 
-    import "DPI-C" function byte unsigned xref_diff_gate_cmp(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_gate_cmp(int unsigned ref_id);
     export "DPI-C" function get_gate_cmp;
     function void get_gate_cmp();
         output byte unsigned cmp;
@@ -100,7 +100,7 @@ module taintcell_2I1O(A, B, Y, A_taint, B_taint, Y_taint);
                             reg cmp_diff;
                             always @(*) begin
                                 if (|{At_san, Bt_san}) begin
-                                    cmp_diff = xref_diff_gate_cmp($time, ref_id);
+                                    cmp_diff = xref_diff_gate_cmp(ref_id);
                                 end
                                 else begin
                                     cmp_diff = 0;
@@ -168,7 +168,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
         ref_id = register_reference($sformatf("%m"));
     end
 
-    import "DPI-C" function byte unsigned xref_diff_mux_sel(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_mux_sel(int unsigned ref_id);
     export "DPI-C" function get_mux_sel;
     function void get_mux_sel();
         output byte select;
@@ -181,7 +181,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
                 reg S_diff = 1;
                 always @(*) begin
                     if (S_taint) begin
-                        S_diff = xref_diff_mux_sel($time, ref_id);
+                        S_diff = xref_diff_mux_sel(ref_id);
                         Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
                     end
                     else begin
@@ -299,9 +299,9 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
         end
     end
 
-    import "DPI-C" function byte unsigned xref_diff_dff_en(longint now, int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_diff_dff_srst(longint now, int unsigned ref_id);
-    import "DPI-C" function byte unsigned xref_diff_dff_arst(longint now, int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_en(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_srst(int unsigned ref_id);
+    import "DPI-C" function byte unsigned xref_diff_dff_arst(int unsigned ref_id);
     export "DPI-C" function get_dff_en;
     export "DPI-C" function get_dff_srst;
     export "DPI-C" function get_dff_arst;
@@ -332,7 +332,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         always @(posedge pos_clk) begin
                             if (pos_srst) begin
                                 if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    srst_diff = xref_diff_dff_srst(ref_id);
                                     register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                                 end
                                 else begin
@@ -341,7 +341,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                             else begin
                                 if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    srst_diff = xref_diff_dff_srst(ref_id);
                                     register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
                                 end
                                 else begin
@@ -354,7 +354,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         always @(posedge pos_clk, posedge pos_arst) begin
                             if (pos_arst) begin
                                 if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    arst_diff = xref_diff_dff_arst(ref_id);
                                     register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                                 end
                                 else begin
@@ -363,7 +363,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                             else begin
                                 if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    arst_diff = xref_diff_dff_arst(ref_id);
                                     register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
                                 end
                                 else begin
@@ -376,7 +376,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         always @(posedge pos_clk) begin
                             if (pos_en) begin
                                 if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    en_diff = xref_diff_dff_en(ref_id);
                                     register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                                 end
                                 else begin
@@ -385,7 +385,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                             else begin
                                 if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    en_diff = xref_diff_dff_en(ref_id);
                                     register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                                 end
                             end
@@ -395,7 +395,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         always @(posedge pos_clk) begin
                             if (pos_srst) begin
                                 if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    srst_diff = xref_diff_dff_srst(ref_id);
                                     register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                                 end
                                 else begin
@@ -405,7 +405,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             else begin
                                 if (pos_en) begin
                                     if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        en_diff = xref_diff_dff_en(ref_id);
                                         register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                                     end
                                     else begin
@@ -414,7 +414,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 end
                                 else begin
                                     if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        en_diff = xref_diff_dff_en(ref_id);
                                         register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                                     end
                                 end
@@ -425,7 +425,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         always @(posedge pos_clk, posedge pos_arst) begin
                             if (pos_arst) begin
                                 if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst($time, ref_id);
+                                    arst_diff = xref_diff_dff_arst(ref_id);
                                     register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
                                 end
                                 else begin
@@ -435,7 +435,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             else begin
                                 if (pos_en) begin
                                     if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        en_diff = xref_diff_dff_en(ref_id);
                                         register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                                     end
                                     else begin
@@ -444,7 +444,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 end
                                 else begin
                                     if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        en_diff = xref_diff_dff_en(ref_id);
                                         register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                                     end
                                 end
@@ -456,7 +456,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_en) begin
                                 if (pos_srst) begin
                                     if (SRST_taint) begin
-                                        srst_diff = xref_diff_dff_srst($time, ref_id);
+                                        srst_diff = xref_diff_dff_srst(ref_id);
                                         register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
                                     end
                                     else begin
@@ -465,7 +465,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 end
                                 else begin
                                     if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en($time, ref_id);
+                                        en_diff = xref_diff_dff_en(ref_id);
                                         register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
                                     end
                                     else begin
@@ -475,11 +475,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             end
                             else begin
                                 if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en($time, ref_id);
+                                    en_diff = xref_diff_dff_en(ref_id);
                                     register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
                                 end
                                 else if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst($time, ref_id);
+                                    srst_diff = xref_diff_dff_srst(ref_id);
                                     register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
                                 end
                             end
@@ -677,12 +677,12 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
     end
 
 
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(longint now, int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(longint now, int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(longint now, int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(longint now, int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_rd_addr(longint now, int unsigned ref_id, int unsigned index);
-    import "DPI-C" function byte unsigned xref_diff_mem_wt_addr(longint now, int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_wt_en(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_srst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_arst(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_rd_addr(int unsigned ref_id, int unsigned index);
+    import "DPI-C" function byte unsigned xref_diff_mem_wt_addr(int unsigned ref_id, int unsigned index);
     export "DPI-C" function get_mem_rd_en;
     export "DPI-C" function get_mem_wt_en;
     export "DPI-C" function get_mem_rd_srst;
@@ -732,7 +732,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         for (i = 0; i < RD_PORTS; i = i+1) begin
                             if (RD_ARST[i]) begin
                                 if (RD_ARST_taint[i]) begin
-                                    rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+                                    rd_arst_diff = xref_diff_mem_rd_arst(ref_id, i);
                                     memory_rd_taint[i*WIDTH +: WIDTH] = rd_arst_diff ? {WIDTH{1'b1}} : 0;
                                 end
                                 else begin
@@ -740,9 +740,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 end
                             end
                             else begin
-                                rd_addr_diff = xref_diff_mem_rd_addr($time, ref_id, i);
+                                rd_addr_diff = xref_diff_mem_rd_addr(ref_id, i);
                                 if (RD_ARST_taint[i]) begin
-                                    rd_arst_diff = xref_diff_mem_rd_arst($time, ref_id, i);
+                                    rd_arst_diff = xref_diff_mem_rd_arst(ref_id, i);
                                     memory_rd_taint[i*WIDTH +: WIDTH] = memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{rd_addr_diff}} |
                                         rd_arst_diff ? {WIDTH{1'b1}} : 0;
                                 end
@@ -767,7 +767,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 if (RD_EN[i]) begin
                                     if (RD_SRST[i]) begin
                                         if (RD_SRST_taint[i]) begin
-                                            rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                            rd_srst_diff = xref_diff_mem_rd_srst(ref_id, i);
                                             memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
                                         end
                                         else begin
@@ -775,9 +775,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                         end
                                     end
                                     else begin
-                                        rd_addr_diff = xref_diff_mem_rd_addr($time, ref_id, i);
+                                        rd_addr_diff = xref_diff_mem_rd_addr(ref_id, i);
                                         if (RD_EN_taint[i]) begin
-                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            rd_en_diff = xref_diff_mem_rd_en(ref_id, i);
                                             memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{rd_addr_diff}} |
                                                 rd_en_diff ? {WIDTH{1'b1}} : 0;
                                         end
@@ -788,11 +788,11 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 end
                                 else begin
                                     if (RD_EN_taint[i]) begin
-                                        rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                        rd_en_diff = xref_diff_mem_rd_en(ref_id, i);
                                         memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
                                     end
                                     else if (RD_SRST_taint[i]) begin
-                                        rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                        rd_srst_diff = xref_diff_mem_rd_srst(ref_id, i);
                                         memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
                                     end
                                     else begin
@@ -803,7 +803,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             else begin
                                 if (RD_SRST[i]) begin
                                     if (RD_SRST_taint[i]) begin
-                                        rd_srst_diff = xref_diff_mem_rd_srst($time, ref_id, i);
+                                        rd_srst_diff = xref_diff_mem_rd_srst(ref_id, i);
                                         memory_rd_taint[i*WIDTH +: WIDTH] <= rd_srst_diff ? {WIDTH{1'b1}} : 0;
                                     end
                                     else begin
@@ -812,9 +812,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                 end
                                 else begin
                                     if (RD_EN[i]) begin
-                                        rd_addr_diff = xref_diff_mem_rd_addr($time, ref_id, i);
+                                        rd_addr_diff = xref_diff_mem_rd_addr(ref_id, i);
                                         if (RD_EN_taint[i]) begin
-                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            rd_en_diff = xref_diff_mem_rd_en(ref_id, i);
                                             memory_rd_taint[i*WIDTH +: WIDTH] <= memory_taint[RD_ADDR[i*ABITS +: ABITS] - OFFSET] | {WIDTH{rd_addr_diff}} |
                                                 rd_en_diff ? {WIDTH{1'b1}} : 0;
                                         end
@@ -824,7 +824,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                     end
                                     else begin
                                         if (RD_EN_taint[i]) begin
-                                            rd_en_diff = xref_diff_mem_rd_en($time, ref_id, i);
+                                            rd_en_diff = xref_diff_mem_rd_en(ref_id, i);
                                             memory_rd_taint[i*WIDTH +: WIDTH] <= rd_en_diff ? {WIDTH{1'b1}} : 0;
                                         end
                                         else begin
@@ -842,9 +842,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         for (i = 0; i < WR_PORTS; i = i+1) begin
                             previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
                             if (WR_EN[i*WIDTH +: WIDTH]) begin
-                                wt_addr_diff = xref_diff_mem_wt_addr($time, ref_id, i);
+                                wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
                                 if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
                                         (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
                                         wt_en_diff ? {WIDTH{1'b1}} : 0;
@@ -856,7 +856,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             end
                             else begin
                                 if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
                                         wt_en_diff ? {WIDTH{1'b1}} : 0;
                                 end
@@ -884,9 +884,9 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                         for (i = 0; i < WR_PORTS; i = i+1) begin
                             previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
                             if (WR_EN[i*WIDTH +: WIDTH]) begin
-                                wt_addr_diff = xref_diff_mem_wt_addr($time, ref_id, i);
+                                wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
                                 if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
                                         (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
                                         wt_en_diff ? (WR_EN[i*WIDTH +: WIDTH] & WR_EN_taint[i*WIDTH +: WIDTH]) : 0;
@@ -898,7 +898,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                             end
                             else begin
                                 if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en($time, ref_id, i);
+                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
                                         wt_en_diff ? {WIDTH{1'b1}} : 0;
                                 end
