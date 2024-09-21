@@ -69,9 +69,10 @@ struct Reference {
     }
 
     void set_cache(time_stamp_t now, unsigned char state_idx, unsigned char update) {
-        time_stamp = now;
-        cached = cached | (1 << state_idx);
-        prev_result = (prev_result & ~(1 << state_idx)) | (update << state_idx);
+        return;
+        // time_stamp = now;
+        // cached = cached | (1 << state_idx);
+        // prev_result = (prev_result & ~(1 << state_idx)) | (update << state_idx);
     }
 
     unsigned char get_cache(unsigned char state_idx) {
@@ -115,6 +116,9 @@ extern "C" unsigned char xref_diff_gate_cmp(time_stamp_t now, unsigned int ref_i
         get_gate_cmp(&vnt_sel);
         unsigned char result = dut_sel ^ vnt_sel;
         h.set_cache(now, IDX_GATE_CMP, result);
+
+        // printf("[%ld] %s %d %d <%d>\n", now, h.dut(), dut_sel, vnt_sel, result);
+
         return result;
     }
 }
