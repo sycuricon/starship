@@ -250,10 +250,10 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
 `endif
     end
 
-    final begin
+    reg liveness_mask = 1;
+    always @(posedge pos_clk) begin
         if (TAINT_SINK && (IFT_RULE == "diva")) begin
-            if (register_taint) begin
-                reg liveness_mask = 1;
+            if (Testbench.smon.tsx_done & liveness_mask) begin
                 case (LIVENESS_TYPE)
                     "queue": begin: queuemask
                         if (LIVENESS_OP1 < LIVENESS_OP0) begin
@@ -285,7 +285,13 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                         liveness_mask = |(register_taint & ~Q_san);
                     end
                 endcase
+            end
+        end
+    end
 
+    final begin
+        if (TAINT_SINK && (IFT_RULE == "diva")) begin
+            if (register_taint) begin
                 if (liveness_mask) begin
                     $fwrite(Testbench.smon.live_fd, "%m\n");
                 end
