@@ -120,7 +120,7 @@ index 695a9434..197a275d 100644
    // --------------------------------------------------------------
    // Read ports.
 diff --git a/src/main/scala/exu/rename/rename-freelist.scala b/src/main/scala/exu/rename/rename-freelist.scala
-index ef623da0..1cc7ec5c 100644
+index ef623da0..c6433b56 100644
 --- a/src/main/scala/exu/rename/rename-freelist.scala
 +++ b/src/main/scala/exu/rename/rename-freelist.scala
 @@ -17,6 +17,8 @@ import boom.common._
@@ -132,13 +132,25 @@ index ef623da0..1cc7ec5c 100644
  class RenameFreeList(
    val plWidth: Int,
    val numPregs: Int,
-@@ -50,6 +52,12 @@ class RenameFreeList(
+@@ -44,12 +46,24 @@ class RenameFreeList(
+       val pipeline_empty = Input(Bool())
+       val freelist = Output(Bits(numPregs.W))
+       val isprlist = Output(Bits(numPregs.W))
++      val branch_mask = Input(UInt(maxBrCount.W))
+     }
+   })
+   // The free list register array and its branch allocation lists.
    val free_list = RegInit(UInt(numPregs.W), ~(1.U(numPregs.W)))
    val br_alloc_lists = Reg(Vec(maxBrCount, UInt(numPregs.W)))
  
++  val brmask_valid_vector = Wire(UInt(maxBrCount.W))
++  brmask_valid_vector := io.debug.branch_mask
++  dontTouch(brmask_valid_vector)
 +  annotate(new ChiselMultiAnnotation {
-+    override def toFirrtl = (0 until maxBrCount).flatMap(vec_idx => Seq(
-+      firrtl.AttributeAnnotation(br_alloc_lists(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap_self_n\"")
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(brmask_valid_vector.toTarget, "keep"),
++    ) ++ (0 until maxBrCount).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(br_alloc_lists(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$maxBrCount,$vec_idx,${brmask_valid_vector.name}\""),
 +    ))
 +  })
 +
@@ -192,7 +204,7 @@ index 938cfc9b..c0156f1b 100644
    val remap_table = Wire(Vec(plWidth+1, Vec(numLregs, UInt(pregSz.W))))
  
 diff --git a/src/main/scala/exu/rename/rename-stage.scala b/src/main/scala/exu/rename/rename-stage.scala
-index 4456697b..f9c1d25e 100644
+index 4456697b..86e4f7dd 100644
 --- a/src/main/scala/exu/rename/rename-stage.scala
 +++ b/src/main/scala/exu/rename/rename-stage.scala
 @@ -86,6 +86,7 @@ abstract class AbstractRenameStage(
@@ -212,6 +224,14 @@ index 4456697b..f9c1d25e 100644
  
    // Maptable outputs.
    for ((uop, w) <- ren1_uops.zipWithIndex) {
+@@ -296,6 +299,7 @@ class RenameStage(
+   freelist.io.ren_br_tags := ren2_br_tags
+   freelist.io.brupdate := io.brupdate
+   freelist.io.debug.pipeline_empty := io.debug_rob_empty
++  freelist.io.debug.branch_mask := io.debug_branch_mask
+ 
+   assert (ren2_alloc_reqs zip freelist.io.alloc_pregs map {case (r,p) => !r || p.bits =/= 0.U} reduce (_&&_),
+            "[rename-stage] A uop is trying to allocate the zero physical register.")
 diff --git a/src/main/scala/exu/rob.scala b/src/main/scala/exu/rob.scala
 index 2f0e4aee..e5b9cbd8 100644
 --- a/src/main/scala/exu/rob.scala
