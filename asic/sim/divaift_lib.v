@@ -182,7 +182,7 @@ module taintcell_mux (A, B, S, A_taint, B_taint, S_taint, Y_taint);
                 always @(*) begin
                     if (S_taint) begin
                         S_diff = xref_diff_mux_sel(ref_id);
-                        Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? A_san ^ B_san : 0);
+                        Y_taint = (S_san ? B_taint : A_taint) | (S_diff ? (A_san ^ B_san) | A_taint | B_taint : 0);
                     end
                     else begin
                         Y_taint = S_san ? B_taint : A_taint;
@@ -335,7 +335,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_srst) begin
                                 if (SRST_taint) begin
                                     srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                    register_taint <= srst_diff ? (SRST_VALUE ^ D_san) | D_taint : 0;
                                 end
                                 else begin
                                     register_taint <= 0;
@@ -357,7 +357,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_arst) begin
                                 if (ARST_taint) begin
                                     arst_diff = xref_diff_dff_arst(ref_id);
-                                    register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
+                                    register_taint <= arst_diff ? (ARST_VALUE ^ D_san) | D_taint : 0;
                                 end
                                 else begin
                                     register_taint <= 0;
@@ -379,7 +379,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_en) begin
                                 if (EN_taint) begin
                                     en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    register_taint <= D_taint | (en_diff ? (D_san ^ Q_san) | register_taint : 0);
                                 end
                                 else begin
                                     register_taint <= D_taint;
@@ -388,7 +388,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             else begin
                                 if (EN_taint) begin
                                     en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    register_taint <= register_taint | (en_diff ? (D_san ^ Q_san) | D_taint : 0);
                                 end
                             end
                         end
@@ -398,7 +398,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_srst) begin
                                 if (SRST_taint) begin
                                     srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                    register_taint <= srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
                                 end
                                 else begin
                                     register_taint <= 0;
@@ -408,7 +408,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 if (pos_en) begin
                                     if (EN_taint) begin
                                         en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                        register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
                                     end
                                     else begin
                                         register_taint <= D_taint;
@@ -417,7 +417,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 else begin
                                     if (EN_taint) begin
                                         en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                        register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
                                     end
                                 end
                             end
@@ -428,7 +428,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             if (pos_arst) begin
                                 if (ARST_taint) begin
                                     arst_diff = xref_diff_dff_arst(ref_id);
-                                    register_taint <= arst_diff ? ARST_VALUE ^ D_san : 0;
+                                    register_taint <= arst_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
                                 end
                                 else begin
                                     register_taint <= 0;
@@ -438,7 +438,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 if (pos_en) begin
                                     if (EN_taint) begin
                                         en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                        register_taint <= D_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
                                     end
                                     else begin
                                         register_taint <= D_taint;
@@ -447,7 +447,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 else begin
                                     if (EN_taint) begin
                                         en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                        register_taint <= register_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
                                     end
                                 end
                             end
@@ -459,7 +459,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 if (pos_srst) begin
                                     if (SRST_taint) begin
                                         srst_diff = xref_diff_dff_srst(ref_id);
-                                        register_taint <= srst_diff ? SRST_VALUE ^ D_san : 0;
+                                        register_taint <= srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
                                     end
                                     else begin
                                         register_taint <= 0;
@@ -468,7 +468,7 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                 else begin
                                     if (EN_taint) begin
                                         en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? D_san ^ Q_san : 0);
+                                        register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
                                     end
                                     else begin
                                         register_taint <= D_taint;
@@ -478,11 +478,11 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                             else begin
                                 if (EN_taint) begin
                                     en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= register_taint | (en_diff ? D_san ^ Q_san : 0);
+                                    register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
                                 end
                                 else if (SRST_taint) begin
                                     srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= register_taint | (srst_diff ? SRST_VALUE ^ Q_san : 0);
+                                    register_taint <= register_taint | (srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
                                 end
                             end
                         end
@@ -902,7 +902,7 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                                     wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
                                         (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
-                                        wt_en_diff ? (WR_EN[i*WIDTH +: WIDTH] & WR_EN_taint[i*WIDTH +: WIDTH]) : 0;
+                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
                                 end
                                 else begin
                                     memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
