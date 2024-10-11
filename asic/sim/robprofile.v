@@ -50,7 +50,17 @@ module SyncMonitor (
     end
   end
 
-  reg tsx_done = 0;
+  wire tsx_done;
+  reg [4:0] tsx_end = 0;
+
+  assign tsx_done = tsx_end[3];
+
+  always @(posedge clock) begin
+    if (!reset) begin
+      if (!tsx_done)
+        tsx_end <= tsx_end << 1;
+    end
+  end
 
   function void event_handler;
     input valid;
@@ -69,7 +79,7 @@ module SyncMonitor (
           $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("VCTM_END_%s", suffix);
           if (is_dut && suffix=="DEQ") begin
-            tsx_done = 1;
+            tsx_end = 1;
           end
         end
         `INFO_SIM_EXIT: begin
@@ -91,7 +101,7 @@ module SyncMonitor (
           $fwrite(event_fd, "%t, TEXE_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("TEXE_START_%s", suffix);
           if (is_dut && suffix=="DEQ") begin
-            tsx_done = 1;
+            tsx_end = 1;
           end
         end
         `INFO_TEXE_END: begin

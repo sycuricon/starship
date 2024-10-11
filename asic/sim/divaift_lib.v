@@ -327,135 +327,92 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                 case (TYPE)
                     "dff": begin: gendff
                         always @(posedge pos_clk) begin
-                            register_taint <= D_taint;
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
+                            else
+                                register_taint <= D_taint;
                         end
                     end
                     "sdff": begin: gensdff
                         always @(posedge pos_clk) begin
-                            if (pos_srst) begin
-                                if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= srst_diff ? (SRST_VALUE ^ D_san) | D_taint : 0;
-                                end
-                                else begin
-                                    register_taint <= 0;
-                                end
-                            end
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
                             else begin
-                                if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
+                                if (pos_srst) begin
+                                    if (SRST_taint) begin
+                                        srst_diff = xref_diff_dff_srst(ref_id);
+                                        register_taint <= srst_diff ? (SRST_VALUE ^ D_san) | D_taint : 0;
+                                    end
+                                    else begin
+                                        register_taint <= 0;
+                                    end
                                 end
                                 else begin
-                                    register_taint <= D_taint;
+                                    if (SRST_taint) begin
+                                        srst_diff = xref_diff_dff_srst(ref_id);
+                                        register_taint <= D_taint | (srst_diff ? SRST_VALUE ^ D_san : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
                                 end
                             end
                         end
                     end
                     "adff": begin: genadff
                         always @(posedge pos_clk, posedge pos_arst) begin
-                            if (pos_arst) begin
-                                if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst(ref_id);
-                                    register_taint <= arst_diff ? (ARST_VALUE ^ D_san) | D_taint : 0;
-                                end
-                                else begin
-                                    register_taint <= 0;
-                                end
-                            end
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
                             else begin
-                                if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst(ref_id);
-                                    register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
+                                if (pos_arst) begin
+                                    if (ARST_taint) begin
+                                        arst_diff = xref_diff_dff_arst(ref_id);
+                                        register_taint <= arst_diff ? (ARST_VALUE ^ D_san) | D_taint : 0;
+                                    end
+                                    else begin
+                                        register_taint <= 0;
+                                    end
                                 end
                                 else begin
-                                    register_taint <= D_taint;
+                                    if (ARST_taint) begin
+                                        arst_diff = xref_diff_dff_arst(ref_id);
+                                        register_taint <= D_taint | (arst_diff ? ARST_VALUE ^ D_san : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
                                 end
                             end
                         end
                     end
                     "dffe": begin: gendffe
                         always @(posedge pos_clk) begin
-                            if (pos_en) begin
-                                if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= D_taint | (en_diff ? (D_san ^ Q_san) | register_taint : 0);
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
+                            else begin
+                                if (pos_en) begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en(ref_id);
+                                        register_taint <= D_taint | (en_diff ? (D_san ^ Q_san) | register_taint : 0);
+                                    end
+                                    else begin
+                                        register_taint <= D_taint;
+                                    end
                                 end
                                 else begin
-                                    register_taint <= D_taint;
-                                end
-                            end
-                            else begin
-                                if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= register_taint | (en_diff ? (D_san ^ Q_san) | D_taint : 0);
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en(ref_id);
+                                        register_taint <= register_taint | (en_diff ? (D_san ^ Q_san) | D_taint : 0);
+                                    end
                                 end
                             end
                         end
                     end
                     "sdffe": begin: gensdffe
                         always @(posedge pos_clk) begin
-                            if (pos_srst) begin
-                                if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
-                                end
-                                else begin
-                                    register_taint <= 0;
-                                end
-                            end
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
                             else begin
-                                if (pos_en) begin
-                                    if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
-                                    end
-                                    else begin
-                                        register_taint <= D_taint;
-                                    end
-                                end
-                                else begin
-                                    if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    "adffe": begin: genadffe
-                        always @(posedge pos_clk, posedge pos_arst) begin
-                            if (pos_arst) begin
-                                if (ARST_taint) begin
-                                    arst_diff = xref_diff_dff_arst(ref_id);
-                                    register_taint <= arst_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
-                                end
-                                else begin
-                                    register_taint <= 0;
-                                end
-                            end
-                            else begin
-                                if (pos_en) begin
-                                    if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
-                                    end
-                                    else begin
-                                        register_taint <= D_taint;
-                                    end
-                                end
-                                else begin
-                                    if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= register_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    "sdffce": begin: gensdffce
-                        always @(posedge pos_clk) begin
-                            if (pos_en) begin
                                 if (pos_srst) begin
                                     if (SRST_taint) begin
                                         srst_diff = xref_diff_dff_srst(ref_id);
@@ -466,23 +423,93 @@ module taintcell_dff (CLK, SRST, ARST, EN, D, Q, SRST_taint, ARST_taint, EN_tain
                                     end
                                 end
                                 else begin
-                                    if (EN_taint) begin
-                                        en_diff = xref_diff_dff_en(ref_id);
-                                        register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
+                                    if (pos_en) begin
+                                        if (EN_taint) begin
+                                            en_diff = xref_diff_dff_en(ref_id);
+                                            register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
+                                        end
+                                        else begin
+                                            register_taint <= D_taint;
+                                        end
                                     end
                                     else begin
-                                        register_taint <= D_taint;
+                                        if (EN_taint) begin
+                                            en_diff = xref_diff_dff_en(ref_id);
+                                            register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                        end
                                     end
                                 end
                             end
+                        end
+                    end
+                    "adffe": begin: genadffe
+                        always @(posedge pos_clk, posedge pos_arst) begin
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
                             else begin
-                                if (EN_taint) begin
-                                    en_diff = xref_diff_dff_en(ref_id);
-                                    register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                if (pos_arst) begin
+                                    if (ARST_taint) begin
+                                        arst_diff = xref_diff_dff_arst(ref_id);
+                                        register_taint <= arst_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
+                                    end
+                                    else begin
+                                        register_taint <= 0;
+                                    end
                                 end
-                                else if (SRST_taint) begin
-                                    srst_diff = xref_diff_dff_srst(ref_id);
-                                    register_taint <= register_taint | (srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                else begin
+                                    if (pos_en) begin
+                                        if (EN_taint) begin
+                                            en_diff = xref_diff_dff_en(ref_id);
+                                            register_taint <= D_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
+                                        end
+                                        else begin
+                                            register_taint <= D_taint;
+                                        end
+                                    end
+                                    else begin
+                                        if (EN_taint) begin
+                                            en_diff = xref_diff_dff_en(ref_id);
+                                            register_taint <= register_taint | (en_diff ? (ARST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    "sdffce": begin: gensdffce
+                        always @(posedge pos_clk) begin
+                            if (Testbench.smon.tsx_done)
+                                register_taint <= register_taint;
+                            else begin
+                                if (pos_en) begin
+                                    if (pos_srst) begin
+                                        if (SRST_taint) begin
+                                            srst_diff = xref_diff_dff_srst(ref_id);
+                                            register_taint <= srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint | register_taint : 0;
+                                        end
+                                        else begin
+                                            register_taint <= 0;
+                                        end
+                                    end
+                                    else begin
+                                        if (EN_taint) begin
+                                            en_diff = xref_diff_dff_en(ref_id);
+                                            register_taint <= D_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | register_taint : 0);
+                                        end
+                                        else begin
+                                            register_taint <= D_taint;
+                                        end
+                                    end
+                                end
+                                else begin
+                                    if (EN_taint) begin
+                                        en_diff = xref_diff_dff_en(ref_id);
+                                        register_taint <= register_taint | (en_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                    end
+                                    else if (SRST_taint) begin
+                                        srst_diff = xref_diff_dff_srst(ref_id);
+                                        register_taint <= register_taint | (srst_diff ? (SRST_VALUE ^ D_san ^ Q_san) | D_taint : 0);
+                                    end
                                 end
                             end
                         end
@@ -852,37 +879,39 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
 
                 if (WR_CLK_ENABLE == 0) begin: async_write
                     always @(*) begin
-                        for (i = 0; i < WR_PORTS; i = i+1) begin
-                            previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                            if (WR_EN[i*WIDTH +: WIDTH]) begin
-                                wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
-                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
-                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
-                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                        if (!Testbench.smon.tsx_done) begin
+                            for (i = 0; i < WR_PORTS; i = i+1) begin
+                                previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                                if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                    wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
+                                    if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                        wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                            (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
+                                            wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                    end
+                                    else begin
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                            (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}};
+                                    end
                                 end
                                 else begin
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
-                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}};
+                                    if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                        wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                            wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                    end
                                 end
-                            end
-                            else begin
-                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+
+                                if (previous_taint ^ current_taint) begin
+                                    if (current_taint)
+                                        taint_sum = taint_sum + 1;
+                                    else
+                                        taint_sum = taint_sum - 1;
+
+                                    bitmap[taint_sum] = 1;
                                 end
-                            end
-                            current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-
-                            if (previous_taint ^ current_taint) begin
-                                if (current_taint)
-                                    taint_sum = taint_sum + 1;
-                                else
-                                    taint_sum = taint_sum - 1;
-
-                                bitmap[taint_sum] = 1;
                             end
                         end
                     end
@@ -894,37 +923,39 @@ module taintcell_mem (RD_CLK, RD_EN, RD_ARST, RD_SRST, RD_ADDR, WR_CLK, WR_EN, W
                     if (|WR_CLK_POLARITY && !&WR_CLK_POLARITY)
                         initial $fatal("Mixed write clock polarities are not supported: %s at %m", MEMID);
                     always @(posedge pos_wt_clk) begin
-                        for (i = 0; i < WR_PORTS; i = i+1) begin
-                            previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-                            if (WR_EN[i*WIDTH +: WIDTH]) begin
-                                wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
-                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
-                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
-                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                        if (!Testbench.smon.tsx_done) begin
+                            for (i = 0; i < WR_PORTS; i = i+1) begin
+                                previous_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+                                if (WR_EN[i*WIDTH +: WIDTH]) begin
+                                    wt_addr_diff = xref_diff_mem_wt_addr(ref_id, i);
+                                    if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                        wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                            (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}} |
+                                            wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                    end
+                                    else begin
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
+                                            (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}};
+                                    end
                                 end
                                 else begin
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = (memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] & ~WR_EN[i*WIDTH +: WIDTH]) |
-                                        (WR_DATA_taint[i*WIDTH +: WIDTH] & WR_EN[i*WIDTH +: WIDTH]) | {WIDTH{wt_addr_diff}};
+                                    if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
+                                        wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
+                                        memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
+                                            wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                    end
                                 end
-                            end
-                            else begin
-                                if (WR_EN_taint[i*WIDTH +: WIDTH]) begin
-                                    wt_en_diff = xref_diff_mem_wt_en(ref_id, i);
-                                    memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] = memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET] |
-                                        wt_en_diff ? {WIDTH{1'b1}} : 0;
+                                current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
+
+                                if (previous_taint ^ current_taint) begin
+                                    if (current_taint)
+                                        taint_sum = taint_sum + 1;
+                                    else
+                                        taint_sum = taint_sum - 1;
+
+                                    bitmap[taint_sum] = 1;
                                 end
-                            end
-                            current_taint = |memory_taint[WR_ADDR[i*ABITS +: ABITS] - OFFSET];
-
-                            if (previous_taint ^ current_taint) begin
-                                if (current_taint)
-                                    taint_sum = taint_sum + 1;
-                                else
-                                    taint_sum = taint_sum - 1;
-
-                                bitmap[taint_sum] = 1;
                             end
                         end
                     end
