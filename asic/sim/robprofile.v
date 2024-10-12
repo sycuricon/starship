@@ -79,7 +79,7 @@ module SyncMonitor (
           $fwrite(event_fd, "%t, VCTM_END_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("VCTM_END_%s", suffix);
           if (is_dut && suffix=="DEQ") begin
-            tsx_end = 1;
+            tsx_end |= 1;
           end
         end
         `INFO_SIM_EXIT: begin
@@ -101,7 +101,7 @@ module SyncMonitor (
           $fwrite(event_fd, "%t, TEXE_START_%s, %d, %d\n", $time, suffix, id, is_dut);
           $display("TEXE_START_%s", suffix);
           if (is_dut && suffix=="DEQ") begin
-            tsx_end = 1;
+            tsx_end |= 1;
           end
         end
         `INFO_TEXE_END: begin
