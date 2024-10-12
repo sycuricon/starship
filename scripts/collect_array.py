@@ -59,11 +59,11 @@ def parseVecRegister(file):
                                 reg_name = reginfo[0]
                                 sub_fields = reg_name.split("_")
 
-                                # # ignore pipeline registers and io buffer
-                                # if sub_fields[0] in ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"] or \
-                                #     sub_fields[0] in ["f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7"] or \
-                                #     sub_fields[0] in ["io"]:
-                                #     continue
+                                # ignore pipeline registers and io buffer
+                                if sub_fields[0] in ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"] or \
+                                    sub_fields[0] in ["f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7"] or \
+                                    sub_fields[0] in ["io"]:
+                                    continue
 
                                 # ignore counter
                                 if sub_fields[0] in ["small", "big"]:
