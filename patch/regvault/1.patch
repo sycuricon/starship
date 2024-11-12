@@ -933,10 +933,10 @@ index 000000000..5ef442ff3
 +//   (new chisel3.stage.ChiselStage).emitVerilog(new QarmaMultiCycle, args)
 +// }
 diff --git a/src/main/scala/rocket/CSR.scala b/src/main/scala/rocket/CSR.scala
-index 737f18673..8c7286493 100644
+index e8cd587ef..759cdfafe 100644
 --- a/src/main/scala/rocket/CSR.scala
 +++ b/src/main/scala/rocket/CSR.scala
-@@ -899,7 +899,7 @@ class CSRFile(
+@@ -901,7 +901,7 @@ class CSRFile(
      io_dec.fp_illegal := io.status.fs === 0.U || reg_mstatus.v && reg_vsstatus.fs === 0.U || !reg_misa('f'-'a')
      io_dec.vector_illegal := io.status.vs === 0.U || reg_mstatus.v && reg_vsstatus.vs === 0.U || !reg_misa('v'-'a')
      io_dec.fp_csr := decodeFast(fp_csrs.keys.toList)
@@ -945,7 +945,7 @@ index 737f18673..8c7286493 100644
      val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) ||
        usingHypervisor.B && !reg_mstatus.v && reg_mstatus.prv === PRV.S.U && CSR.mode(addr) === PRV.H.U
      val csr_exists = decodeAny(read_mapping)
-@@ -1477,7 +1477,7 @@ class CSRFile(
+@@ -1479,7 +1479,7 @@ class CSRFile(
        }
      }
      def writeCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
@@ -954,7 +954,7 @@ index 737f18673..8c7286493 100644
        when (decoded_addr(csr.id)) {
          reg := (wdata & mask) | (reg & ~mask)
          io.wen := true.B
-@@ -1502,7 +1502,7 @@ class CSRFile(
+@@ -1504,7 +1504,7 @@ class CSRFile(
    }
  
    def setCustomCSR(io: CustomCSRIO, csr: CustomCSR, reg: UInt) = {
@@ -984,16 +984,17 @@ index b4cada00b..340cbe570 100644
      val res = collection.mutable.ArrayBuffer[Int]()
      res += mnscratch
 diff --git a/src/main/scala/rocket/IDecode.scala b/src/main/scala/rocket/IDecode.scala
-index 86ee7eef5..f31e90d52 100644
+index 50db5dda9..ec782ea45 100644
 --- a/src/main/scala/rocket/IDecode.scala
 +++ b/src/main/scala/rocket/IDecode.scala
-@@ -459,5 +459,6 @@ class RoCCDecode(aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends Dec
-     CUSTOM3_RS1_RS2->   List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,N,CSR.N,N,N,N,N),
-     CUSTOM3_RD->        List(Y,N,Y,N,N,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
-     CUSTOM3_RD_RS1->    List(Y,N,Y,N,N,N,N,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
--    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
-+    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
-+    PECInst->           List(Y,N,Y,N,N,N,Y,Y,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
+@@ -736,5 +736,7 @@ class RoCCDecode(aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends Dec
+     CUSTOM3_RS1_RS2->   List(Y,N,Y,N,N,N,Y,Y,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+     CUSTOM3_RD->        List(Y,N,Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+     CUSTOM3_RD_RS1->    List(Y,N,Y,N,N,N,N,Y,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+-    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
++    CUSTOM3_RD_RS1_RS2->List(Y,N,Y,N,N,N,Y,Y,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
++    PECInst           ->List(Y,N,Y,N,N,N,Y,Y,N,N,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR,aluFn.FN_ADD,   N,M_X,N,N,N,N,N,N,Y,CSR.N,N,N,N,N)
++  )
  }
 diff --git a/src/main/scala/rocket/Instructions.scala b/src/main/scala/rocket/Instructions.scala
 index adf118338..005f9f6a4 100644
@@ -1016,7 +1017,7 @@ index adf118338..005f9f6a4 100644
      val res = collection.mutable.ArrayBuffer[Int]()
      res += fflags
 diff --git a/src/main/scala/subsystem/Configs.scala b/src/main/scala/subsystem/Configs.scala
-index a9dbf4307..f2c05d4e0 100644
+index 7b4a8368a..d37fdd14c 100644
 --- a/src/main/scala/subsystem/Configs.scala
 +++ b/src/main/scala/subsystem/Configs.scala
 @@ -14,7 +14,7 @@ import freechips.rocketchip.util._
@@ -1045,7 +1046,7 @@ index a9dbf4307..f2c05d4e0 100644
    case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site) map {
      case tp: RocketTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(
 diff --git a/src/main/scala/system/Configs.scala b/src/main/scala/system/Configs.scala
-index 9fb7debde..3a5a4e421 100644
+index bb418b9ec..c5f060b9b 100644
 --- a/src/main/scala/system/Configs.scala
 +++ b/src/main/scala/system/Configs.scala
 @@ -20,7 +20,12 @@ class BaseConfig extends Config(
@@ -1076,3 +1077,16 @@ index c0218d003..69f681d69 100644
  }
  
  class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
+diff --git a/src/main/scala/tile/RocketTile.scala b/src/main/scala/tile/RocketTile.scala
+index 2527e135e..930d803e3 100644
+--- a/src/main/scala/tile/RocketTile.scala
++++ b/src/main/scala/tile/RocketTile.scala
+@@ -185,7 +185,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
+     core.io.rocc.resp <> respArb.get.io.out
+     core.io.rocc.busy <> (cmdRouter.get.io.busy || outer.roccs.map(_.module.io.busy).reduce(_ || _))
+     core.io.rocc.interrupt := outer.roccs.map(_.module.io.interrupt).reduce(_ || _)
+-    (core.io.rocc.csrs zip roccCSRIOs.flatten).foreach { t => t._2 := t._1 }
++    (core.io.rocc.csrs zip roccCSRIOs.flatten).foreach { t => t._2 <> t._1 }
+   } else {
+     // tie off
+     core.io.rocc.cmd.ready := false.B
