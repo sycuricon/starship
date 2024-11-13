@@ -20,8 +20,6 @@ class StarshipSystem(implicit p: Parameters) extends RocketSubsystem
   with HasAsyncExtInterrupts
 {
   val bootROM  = p(BootROMLocated(location)).map { BootROM.attach(_, this, CBUS) }
-  val maskROMs = p(MaskROMLocated(location)).map { MaskROM.attach(_, this, CBUS) }
-
   override lazy val module = new StarshipSystemModuleImp(this)
 }
 

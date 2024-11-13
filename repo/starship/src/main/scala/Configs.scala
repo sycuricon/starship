@@ -57,5 +57,10 @@ class StarshipBaseConfig extends Config(
       println("[rocketchip Continue]")
       p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
     }
+    case ExtBus => Some(MasterPortParams(
+      base = x"1000_0000",
+      size = x"7000_0000",
+      beatBytes = site(MemoryBusKey).beatBytes,
+      idBits = 4))
   })
 )
