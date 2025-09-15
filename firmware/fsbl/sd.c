@@ -10,7 +10,7 @@
 #define MAX_CORES 8
 
 // A sector is 512 bytes, so ((1 << 11) * 512) = 1 MiB
-#define PAYLOAD_SIZE	(24 << 11)
+#define PAYLOAD_SIZE	(36 << 11)
 
 // The sector at which the BBL partition starts
 #define BBL_PARTITION_START_SECTOR 2048
