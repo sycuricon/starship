@@ -84,7 +84,7 @@ module Testbench;
     dump_wave = $test$plusargs("dump");
 
     // fixed for diffuzzRTL, CJ should not timeout
-    max_cycles = 200000;
+    max_cycles = 20000000;
 
     // $urandom is seeded via cmdline (+ntb_random_seed in VCS) but that doesn't seed $random.
     rand_value = $urandom;

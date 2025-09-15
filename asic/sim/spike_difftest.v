@@ -45,15 +45,15 @@ module CJ #(parameter harts=1, commits=2) (
         cosim_init(testcase, verbose);
     end
 
-    always @(posedge clock) begin
-      if(reset)begin
-        credhit<=64'b0;
-        crednum<=64'b0;
-      end else begin
-        if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid&`CPU_TOP.pec_engine_cache_io_hit)credhit<=credhit+64'b1;
-        if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid)crednum<=crednum+64'b1;
-      end
-    end
+    // always @(posedge clock) begin
+    //   if(reset)begin
+    //     credhit<=64'b0;
+    //     crednum<=64'b0;
+    //   end else begin
+    //     if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid&`CPU_TOP.pec_engine_cache_io_hit)credhit<=credhit+64'b1;
+    //     if(`CPU_TOP.pec_engine_io_cmd_ready&`CPU_TOP.pec_engine_io_cmd_valid)crednum<=crednum+64'b1;
+    //   end
+    // end
 
     always @(posedge clock) begin
         if (!reset) begin
