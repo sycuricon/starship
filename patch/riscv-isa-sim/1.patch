@@ -1,0 +1,164 @@
+diff --git a/riscv/insns/crdxk.h b/riscv/insns/crdxk.h
+index 602e7c43..5939c287 100644
+--- a/riscv/insns/crdxk.h
++++ b/riscv/insns/crdxk.h
+@@ -1,78 +1,3 @@
+ // #include "qarma.h"
+-uint64_t sel_key = insn.rm();
+-uint64_t startbit = insn.rgvlt_startb() * 8;
+-uint64_t endbit = (insn.rgvlt_endb() + 1) * 8 - 1;
+-uint64_t totbits = endbit - startbit + 1;
+ 
+-if (endbit < startbit)
+-    throw trap_illegal_instruction(insn.bits());
+-
+-uint64_t cipher = RS1;
+-uint64_t tweak = RS2;
+-int keyl = 0;
+-int keyh = 0;
+-
+-int round = 7;
+-
+-switch (sel_key)
+-{
+-case 0:
+-    /* stkey */
+-    keyl = 0x5F0;
+-    keyh = 0x5F1;
+-    break;
+-case 1:
+-    /* mkey */
+-    keyl = 0x7F0;
+-    keyh = 0x7F1;
+-    break;
+-case 2:
+-    /* sakey */
+-    keyl = 0x5F2;
+-    keyh = 0x5F3;
+-    break;
+-case 3:
+-    /* sbkey */
+-    keyl = 0x5F4;
+-    keyh = 0x5F5;
+-    break;
+-case 4:
+-    /* sckey */
+-    keyl = 0x5F6;
+-    keyh = 0x5F7;
+-    break;
+-case 5:
+-    /* sdkey */
+-    keyl = 0x5F8;
+-    keyh = 0x5F9;
+-    break;
+-case 6:
+-    /* sekey */
+-    keyl = 0x5Fa;
+-    keyh = 0x5Fb;
+-    break;
+-case 7:
+-    /* sfkey */
+-    keyl = 0x5Fc;
+-    keyh = 0x5Fd;
+-    break;
+-
+-default:
+-    throw trap_illegal_instruction(insn.bits());
+-    break;
+-}
+-// keyh = 0x5f1;
+-// keyl = 0x5f0;
+-
+-uint64_t w0 = sext_xlen(p->get_csr(keyh, insn, false));
+-uint64_t k0 = sext_xlen(p->get_csr(keyl, insn, false));
+-uint64_t plain = qarma64_dec(cipher, tweak, w0, k0, round);
+-
+-uint64_t mask = totbits == 64 ? ~(uint64_t)0 :\
+-    ((((uint64_t)1 << totbits) - 1) << startbit);
+-uint64_t text = plain & mask;
+-
+-// if (text != plain)
+-//     throw trap_illegal_instruction(insn.bits());
+-
+-WRITE_RD(plain);
++WRITE_RD(RS1);
+diff --git a/riscv/insns/crexk.h b/riscv/insns/crexk.h
+index 79b1c504..c48b4c6e 100644
+--- a/riscv/insns/crexk.h
++++ b/riscv/insns/crexk.h
+@@ -1,74 +1,2 @@
+-// #include "qarma.h"
+-uint64_t sel_key = insn.rm();
+-uint64_t startbit = insn.rgvlt_startb() * 8;
+-uint64_t endbit = (insn.rgvlt_endb() + 1) * 8 - 1;
+ 
+-if (endbit < startbit)
+-    throw trap_illegal_instruction(insn.bits());
+-
+-uint64_t totbits = endbit - startbit + 1;
+-uint64_t mask = totbits == 64 ? ~(uint64_t)0 :\
+-    ((((uint64_t)1 << totbits) - 1) << startbit);
+-uint64_t plain = RS1;
+-uint64_t text = plain & mask;
+-
+-uint64_t tweak = RS2;
+-
+-int keyl = 0;
+-int keyh = 0;
+-int round = 7;
+-
+-switch (sel_key)
+-{
+-case 0:
+-    /* stkey */
+-    keyl = 0x5F0;
+-    keyh = 0x5F1;
+-    break;
+-case 1:
+-    /* mkey */
+-    keyl = 0x7F0;
+-    keyh = 0x7F1;
+-    break;
+-case 2:
+-    /* sakey */
+-    keyl = 0x5F2;
+-    keyh = 0x5F3;
+-    break;
+-case 3:
+-    /* sbkey */
+-    keyl = 0x5F4;
+-    keyh = 0x5F5;
+-    break;
+-case 4:
+-    /* sckey */
+-    keyl = 0x5F6;
+-    keyh = 0x5F7;
+-    break;
+-case 5:
+-    /* sdkey */
+-    keyl = 0x5F8;
+-    keyh = 0x5F9;
+-    break;
+-case 6:
+-    /* sekey */
+-    keyl = 0x5Fa;
+-    keyh = 0x5Fb;
+-    break;
+-case 7:
+-    /* sfkey */
+-    keyl = 0x5Fc;
+-    keyh = 0x5Fd;
+-    break;
+-
+-default:
+-    throw trap_illegal_instruction(insn.bits());
+-    break;
+-}
+-// keyh = 0x5f1;
+-// keyl = 0x5f0;
+-
+-uint64_t w0 = sext_xlen(p->get_csr(keyh, insn, false));
+-uint64_t k0 = sext_xlen(p->get_csr(keyl, insn, false));
+-uint64_t cipher = qarma64_enc(text, tweak, w0, k0, round);
+-WRITE_RD(cipher);
++WRITE_RD(RS1);
