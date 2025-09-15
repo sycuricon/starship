@@ -30,7 +30,7 @@ class StarshipFPGATop(implicit p: Parameters) extends StarshipSystem
 
   val chosen = new DeviceSnippet {
     def describe() = Description("chosen", Map(
-      "bootargs" -> Seq(ResourceString("nokaslr"))
+      "bootargs" -> Seq(ResourceString("console=ttyS0 earlycon nokaslr"))
     ))
   }
   
