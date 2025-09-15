@@ -32,6 +32,7 @@ Before you start compiling, you should already have sbt, vivado and a RISC-V too
 ```bash
 $ git clone https://github.com/riscv-zju/riscv-starship.git
 $ git submodule update --init --recursive --progress
+$ cd repo/rocket-chip; git checkout sciec-test
 
 # set $RISCV to your toolchain path, not inclued bin
 $ make bitstream
