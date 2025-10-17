@@ -46,11 +46,11 @@ module CJ #(parameter harts=1, commits=2) (
     always @(posedge clock) begin
         if (!reset) begin
           `ifdef TARGET_BOOM
-            `include "spike_difftest.boom.v"
+            `include "cosim/spike_difftest.boom.v"
           `elsif TARGET_CVA6
-            `include "spike_difftest.cva6.v"
+            `include "cosim/spike_difftest.cva6.v"
           `else
-            `include "spike_difftest.rocket.v"
+            `include "cosim/spike_difftest.rocket.v"
           `endif
           
           tohost <= cosim_get_tohost();

@@ -1,0 +1,513 @@
+diff --git a/src/main/scala/exu/core.scala b/src/main/scala/exu/core.scala
+index 0f8d39e3..3e77ea88 100644
+--- a/src/main/scala/exu/core.scala
++++ b/src/main/scala/exu/core.scala
+@@ -105,6 +105,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
+   val pred_rename_stage = Module(new PredRenameStage(coreWidth, ftqSz, 1))
+   val rename_stages    = if (usingFPU) Seq(rename_stage, fp_rename_stage, pred_rename_stage) else Seq(rename_stage, pred_rename_stage)
+ 
++  rename_stage.io.debug_branch_mask := dec_brmask_logic.io.debug_branch_mask
++  pred_rename_stage.io.debug_branch_mask := 0.U
++
++  if (usingFPU) {
++    fp_pipeline.io.debug.freelist := fp_rename_stage.io.debug.freelist
++    fp_rename_stage.io.debug_branch_mask := dec_brmask_logic.io.debug_branch_mask
++  }
++
+   val mem_iss_unit     = Module(new IssueUnitCollapsing(memIssueParam, numIntIssueWakeupPorts))
+   mem_iss_unit.suggestName("mem_issue_unit")
+   val int_iss_unit     = Module(new IssueUnitCollapsing(intIssueParam, numIntIssueWakeupPorts))
+@@ -119,6 +127,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
+                              numIrfWritePorts,
+                              xLen,
+                              Seq.fill(memWidth) {true} ++ exe_units.bypassable_write_port_mask)) // bypassable ll_wb
++  iregfile.io.debug.freelist := rename_stage.io.debug.freelist
+   val pregfile         = Module(new RegisterFileSynthesizable(
+                             ftqSz,
+                             exe_units.numIrfReaders,
+diff --git a/src/main/scala/exu/execution-units/functional-unit.scala b/src/main/scala/exu/execution-units/functional-unit.scala
+index f615ccd5..900a0f48 100644
+--- a/src/main/scala/exu/execution-units/functional-unit.scala
++++ b/src/main/scala/exu/execution-units/functional-unit.scala
+@@ -29,6 +29,8 @@ import boom.common._
+ import boom.ifu._
+ import boom.util._
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**t
+  * Functional unit constants
+  */
+@@ -241,6 +243,18 @@ abstract class PipelinedFunctionalUnit(
+     r_uops(0)   := io.req.bits.uop
+     r_uops(0).br_mask := GetNewBrMask(io.brupdate, io.req.bits.uop)
+ 
++    val func_valid_vector = Wire(UInt(numStages.W))
++    func_valid_vector := r_valids.asTypeOf(func_valid_vector)
++    dontTouch(func_valid_vector)
++    annotate(new ChiselMultiAnnotation {
++      override def toFirrtl = Seq(
++        firrtl.AttributeAnnotation(func_valid_vector.toTarget, "keep"),
++      ) ++ (0 until numStages).flatMap(vec_idx => Seq(
++        firrtl.AttributeAnnotation(r_valids(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numStages,$vec_idx,${func_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(r_uops(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numStages,$vec_idx,${func_valid_vector.name}\"")
++      ))
++    })
++
+     // handle middle of the pipeline
+     for (i <- 1 until numStages) {
+       r_valids(i) := r_valids(i-1) && !IsKilledByBranch(io.brupdate, r_uops(i-1)) && !io.req.bits.kill
+diff --git a/src/main/scala/exu/fp-pipeline.scala b/src/main/scala/exu/fp-pipeline.scala
+index f2f358df..8f934e0d 100644
+--- a/src/main/scala/exu/fp-pipeline.scala
++++ b/src/main/scala/exu/fp-pipeline.scala
+@@ -53,6 +53,9 @@ class FpPipeline(implicit p: Parameters) extends BoomModule with tile.HasFPUPara
+ 
+     val debug_tsc_reg    = Input(UInt(width=xLen.W))
+     val debug_wb_wdata   = Output(Vec(numWakeupPorts, UInt((fLen+1).W)))
++    val debug = new Bundle {
++      val freelist = Input(Bits(numFpPhysRegs.W))
++    }
+   })
+ 
+   //**********************************
+@@ -70,6 +73,7 @@ class FpPipeline(implicit p: Parameters) extends BoomModule with tile.HasFPUPara
+                          // No bypassing for any FP units, + memWidth for ll_wb
+                          Seq.fill(exe_units.numFrfWritePorts + memWidth){ false }
+                          ))
++  fregfile.io.debug.freelist := io.debug.freelist
+   val fregister_read = Module(new RegisterRead(
+                          issue_unit.issueWidth,
+                          exe_units.withFilter(_.readsFrf).map(_.supportedFuncUnits).toSeq,
+diff --git a/src/main/scala/exu/register-read/regfile.scala b/src/main/scala/exu/register-read/regfile.scala
+index 695a9434..197a275d 100644
+--- a/src/main/scala/exu/register-read/regfile.scala
++++ b/src/main/scala/exu/register-read/regfile.scala
+@@ -21,6 +21,8 @@ import org.chipsalliance.cde.config.Parameters
+ import boom.common._
+ import boom.util.{BoomCoreStringPrefix}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**
+  * IO bundle for a register read port
+  *
+@@ -82,6 +84,9 @@ abstract class RegisterFile(
+   val io = IO(new BoomBundle {
+     val read_ports = Vec(numReadPorts, new RegisterFileReadPortIO(maxPregSz, registerWidth))
+     val write_ports = Flipped(Vec(numWritePorts, Valid(new RegisterFileWritePort(maxPregSz, registerWidth))))
++    val debug = new Bundle {
++      val freelist = Input(Bits(numRegisters.W))
++    }
+   })
+ 
+   private val rf_cost = (numReadPorts + numWritePorts) * (numReadPorts + 2*numWritePorts)
+@@ -115,6 +120,16 @@ class RegisterFileSynthesizable(
+   // --------------------------------------------------------------
+ 
+   val regfile = Mem(numRegisters, UInt(registerWidth.W))
++  require(numRegisters == io.debug.freelist.getWidth)
++  val freelist_vector = Wire(UInt(numRegisters.W))
++  freelist_vector := io.debug.freelist
++  dontTouch(freelist_vector)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(freelist_vector.toTarget, "keep"),
++      firrtl.AttributeAnnotation(regfile.toTarget, s"divaift_liveness_mask = \"bitmap_n,${freelist_vector.name}\""),
++    )
++  })
+ 
+   // --------------------------------------------------------------
+   // Read ports.
+diff --git a/src/main/scala/exu/rename/rename-freelist.scala b/src/main/scala/exu/rename/rename-freelist.scala
+index ef623da0..c6433b56 100644
+--- a/src/main/scala/exu/rename/rename-freelist.scala
++++ b/src/main/scala/exu/rename/rename-freelist.scala
+@@ -17,6 +17,8 @@ import boom.common._
+ import boom.util._
+ import org.chipsalliance.cde.config.Parameters
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class RenameFreeList(
+   val plWidth: Int,
+   val numPregs: Int,
+@@ -44,12 +46,24 @@ class RenameFreeList(
+       val pipeline_empty = Input(Bool())
+       val freelist = Output(Bits(numPregs.W))
+       val isprlist = Output(Bits(numPregs.W))
++      val branch_mask = Input(UInt(maxBrCount.W))
+     }
+   })
+   // The free list register array and its branch allocation lists.
+   val free_list = RegInit(UInt(numPregs.W), ~(1.U(numPregs.W)))
+   val br_alloc_lists = Reg(Vec(maxBrCount, UInt(numPregs.W)))
+ 
++  val brmask_valid_vector = Wire(UInt(maxBrCount.W))
++  brmask_valid_vector := io.debug.branch_mask
++  dontTouch(brmask_valid_vector)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(brmask_valid_vector.toTarget, "keep"),
++    ) ++ (0 until maxBrCount).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(br_alloc_lists(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$maxBrCount,$vec_idx,${brmask_valid_vector.name}\""),
++    ))
++  })
++
+   // Select pregs from the free list.
+   val sels = SelectFirstN(free_list, plWidth)
+   val sel_fire  = Wire(Vec(plWidth, Bool()))
+diff --git a/src/main/scala/exu/rename/rename-maptable.scala b/src/main/scala/exu/rename/rename-maptable.scala
+index 938cfc9b..c0156f1b 100644
+--- a/src/main/scala/exu/rename/rename-maptable.scala
++++ b/src/main/scala/exu/rename/rename-maptable.scala
+@@ -17,6 +17,8 @@ import boom.common._
+ import boom.util._
+ import org.chipsalliance.cde.config.Parameters
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class MapReq(val lregSz: Int) extends Bundle
+ {
+   val lrs1 = UInt(lregSz.W)
+@@ -64,12 +66,32 @@ class RenameMapTable(
+     // Signals for restoring state following misspeculation.
+     val brupdate      = Input(new BrUpdateInfo)
+     val rollback    = Input(Bool())
++
++    val debug_rob_empty   = Input(Bool())
++    val debug_branch_mask = Input(UInt(maxBrCount.W))
+   })
+ 
+   // The map table register array and its branch snapshots.
+   val map_table = RegInit(VecInit(Seq.fill(numLregs){0.U(pregSz.W)}))
+   val br_snapshots = Reg(Vec(maxBrCount, Vec(numLregs, UInt(pregSz.W))))
+ 
++  val brmask_valid_vector = Wire(UInt(maxBrCount.W))
++  val maptable_valid_cond = Wire(UInt(1.W))
++  brmask_valid_vector := io.debug_branch_mask
++  maptable_valid_cond := (!io.debug_rob_empty).asUInt
++  dontTouch(brmask_valid_vector)
++  dontTouch(maptable_valid_cond)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(brmask_valid_vector.toTarget, "keep"),
++      firrtl.AttributeAnnotation(maptable_valid_cond.toTarget, "keep"),
++      firrtl.AttributeAnnotation(map_table.toTarget, s"divaift_liveness_mask = \"cond,${maptable_valid_cond.name}\"")
++    ) ++ (0 until maxBrCount).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(br_snapshots(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$maxBrCount,$vec_idx,${brmask_valid_vector.name}\""),
++    ))
++  })
++
++
+   // The intermediate states of the map table following modification by each pipeline slot.
+   val remap_table = Wire(Vec(plWidth+1, Vec(numLregs, UInt(pregSz.W))))
+ 
+diff --git a/src/main/scala/exu/rename/rename-stage.scala b/src/main/scala/exu/rename/rename-stage.scala
+index 4456697b..86e4f7dd 100644
+--- a/src/main/scala/exu/rename/rename-stage.scala
++++ b/src/main/scala/exu/rename/rename-stage.scala
+@@ -86,6 +86,7 @@ abstract class AbstractRenameStage(
+ 
+     val debug_rob_empty = Input(Bool())
+     val debug = Output(new DebugRenameStageIO(numPhysRegs))
++    val debug_branch_mask = Input(UInt(maxBrCount.W))
+   })
+ 
+   io.ren_stalls.foreach(_ := false.B)
+@@ -271,6 +272,8 @@ class RenameStage(
+   maptable.io.ren_br_tags := ren2_br_tags
+   maptable.io.brupdate      := io.brupdate
+   maptable.io.rollback    := io.rollback
++  maptable.io.debug_branch_mask := io.debug_branch_mask
++  maptable.io.debug_rob_empty   := io.debug_rob_empty
+ 
+   // Maptable outputs.
+   for ((uop, w) <- ren1_uops.zipWithIndex) {
+@@ -296,6 +299,7 @@ class RenameStage(
+   freelist.io.ren_br_tags := ren2_br_tags
+   freelist.io.brupdate := io.brupdate
+   freelist.io.debug.pipeline_empty := io.debug_rob_empty
++  freelist.io.debug.branch_mask := io.debug_branch_mask
+ 
+   assert (ren2_alloc_reqs zip freelist.io.alloc_pregs map {case (r,p) => !r || p.bits =/= 0.U} reduce (_&&_),
+            "[rename-stage] A uop is trying to allocate the zero physical register.")
+diff --git a/src/main/scala/exu/rob.scala b/src/main/scala/exu/rob.scala
+index 2f0e4aee..e5b9cbd8 100644
+--- a/src/main/scala/exu/rob.scala
++++ b/src/main/scala/exu/rob.scala
+@@ -34,6 +34,8 @@ import freechips.rocketchip.util._
+ import boom.common._
+ import boom.util._
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**
+  * IO bundle to interact with the ROB
+  *
+@@ -314,6 +316,23 @@ class Rob(
+ 
+     val rob_debug_wdata = Mem(numRobRows, UInt(xLen.W))
+ 
++    val rob_valid_vector = Wire(UInt(numRobRows.W))
++    rob_valid_vector := rob_val.asTypeOf(rob_valid_vector)
++    dontTouch(rob_valid_vector)
++    annotate(new ChiselMultiAnnotation {
++      override def toFirrtl = Seq(
++        firrtl.AttributeAnnotation(rob_valid_vector.toTarget, "keep"),
++        firrtl.AttributeAnnotation(rob_debug_wdata.toTarget, s"divaift_liveness_mask = \"bitmap,${rob_valid_vector.name}\"")
++      ) ++ (0 until numRobRows).flatMap(vec_idx => Seq(
++        firrtl.AttributeAnnotation(rob_val(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_bsy(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_unsafe(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_uop(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_exception(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\""),
++        firrtl.AttributeAnnotation(rob_predicated(vec_idx).toTarget, s"divaift_liveness_mask = \"bitmap,$numRobRows,$vec_idx,${rob_valid_vector.name}\"")
++      ))
++    })
++
+     //-----------------------------------------------
+     // Dispatch: Add Entry to ROB
+ 
+diff --git a/src/main/scala/ifu/fetch-buffer.scala b/src/main/scala/ifu/fetch-buffer.scala
+index 9226b7df..b0d245d2 100644
+--- a/src/main/scala/ifu/fetch-buffer.scala
++++ b/src/main/scala/ifu/fetch-buffer.scala
+@@ -22,6 +22,8 @@ import freechips.rocketchip.rocket.{MStatus, BP, BreakpointUnit}
+ import boom.common._
+ import boom.util.{BoolToChar, MaskUpper}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**
+  * Bundle that is made up of converted MicroOps from the Fetch Bundle
+  * input to the Fetch Buffer. This is handed to the Decode stage.
+@@ -160,6 +162,24 @@ class FetchBuffer(implicit p: Parameters) extends BoomModule
+ 
+   val deq_valids = (~MaskUpper(slot_will_hit_tail)).asBools
+ 
++  val fb_queue_enq = Wire(UInt(numEntries.W))
++  val fb_queue_deq = Wire(UInt(numEntries.W))
++
++  fb_queue_enq := OHToUInt(tail)
++  fb_queue_deq := OHToUInt(Cat(head, 0.U(coreWidth.W)))
++  dontTouch(fb_queue_enq)
++  dontTouch(fb_queue_deq)
++  dontTouch(maybe_full)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(fb_queue_enq.toTarget, "keep"),
++      firrtl.AttributeAnnotation(fb_queue_deq.toTarget, "keep"),
++      firrtl.AttributeAnnotation(maybe_full.toTarget, "keep")
++    ) ++ (0 until numEntries).map(vec_idx =>
++      firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$numEntries,$vec_idx,${fb_queue_enq.name},${fb_queue_deq.name},${maybe_full.name}\"")
++    )
++  })
++
+   // Generate vec for dequeue read port.
+   for (i <- 0 until numEntries) {
+     deq_vec(i/coreWidth)(i%coreWidth) := ram(i)
+diff --git a/src/main/scala/ifu/fetch-target-queue.scala b/src/main/scala/ifu/fetch-target-queue.scala
+index 5af74617..9bfdaf8b 100644
+--- a/src/main/scala/ifu/fetch-target-queue.scala
++++ b/src/main/scala/ifu/fetch-target-queue.scala
+@@ -26,6 +26,8 @@ import boom.common._
+ import boom.exu._
+ import boom.util._
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**
+  * FTQ Parameters used in configurations
+  *
+@@ -148,6 +150,23 @@ class FetchTargetQueue(implicit p: Parameters) extends BoomModule
+     None
+   }
+ 
++  val module_hook = this
++  dontTouch(enq_ptr)
++  dontTouch(deq_ptr)
++  dontTouch(full)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(enq_ptr.toTarget, "keep"),
++      firrtl.AttributeAnnotation(deq_ptr.toTarget, "keep"),
++      firrtl.AttributeAnnotation(full.toTarget, "keep"),
++      firrtl.AttributeAnnotation(module_hook.toTarget, s"divaift_sram_liveness = \"queue,${enq_ptr.name},${deq_ptr.name},${full.name},${meta.toTarget.name};${ghist(0).toTarget.name};${ghist(1).toTarget.name}\"")
++    ) ++ (0 until num_entries).flatMap(vec_idx => Seq(
++        firrtl.AttributeAnnotation(pcs(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,$vec_idx,${enq_ptr.name},${deq_ptr.name},${full.name}\""),
++        firrtl.AttributeAnnotation(ram(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$num_entries,$vec_idx,${enq_ptr.name},${deq_ptr.name},${full.name}\"")
++    ))
++  })
++
++
+   val do_enq = io.enq.fire
+ 
+ 
+diff --git a/src/main/scala/lsu/dcache.scala b/src/main/scala/lsu/dcache.scala
+index 9f326f50..26b83a73 100644
+--- a/src/main/scala/lsu/dcache.scala
++++ b/src/main/scala/lsu/dcache.scala
+@@ -20,6 +20,7 @@ import boom.common._
+ import boom.exu.BrUpdateInfo
+ import boom.util.{IsKilledByBranch, GetNewBrMask, BranchKillableQueue, IsOlder, UpdateBrMask, AgePriorityEncoder, WrapInc, Transpose}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
+ 
+ class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCacheModule()(p) {
+   val io = IO(new Bundle {
+@@ -46,6 +47,17 @@ class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1Hella
+   val wb_buffer = Reg(Vec(refillCycles, UInt(encRowBits.W)))
+   val acked = RegInit(false.B)
+ 
++  val wb_valid_cond = Wire(Bool())
++  wb_valid_cond := state =/= s_invalid
++  dontTouch(wb_valid_cond)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(wb_valid_cond.toTarget, "keep"),
++    ) ++ (0 until refillCycles).flatMap(vec_idx => Seq(
++      firrtl.AttributeAnnotation(wb_buffer(vec_idx).toTarget, s"divaift_liveness_mask = \"cond,${wb_valid_cond.name}\"")
++    ))
++  })
++
+   io.idx.valid       := state =/= s_invalid
+   io.idx.bits        := req.idx
+   io.release.valid   := false.B
+diff --git a/src/main/scala/lsu/lsu.scala b/src/main/scala/lsu/lsu.scala
+index 1eb8ba24..b6699a3b 100644
+--- a/src/main/scala/lsu/lsu.scala
++++ b/src/main/scala/lsu/lsu.scala
+@@ -53,6 +53,8 @@ import boom.common._
+ import boom.exu.{BrUpdateInfo, Exception, FuncUnitResp, CommitSignals, ExeUnitResp}
+ import boom.util.{BoolToChar, AgePriorityEncoder, IsKilledByBranch, GetNewBrMask, WrapInc, IsOlder, UpdateBrMask}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class LSUExeIO(implicit p: Parameters) extends BoomBundle()(p)
+ {
+   // The "resp" of the maddrcalc is really a "req" to the LSU
+@@ -208,7 +210,24 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
+   val ldq = Reg(Vec(numLdqEntries, Valid(new LDQEntry)))
+   val stq = Reg(Vec(numStqEntries, Valid(new STQEntry)))
+ 
+-
++  val ldq_valid_vector = Wire(UInt(numLdqEntries.W))
++  ldq_valid_vector := VecInit((0 until numLdqEntries).map{ i => ldq(i).valid }).asUInt
++  dontTouch(ldq_valid_vector)
++
++  val stq_valid_vector = Wire(UInt(numStqEntries.W))
++  stq_valid_vector := VecInit((0 until numStqEntries).map { i => stq(i).valid }).asUInt
++  dontTouch(stq_valid_vector)
++
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(ldq_valid_vector.toTarget, "keep"),
++      firrtl.AttributeAnnotation(stq_valid_vector.toTarget, "keep")
++    ) ++ (0 until numLdqEntries).map(vec_idx => {
++      firrtl.AttributeAnnotation(ldq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numLdqEntries,$vec_idx,${ldq_valid_vector.name}\"")
++    }) ++ (0 until numStqEntries).map(vec_idx => {
++      firrtl.AttributeAnnotation(stq(vec_idx).bits.toTarget, s"divaift_liveness_mask = \"bitmap,$numStqEntries,$vec_idx,${stq_valid_vector.name}\"")
++    })
++  })
+ 
+   val ldq_head         = Reg(UInt(ldqAddrSz.W))
+   val ldq_tail         = Reg(UInt(ldqAddrSz.W))
+diff --git a/src/main/scala/lsu/mshrs.scala b/src/main/scala/lsu/mshrs.scala
+index 88bf5194..127ea940 100644
+--- a/src/main/scala/lsu/mshrs.scala
++++ b/src/main/scala/lsu/mshrs.scala
+@@ -20,6 +20,8 @@ import boom.common._
+ import boom.exu.BrUpdateInfo
+ import boom.util.{IsKilledByBranch, GetNewBrMask, BranchKillableQueue, IsOlder, UpdateBrMask, AgePriorityEncoder, WrapInc}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ class BoomDCacheReqInternal(implicit p: Parameters) extends BoomDCacheReq()(p)
+   with HasL1HellaCacheParameters
+ {
+@@ -91,6 +93,10 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
+     val wb_resp     = Input(Bool())
+ 
+     val probe_rdy   = Output(Bool())
++
++    val debug = new Bundle {
++      val mshr_done = Output(Bool())
++    }
+   })
+ 
+   // TODO: Optimize this. We don't want to mess with cache during speculation
+@@ -106,6 +112,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
+   val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(18)
+   val state = RegInit(s_invalid)
+ 
++  io.debug.mshr_done := state === s_invalid
++
+   val req     = Reg(new BoomDCacheReqInternal)
+   val req_idx = req.addr(untagBits-1, blockOffBits)
+   val req_tag = req.addr >> untagBits
+@@ -570,6 +578,14 @@ class BoomMSHRFile(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()
+   val sdq_enq      = req.fire && cacheable && isWrite(req.bits.uop.mem_cmd)
+   val sdq          = Mem(cfg.nSDQ, UInt(coreDataBits.W))
+ 
++  dontTouch(sdq_val)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(sdq_val.toTarget, "keep"),
++      firrtl.AttributeAnnotation(sdq.toTarget, s"divaift_liveness_mask = \"bitmap,${sdq_val.name}\"")
++    )
++  })
++
+   when (sdq_enq) {
+     sdq(sdq_alloc_id) := req.bits.data
+   }
+@@ -706,7 +722,15 @@ class BoomMSHRFile(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()
+   mshr_alloc_idx    := RegNext(AgePriorityEncoder(mshrs.map(m=>m.io.req_pri_rdy), mshr_head))
+   when (pri_rdy && pri_val) { mshr_head := WrapInc(mshr_head, cfg.nMSHRs) }
+ 
+-
++  val lb_valid_vector = Wire(UInt((nLBEntries * cacheDataBeats).W))
++  lb_valid_vector := VecInit(mshrs.flatMap(mshr => Seq.fill(cacheDataBeats){ ~mshr.io.debug.mshr_done })).asUInt
++  dontTouch(lb_valid_vector)
++  annotate(new ChiselMultiAnnotation {
++    override def toFirrtl = Seq(
++      firrtl.AttributeAnnotation(lb_valid_vector.toTarget, "keep"),
++      firrtl.AttributeAnnotation(lb.toTarget, s"divaift_liveness_mask = \"bitmap,${lb_valid_vector.name}\"")
++    )
++  })
+ 
+   io.meta_write <> meta_write_arb.io.out
+   io.meta_read  <> meta_read_arb.io.out
+diff --git a/src/main/scala/util/util.scala b/src/main/scala/util/util.scala
+index ac4da10c..e480da51 100644
+--- a/src/main/scala/util/util.scala
++++ b/src/main/scala/util/util.scala
+@@ -23,6 +23,8 @@ import freechips.rocketchip.tile.{TileKey}
+ import boom.common.{MicroOp}
+ import boom.exu.{BrUpdateInfo}
+ 
++import chisel3.experimental.{annotate, ChiselMultiAnnotation}
++
+ /**
+  * Object to XOR fold a input register of fullLength into a compressedLength.
+  */
+@@ -469,6 +471,19 @@ class BranchKillableQueue[T <: boom.common.HasBoomUOP](gen: T, entries: Int, flu
+   val deq_ptr = Counter(entries)
+   val maybe_full = RegInit(false.B)
+ 
++  dontTouch(maybe_full)
++  annotate(new ChiselMultiAnnotation {
++      override def toFirrtl = Seq(
++        firrtl.AttributeAnnotation(enq_ptr.value.toTarget, "keep"),
++        firrtl.AttributeAnnotation(deq_ptr.value.toTarget, "keep"),
++        firrtl.AttributeAnnotation(maybe_full.toTarget, "keep"),
++        firrtl.AttributeAnnotation(ram.toTarget, s"divaift_liveness_mask = \"queue,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\""),
++      ) ++ (0 until entries).flatMap(vec_idx => Seq(
++        firrtl.AttributeAnnotation(valids(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,$vec_idx,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\""),
++        firrtl.AttributeAnnotation(uops(vec_idx).toTarget, s"divaift_liveness_mask = \"queue,$entries,$vec_idx,${enq_ptr.value.name},${deq_ptr.value.name},${maybe_full.name}\"")
++      ))
++  })
++
+   val ptr_match = enq_ptr.value === deq_ptr.value
+   io.empty := ptr_match && !maybe_full
+   val full = ptr_match && maybe_full

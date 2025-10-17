@@ -23,7 +23,8 @@ class WithPeripherals extends Config((site, here, up) => {
   case MagicKey => up(DebugModuleKey) match {
       case None => Some(MagicParams(baseAddress = 0))
       case _ => None
-    }
+  }
+  case ResetManagerKey => Some(ResetManagerParams())
 })
 
 class StarshipSimConfig extends Config(
@@ -44,5 +45,15 @@ class StarshipSimDebugConfig extends Config(
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
+  })
+)
+
+class StarshipSimMiniConfig extends Config(
+  new StarshipBaseConfig().alter((site,here,up) => {
+    case DebugModuleKey => None
+    case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
+    /* timebase-frequency = 1 MHz */
+    case DTSTimebase => BigInt(1000000L)
+    case BootROMLocated(x) => up(BootROMLocated(x), site).map { p => p.copy(hang = 0x80000000L) }
   })
 )

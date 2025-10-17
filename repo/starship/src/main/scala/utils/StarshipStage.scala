@@ -109,8 +109,8 @@ class StarshipStage extends Stage {
         Seq(
           RunFirrtlTransformAnnotation(Dependency[ExtractTop]),
           BlackBoxResourceFileNameAnno(incOutFile.get),
-          RunFirrtlTransformAnnotation(Dependency[RegisterRecord]),
-          RunFirrtlTransformAnnotation(Dependency[CoverageInstrument])
+          // RunFirrtlTransformAnnotation(Dependency[RegisterRecord]),
+          // RunFirrtlTransformAnnotation(Dependency[CoverageInstrument])
         )
       } else if (topName.isDefined && thName.isDefined) {
         logger.info(s"Generate TestHarness  ${thName}  ${topName}")
@@ -119,7 +119,7 @@ class StarshipStage extends Stage {
           BlackBoxResourceFileNameAnno(incOutFile.get),
           AddModuleSuffixAnnotation("_tb"),
           RunFirrtlTransformAnnotation(Dependency[AddModuleSuffix]),
-          RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
+          // RunFirrtlTransformAnnotation(Dependency[RegisterRecord])
         )
       } else {
         throw new RuntimeException(s"Unexpected Input!")

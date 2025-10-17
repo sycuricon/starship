@@ -7,18 +7,6 @@
 
 `include "xref_common.vh"
 
-`ifdef COSIMULATION
-  `define COVERAGE_PROBE Testbench.testHarness.ldut.io_covSum
-  import "DPI-C" function int coverage_collector(
-    input longint unsigned dut_cov
-  );
-  import "DPI-C" function void cosim_reinit(
-      input string testcase,
-      input reg verbose
-  );
-  import "DPI-C" function void cosim_set_tohost(input longint unsigned value);
-`endif
-
 
 module Testbench;
   
@@ -30,27 +18,12 @@ module Testbench;
   always #(`CLOCK_PERIOD/2.0) clock = ~clock;
   initial #(`RESET_DELAY) reset = 0;
 
-  `ifdef VCS
-    `ifdef COVERAGE_SUMMARY
-      assign `DUT_SOC_TOP.metaReset = reset;
-    `endif
-  `endif
-
-  initial begin
-    `ifdef VCS
-      `ifdef COVERAGE_SUMMARY
-        force `DUT_INTERRUPT = interrupt;
-      `endif
-    `endif
-  end 
-
   int unsigned rand_value;
   string test_name = "starship";
 
   reg [255:0] reason = "";
   reg failure = 1'b0;
   reg verbose = 1'b0;
-  reg fuzzing = 1'b0;
   reg dump_wave = 1'b0;
   reg jtag_rbb_enable = 1'b0;
   reg [63:0] max_cycles = 0;
@@ -60,10 +33,7 @@ module Testbench;
   reg [2047:0] vcdplusfile = 0;
   reg [2047:0] vcdfile = 0;
 
-  int taint_fd;
-  int event_fd;
-
-  wire [63:0] tohost;
+  wire [63:0] tohost = 0;
   wire printf_cond = verbose && !reset;
   wire uart_rx, uart_tx;
 
@@ -73,7 +43,6 @@ module Testbench;
     void'($value$plusargs("dump-start=%d", dump_start));
     void'($value$plusargs("jtag_rbb_enable=%d", jtag_rbb_enable));
     verbose = $test$plusargs("verbose");
-    fuzzing = $test$plusargs("fuzzing");
     dump_wave = $test$plusargs("dump");
 
     // fixed for diffuzzRTL, CJ should not timeout
@@ -114,7 +83,7 @@ module Testbench;
   end
 
   always @(negedge clock) begin
-    if (!jtag_rbb_enable) begin
+    if(!jtag_rbb_enable) begin
       trace_count = trace_count + 1;
       if (trace_count == dump_start) begin
         if (dump_wave) begin
@@ -132,42 +101,28 @@ module Testbench;
           $fdisplay(32'h80000002, "*** FAILED ***%s after %d simulation cycles", reason, trace_count);
           trace_count = 0;
           failure = 0;
-          `ifdef COSIMULATION
-            if (fuzzing) begin
-              $system("echo -e \"\033[31m[>] round timeout `date +%s.%3N` \033[0m\"");
-              cosim_set_tohost(5);
-              fuzz_manager();
-            end
-          `else
-            if (dump_wave) begin
-              `WAVE_CLOSE
-            end
-            $fatal;
-          `endif
+          if (dump_wave) begin
+            `WAVE_CLOSE
+          end
+          $fatal;
         end
-
         if (tohost & 1'b1) begin
           $fdisplay(32'h80000002, "*** PASSED *** Completed after %d simulation cycles", trace_count);
           trace_count = 0;
-          `ifdef COSIMULATION
-            if (fuzzing) begin
-              $system("echo -e \"\033[31m[>] round finish `date +%s.%3N` \033[0m\"");
-              fuzz_manager();
-            end
-          `else
-            if (dump_wave) begin
-              `WAVE_CLOSE
-            end
-            $system("echo -e \"\033[31m[>] vcs done `date +%s.%3N` \033[0m\"");
-            `ifdef COVERAGE_SUMMARY
-              $display("[CJ] coverage sum = %d", `COVERAGE_PROBE);
-            `endif
-            $finish;  
-          `endif
+          if (dump_wave) begin
+            `WAVE_CLOSE
+          end
+          $system("echo -e \"\033[31m[>] vcs done `date +%s.%3N` \033[0m\"");
+          $finish;
         end
       end
     end
   end
+
+  SyncMonitor smon(
+    .clock(clock),
+    .reset(reset)
+  );
 
   TestHarness testHarness(
     .clock(clock),
@@ -178,19 +133,18 @@ module Testbench;
   // .io_uart_rx(uart_rx)
   );
 
-`ifdef ROBPROFILE
-  SyncMonitor smon(
+`ifdef HASVARIANT
+  TestHarness testHarness_variant(
     .clock(clock),
-    .reset(reset)
+    .reset(reset),
+    .io_uart_tx(),
+    .io_uart_rx(1'b0)
+  // .io_uart_tx(uart_tx),
+  // .io_uart_rx(uart_rx)
   );
-`endif
 
-`ifdef COSIMULATION
-  CJ rtlfuzz (
-    .clock(clock),
-    .reset(reset|jtag_rbb_enable),
-    .tohost(tohost)
-  );
+  defparam `DUT_SOC_TOP.IFT_RULE = "data";
+  defparam `DUT_CPU_TOP.IFT_RULE = "diva";
 `endif
 
   // tty #(115200, 0) u0_tty(
@@ -199,71 +153,4 @@ module Testbench;
   //  .reset(reset)
   // );
 
-`ifdef COVERAGE_SUMMARY
-  coverage_monitor mon(
-    .clock(clock),
-    .reset(reset),
-    .cov(`COVERAGE_PROBE),
-    .tohost(tohost),
-    .interrupt(interrupt)
-  );
-`else
-  assign interrupt = 0;
-`endif
-
-  task fuzz_manager;
-  begin
-    force clock = 0;
-    #50;
-    `ifdef COSIMULATION
-      if (coverage_collector(`COVERAGE_PROBE)) begin
-        reset = 1;
-        $readmemh("./testcase.hex", `DUT_MEM_REG.ram);
-        cosim_reinit("./testcase.elf", verbose);
-        $system("echo -e \"\033[31m[>] round start `date +%s.%3N` \033[0m\"");
-      end
-    `endif
-    release clock;
-    #10 reset = 0;
-  end
-  endtask
-
-endmodule
-
-
-`define MAX_WAIT_CYCLE  1000
-
-module coverage_monitor(
-  input clock,
-  input reset,
-  input [29:0] cov,
-  input [63:0] tohost,
-  output interrupt
-);
-
-  reg [63:0] count = 0;
-  reg [63:0] watch_dog = 0;
-  reg [29:0] pre_cov = 0;
-
-  always @(negedge clock) begin
-    if (!reset) begin
-      if (cov != pre_cov) begin
-        pre_cov <= cov;
-        count <= 0;
-      end else begin
-        count <= count + 1;
-      end
-      if (tohost & 1) begin
-        count <= 0;
-        watch_dog <= 0;
-      end else begin
-        watch_dog <= watch_dog + 1;
-      end
-    end else begin
-      count <= 0;
-      watch_dog <= 0;
-    end
-  end
-
-  assign interrupt = (count >= (`MAX_WAIT_CYCLE * ((cov >> 19)+1) )) || (watch_dog >= 50000);
 endmodule

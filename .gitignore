@@ -20,5 +20,9 @@ log*
 *.log
 *log.txt
 
-# verdi
+# Verdi
 novas.*
+*fsdb*Log/
+nCompareLog/
+verdiLog/
+vfastLog/
