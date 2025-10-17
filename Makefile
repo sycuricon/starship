@@ -10,9 +10,6 @@ CONFIG		:= $(TOP)/conf
 ASIC		:= $(TOP)/asic
 SCRIPT		:= $(TOP)/scripts
 
-ifndef RISCV
-  $(error $$RISCV is undefined, please set $$RISCV to your riscv-toolchain)
-endif
 
 GCC_VERSION	:= $(word 1,$(subst ., ,$(shell gcc -dumpversion)))
 ifeq ($(shell echo $(GCC_VERSION)\>=9 | bc ),0)
