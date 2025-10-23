@@ -1,6 +1,6 @@
 package starship
 
-import starship.fpga._
+// import starship.fpga._
 
 import chisel3._
 
@@ -10,6 +10,7 @@ import freechips.rocketchip.subsystem._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
+import freechips.rocketchip.util.SystemFileName
 
 import sifive.fpgashells.shell._
 import sifive.fpgashells.clocks._
@@ -33,8 +34,8 @@ class With50MHz  extends WithFrequency(50)
 class With100MHz extends WithFrequency(100)
 class With150MHz extends WithFrequency(150)
 
-class WithRocketCore extends Config(new WithNBigCores(1))
-class WithBOOMCore extends Config(new boom.common.WithNSmallBooms(1))
+class WithRocketCore extends Config(new freechips.rocketchip.rocket.WithNBigCores(1))
+class WithBOOMCore extends Config(new boom.v3.common.WithNSmallBooms(1))
 class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
 class WithXiangShanCore extends Config(new starship.xiangshan.WithNXSCores(1))
 
@@ -55,7 +56,7 @@ class StarshipBaseConfig extends Config(
       println("[Leaving rocketchip] " + make)
       require (make.! == 0, "Failed to build bootrom")
       println("[rocketchip Continue]")
-      p.copy(hang = 0x10000, contentFileName = s"build/firmware/zsbl/bootrom.img")
+      p.copy(hang = 0x10000, contentFileName = SystemFileName("./build/firmware/zsbl/bootrom.img"))
     }
   })
 )

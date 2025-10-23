@@ -2,18 +2,23 @@ package starship.asic
 
 import starship._
 import chisel3._
-import chisel3.experimental.{annotate, ChiselAnnotation}
+// import chisel3.experimental.{annotate, ChiselAnnotation}
+
+import org.chipsalliance.diplomacy.lazymodule._
+import org.chipsalliance.cde.config._
+
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
-import org.chipsalliance.cde.config._
 import freechips.rocketchip.system._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.subsystem._
-import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.resources._
 import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
+
 import sifive.blocks.devices.uart._
+
 
 class StarshipSimTop(implicit p: Parameters) extends StarshipSystem
     with CanHaveMasterAXI4MemPort
@@ -36,7 +41,6 @@ class StarshipSimTop(implicit p: Parameters) extends StarshipSystem
 class StarshipSimTopModuleImp[+L <: StarshipSimTop](_outer: L) extends StarshipSystemModuleImp(_outer)
     with HasRTCModuleImp
     with HasExtInterruptsModuleImp
-    with HasPeripheryUARTModuleImp
     with CanHavePeripheryResetManagerImp
     with DontTouch
     with HasDummyTaintPort
@@ -140,9 +144,10 @@ class TestHarness()(implicit p: Parameters) extends Module {
 
   dut.reset_manager.map (_.reset_in := reset.asBool)
   // Allow the debug ndreset to reset the dut, but not until the initial reset has completed
-  dut.reset := (reset.asBool |
+  val dut_reset = (reset.asBool |
                 ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B) |
                 dut.reset_manager.map { _.reset_out }.getOrElse(false.B)).asBool
+  ldut.io_clocks.get.elements.values.foreach(_.reset := dut_reset)
 
   dut.dontTouchPorts()
   dut.tieOffInterrupts()
@@ -161,14 +166,14 @@ class TestHarness()(implicit p: Parameters) extends Module {
     }
   )
 
-  dut.tainted.foreach {
-    case (key, io) =>
-      io := 0.U
-      annotate(new ChiselAnnotation {
-        override def toFirrtl = firrtl.AttributeAnnotation(
-          io.toTarget, "pift_taint_wire = 1")
-      })
-  }
+  // dut.tainted.foreach {
+  //   case (key, io) =>
+  //     io := 0.U
+  //     annotate.apply(new ChiselAnnotation {
+  //       override def toFirrtl = firrtl.AttributeAnnotation(
+  //         io.toTarget, "pift_taint_wire = 1")
+  //     })
+  // }
 
   val tsrc = Module(new TaintSource())
   tsrc.io.mem_axi4_0_ar_ready := ldut.mem_axi4(0).ar.ready
@@ -181,7 +186,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   tsrc.io.mem_axi4_0_r_bits_last := ldut.mem_axi4(0).r.bits.last
   dut.tainted.get("mem_axi4_0_r_bits_data_taint_0").get := tsrc.io.mem_axi4_0_r_bits_data_taint_0
 
-  dut.uart.headOption.foreach(uart => {
+  ldut.uart.headOption.foreach(uart => {
       uart.rxd := SyncResetSynchronizerShiftReg(io.uart_rx, 2, init = true.B, name=Some("uart_rxd_sync"))
       io.uart_tx  := uart.txd
     }

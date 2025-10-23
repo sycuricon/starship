@@ -51,9 +51,7 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
     beatBytes = beatBytes)
 
   lazy val module = new Imp
-  class Imp extends LazyModuleImp(this) {
-    Annotated.params(this, params)
-    
+  class Imp extends LazyModuleImp(this) {   
     val field_name = List("random", "rdm_word", "rdm_float", "rdm_double", "rdm_text_addr", "rdm_data_addr", "mepc_next", "sepc_next", "rdm_pte")
     val field_offset = field_name.zipWithIndex.map((_._2*8))
     val field_header = "#ifndef _SYCURICON_MAGIC_DEVICE_H\n" + "#define _SYCURICON_MAGIC_DEVICE_H\n" +
@@ -87,7 +85,7 @@ class MagicDevice(params: MagicParams, beatBytes: Int)(implicit p: Parameters)
 trait CanHavePeripheryMagicDevice { this: BaseSubsystem =>
   val MagicOpt = p(MagicKey).map { params =>
     val tlbus = locateTLBusWrapper(p(MagicAttachKey).slaveWhere)
-    val magic = LazyModule(new MagicDevice(params, cbus.beatBytes))
+    val magic = LazyModule(new MagicDevice(params, tlbus.beatBytes))
     magic.node := tlbus.coupleTo("magic") { TLFragmenter(tlbus) := _ }
     magic
   }

@@ -43,8 +43,6 @@ class ResetManager(params: ResetManagerParams, beatBytes: Int)(implicit p: Param
 
   lazy val module = new Imp
   class Imp extends LazyModuleImp(this) {
-    Annotated.params(this, params)
-
     val field_name = List("state", "counter")
     val field_offset = field_name.zipWithIndex.map(_._2 * params.width / 8)
 
@@ -70,7 +68,7 @@ class ResetManager(params: ResetManagerParams, beatBytes: Int)(implicit p: Param
 trait CanHavePeripheryResetManager { this: BaseSubsystem =>
   val reset_ctrls = p(ResetManagerKey).map { params =>
     val tlbus = locateTLBusWrapper(p(ResetManagerAttachKey).slaveWhere)
-    val lreset_manage = LazyModule(new ResetManager(params, cbus.beatBytes))
+    val lreset_manage = LazyModule(new ResetManager(params, tlbus.beatBytes))
     tlbus.coupleTo("reset-manager") { lreset_manage.node := TLFragmenter(tlbus) := _ }
     lreset_manage
   }
@@ -78,7 +76,7 @@ trait CanHavePeripheryResetManager { this: BaseSubsystem =>
   val reset_ionodes = reset_ctrls.map(_.ioNode.makeSink())
 }
 
-trait CanHavePeripheryResetManagerImp extends LazyModuleImp {
+trait CanHavePeripheryResetManagerImp extends LazyRawModuleImp {
   val outer: CanHavePeripheryResetManager
   val reset_manager = outer.reset_ionodes.map { _.makeIO() }
 }
