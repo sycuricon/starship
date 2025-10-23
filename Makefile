@@ -67,7 +67,7 @@ ROCKET_TOP_MEMCONF	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.top.conf
 ROCKET_TH_MEMCONF 	:= $(ROCKET_BUILD)/$(ROCKET_OUTPUT).sram.testharness.conf
 
 export ROCKET_OUTPUT
-export JAVA_OPTS	:= -Xmx5G
+export JAVA_OPTS	:= -Xmx10G
 
 verilog-debug: FIRRTL_DEBUG_OPTION ?= -ll info
 

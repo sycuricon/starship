@@ -1,9 +1,10 @@
 ROOT_DIR	?=	$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR	:=	$(ROOT_DIR)/build/firmware/zsbl
 
-CC			=	$(RISCV)/bin/riscv64-unknown-elf-gcc
-OBJCOPY		=	$(RISCV)/bin/riscv64-unknown-elf-objcopy
-OBJDUMP		=	$(RISCV)/bin/riscv64-unknown-elf-objdump
+CC_PREFIX	=	riscv64-unknown-elf
+CC			=	$(CC_PREFIX)-gcc
+OBJCOPY		=	$(CC_PREFIX)-objcopy
+OBJDUMP		=	$(CC_PREFIX)-objdump
 
 elf	:= $(BUILD_DIR)/bootrom.elf
 bin	:= $(BUILD_DIR)/bootrom.bin
