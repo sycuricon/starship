@@ -1,11 +1,14 @@
 package starship.playyard.diplomacy
 
 import chisel3._
-import chisel3.stage._
+import circt.stage._
 import chisel3.util.random._
-import chisel3.internal.sourceinfo._
-import freechips.rocketchip.diplomacy._
+import chisel3.experimental._
+
+import org.chipsalliance.diplomacy._
 import org.chipsalliance.cde.config._
+import org.chipsalliance.diplomacy.nodes._
+import org.chipsalliance.diplomacy.lazymodule._
 
 /* Parameters */
 
@@ -123,7 +126,7 @@ class demo1TestHarness()(implicit p: Parameters) extends LazyModule {
 
 object diplomacyDemo1 {
   def main(args: Array[String]) {
-    val verilog = (new ChiselStage).emitVerilog(
+    val verilog = ChiselStage.emitSystemVerilogFile(
       LazyModule(new demo1TestHarness()(Parameters.empty)).module,
       Array("-td", "build/playyard")
     )

@@ -1,11 +1,10 @@
 package starship.playyard.diplomacy
 
 import chisel3._
-import chisel3.stage._
-import chisel3.util.random._
-import chisel3.internal.sourceinfo._
-import freechips.rocketchip.diplomacy._
+import circt.stage._
 import org.chipsalliance.cde.config._
+
+import freechips.rocketchip.diplomacy._
 
 class Leaf(implicit p: Parameters) extends LazyModule {
   val input = BundleBridgeSink[Bool]()
@@ -86,7 +85,7 @@ class LeafHarness(implicit p: Parameters) extends LazyModule {
 
 object diplomacyDemo2 {
   def main(args: Array[String]) {
-    val verilog = (new ChiselStage).emitVerilog(
+    val verilog = ChiselStage.emitSystemVerilogFile(
       LazyModule(new LeafHarness()(Parameters.empty)).module,
       Array("-td", "build/playyard")
     )
