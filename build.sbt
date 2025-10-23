@@ -6,12 +6,12 @@
 
 Global / lintUnusedKeysOnLoad := false
 
-val chiselVersion = "3.6.0"
+val chiselVersion = "6.7.0"
 
 lazy val commonSettings = Seq(
   organization := "zjv",
   version := "0.2",
-  scalaVersion := "2.13.10",
+  scalaVersion := "2.13.16",
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
@@ -19,11 +19,14 @@ lazy val commonSettings = Seq(
     "-language:reflectiveCalls",
     "-Ymacro-annotations"
   ),
-  addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full),
+  addCompilerPlugin("org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full),
   libraryDependencies ++= Seq(
-    "com.github.scopt" %% "scopt" % "3.7.1",
-    "edu.berkeley.cs" %% "chisel3" % chiselVersion,
+    "com.lihaoyi" %% "sourcecode" % "0.3.1",
+    "com.github.scopt" %% "scopt" % "4.1.0",
     "com.lihaoyi" %% "mainargs" % "0.5.4",
+    "org.json4s" %% "json4s-jackson" % "4.0.5",
+    "org.scala-graph" %% "graph-core" % "1.13.5",
+    "org.chipsalliance" %% "chisel" % chiselVersion,
   ),
   resolvers ++=
     Resolver.sonatypeOssRepos("snapshots") ++
@@ -31,25 +34,22 @@ lazy val commonSettings = Seq(
     Resolver.mavenLocal
 )
 
-lazy val cde = (project in file("repo/rocket-chip/cde"))
+lazy val cde = (project in file("repo/rocket-chip/dependencies/cde"))
   .settings(
     commonSettings,
     Compile / scalaSource := baseDirectory.value / "cde/src/chipsalliance/rocketchip"
   )
 
-lazy val rocket_macros  = (project in file("repo/rocket-chip/macros"))
-  .settings(
-    commonSettings,
-    libraryDependencies ++= Seq(
-      "org.json4s" %% "json4s-jackson" % "4.0.6",
-    )
-  )
+lazy val diplomacy  = (project in file("repo/rocket-chip/dependencies/diplomacy/diplomacy"))
+  .dependsOn(cde)
+  .settings(commonSettings)
+  .settings(Compile / scalaSource := baseDirectory.value / "src/diplomacy")
 
 lazy val ucb_hardfloat = (project in file("repo/rocket-chip/hardfloat/hardfloat"))
   .settings(commonSettings)
 
 lazy val rocket_chip = (project in file("repo/rocket-chip"))
-  .dependsOn(cde, rocket_macros, ucb_hardfloat)
+  .dependsOn(cde, diplomacy, ucb_hardfloat)
   .settings(commonSettings)
 
 lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
@@ -81,7 +81,7 @@ lazy val ucb_boom = (project in file("repo/riscv-boom/src"))
   )
 
 lazy val starship = (project in file("repo/starship"))
-  .dependsOn(rocket_chip, cde, peripheral_blocks, fpga_shells, ucb_boom)
+  .dependsOn(diplomacy, rocket_chip, cde, peripheral_blocks, fpga_shells, ucb_boom)
   .settings(commonSettings)
 
 lazy val root = (project in file("."))
