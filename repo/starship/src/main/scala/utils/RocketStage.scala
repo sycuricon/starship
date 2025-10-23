@@ -3,9 +3,11 @@ package starship.utils.stage
 import mainargs._
 import chisel3.RawModule
 import chisel3.stage.ChiselGeneratorAnnotation
-import firrtl.options.{Dependency, PhaseManager, TargetDirAnnotation}
-import freechips.rocketchip.diplomacy.LazyModule
+
+import org.chipsalliance.diplomacy.lazymodule._
 import org.chipsalliance.cde.config.{Config, Parameters}
+
+import firrtl.options.{Dependency, PhaseManager, TargetDirAnnotation}
 
 
 object FIRRTLGenerator {
@@ -32,7 +34,7 @@ object FIRRTLGenerator {
     val pm = new PhaseManager(
       Seq(
         Dependency[chisel3.stage.phases.Elaborate],
-        Dependency[starship.utils.stage.GenerateROMs],
+        // Dependency[starship.utils.stage.GenerateROMs],
         Dependency[chisel3.stage.phases.Convert]
       )
     )
