@@ -21,6 +21,7 @@ import org.chipsalliance.cde.config._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.prci._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.subsystem.{RocketCrossingParams}
 import freechips.rocketchip.tilelink._
@@ -28,9 +29,9 @@ import freechips.rocketchip.interrupts._
 import freechips.rocketchip.util._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.amba.axi4._
-import freechips.rocketchip.prci.ClockSinkParameters
 
 case class CVA6CoreParams(
+  xLen: Int = 64,
   bootFreqHz: BigInt = BigInt(1700000000),
   rasEntries: Int = 4,
   btbEntries: Int = 16,
@@ -81,6 +82,10 @@ case class CVA6CoreParams(
   val useCryptoSM: Boolean = false
   val traceHasWdata: Boolean = false
   val useConditionalZero: Boolean = false
+  val useZba: Boolean = false
+  val useZbb: Boolean = false
+  val useZbs: Boolean = false
+  val pgLevels = if (xLen == 64) 3 else 2
 }
 
 case class CVA6TileAttachParams(
@@ -94,7 +99,7 @@ case class CVA6TileAttachParams(
 // TODO: BTBParams, DCacheParams, ICacheParams are incorrect in DTB... figure out defaults in CVA6 and put in DTB
 case class CVA6TileParams(
   name: Option[String] = Some("cva6_tile"),
-  hartId: Int = 0,
+  tileId: Int = 0,
   trace: Boolean = false,
   val core: CVA6CoreParams = CVA6CoreParams()
 ) extends InstantiableTileParams[CVA6Tile]
@@ -106,9 +111,11 @@ case class CVA6TileParams(
   val dcache: Option[DCacheParams] = Some(DCacheParams())
   val icache: Option[ICacheParams] = Some(ICacheParams())
   val clockSinkParams: ClockSinkParameters = ClockSinkParameters()
-  def instantiate(crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): CVA6Tile = {
+  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): CVA6Tile = {
     new CVA6Tile(this, crossing, lookup)
   }
+  val baseName = name.getOrElse("cva6_tile")
+  val uniqueName = s"${baseName}_$tileId"
 }
 
 class CVA6Tile private(
@@ -124,10 +131,10 @@ class CVA6Tile private(
    * Setup parameters:
    * Private constructor ensures altered LazyModule.p is used implicitly
    */
-  def this(params: CVA6TileParams, crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
+  def this(params: CVA6TileParams, crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
     this(params, crossing.crossingType, lookup, p)
 
-  val intOutwardNode = IntIdentityNode()
+  val intOutwardNode = Some(IntIdentityNode())
   val slaveNode = TLIdentityNode()
   val masterNode = visibilityNode
 
@@ -147,7 +154,7 @@ class CVA6Tile private(
   }
 
   ResourceBinding {
-    Resource(cpuDevice, "reg").bind(ResourceAddress(staticIdForMetadataUseOnly))
+    Resource(cpuDevice, "reg").bind(ResourceAddress(tileId))
   }
 
  override def makeMasterBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = crossing match {
@@ -202,16 +209,13 @@ class CVA6Tile private(
 }
 
 class CVA6TileModuleImp(outer: CVA6Tile) extends BaseTileModuleImp(outer){
-  // annotate the parameters
-  Annotated.params(this, outer.cva6Params)
-
   val debugBaseAddr = BigInt(0x0) // CONSTANT: based on default debug module
   val debugSz = BigInt(0x1000) // CONSTANT: based on default debug module
   val tohostAddr = BigInt(0x80001000L) // CONSTANT: based on default sw (assume within extMem region)
   val fromhostAddr = BigInt(0x80001040L) // CONSTANT: based on default sw (assume within extMem region)
 
   // have the main memory, bootrom, debug regions be executable
-  val bootromParams = p(BootROMLocated(InSubsystem)).get
+  val bootromParams = p(BootROMLocated(InSubsystem)).head
   val executeRegionBases = Seq(p(ExtMem).get.master.base,      bootromParams.address, debugBaseAddr, BigInt(0x0), BigInt(0x0))
   val executeRegionSzs   = Seq(p(ExtMem).get.master.size, BigInt(bootromParams.size),       debugSz, BigInt(0x0), BigInt(0x0))
   val executeRegionCnt   = executeRegionBases.length
@@ -242,7 +246,7 @@ class CVA6TileModuleImp(outer: CVA6Tile) extends BaseTileModuleImp(outer){
     traceportSz = (outer.cva6Params.core.retireWidth * traceInstSz),
 
     // general core params
-    xLen = p(XLen),
+    xLen = outer.cva6Params.core.xLen,
     rasEntries = outer.cva6Params.core.rasEntries,
     btbEntries = outer.cva6Params.core.btbEntries,
     bhtEntries = outer.cva6Params.core.bhtEntries,

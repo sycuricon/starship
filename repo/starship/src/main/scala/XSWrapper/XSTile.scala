@@ -17,9 +17,10 @@ import freechips.rocketchip.interrupts._
 import freechips.rocketchip.util._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.amba.axi4._
-import freechips.rocketchip.prci.ClockSinkParameters
+import freechips.rocketchip.prci._
 
 case class XSCoreParams(
+    xLen: Int = 64,
     bootFreqHz: BigInt = BigInt(1_000_000_000),
 ) extends CoreParams {
   val useVM: Boolean = true
@@ -63,6 +64,10 @@ case class XSCoreParams(
   val mtvecWritable: Boolean = true
   val traceHasWdata: Boolean = false
   val lrscCycles: Int = 64
+  val useZba: Boolean = false
+  val useZbb: Boolean = false
+  val useZbs: Boolean = false
+  val pgLevels = 4
 }
 
 case class XSTileAttachParams(
@@ -76,7 +81,7 @@ case class XSTileAttachParams(
 case class XSTileParams(
   core: XSCoreParams = XSCoreParams(),
   name: Option[String] = Some("xiangshan_tile"),
-  hartId: Int = 0,
+  tileId: Int = 0,
   tlSizeWidth: Int = 3,
   tlAddrWidth: Int = 36,
   tlMemDataWidth: Int = 256,
@@ -95,9 +100,11 @@ case class XSTileParams(
   val boundaryBuffers: Boolean = false
   val clockSinkParams: ClockSinkParameters = ClockSinkParameters()
 
-  def instantiate(crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): XSTile = {
+  def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters): XSTile = {
     new XSTile(this, crossing, lookup)
   }
+  val baseName = name.getOrElse("ibex_tile")
+  val uniqueName = s"${baseName}_$tileId"
 }
 
 // case object DirtyKey extends ControlKey[Bool](name = "blockisdirty")
@@ -112,10 +119,10 @@ class XSTile private(
   with SinksExternalInterrupts
   with SourcesExternalNotifications {
 
-  def this(params: XSTileParams, crossing: TileCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
+  def this(params: XSTileParams, crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByHartIdImpl)(implicit p: Parameters) =
     this(params, crossing.crossingType, lookup, p)
 
-  val intOutwardNode = IntIdentityNode()
+  val intOutwardNode = Some(IntIdentityNode())
   val masterNode = visibilityNode
   val slaveNode = TLIdentityNode()
 
@@ -135,7 +142,7 @@ class XSTile private(
   }
 
   ResourceBinding {
-    Resource(cpuDevice, "reg").bind(ResourceAddress(staticIdForMetadataUseOnly))
+    Resource(cpuDevice, "reg").bind(ResourceAddress(tileId))
   }
 
   val mem_node = TLClientNode(
@@ -171,8 +178,6 @@ class XSTile private(
 }
 
 class XSTileModuleImp(outer: XSTile) extends BaseTileModuleImp(outer) {
-  Annotated.params(this, outer.xsParams)
-  
   val core = Module(new XS_XSTile)
   core.io.clock := clock
   core.io.reset := reset
