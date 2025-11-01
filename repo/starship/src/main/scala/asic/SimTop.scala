@@ -148,6 +148,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
                 ldut.debug.map { debug => AsyncResetReg(debug.ndreset) }.getOrElse(false.B) |
                 dut.reset_manager.map { _.reset_out }.getOrElse(false.B)).asBool
   ldut.io_clocks.get.elements.values.foreach(_.reset := dut_reset)
+  ldut.io_clocks.get.elements.values.foreach(_.clock := clock)
 
   dut.dontTouchPorts()
   dut.tieOffInterrupts()
@@ -166,14 +167,14 @@ class TestHarness()(implicit p: Parameters) extends Module {
     }
   )
 
-  // dut.tainted.foreach {
-  //   case (key, io) =>
-  //     io := 0.U
-  //     annotate.apply(new ChiselAnnotation {
-  //       override def toFirrtl = firrtl.AttributeAnnotation(
-  //         io.toTarget, "pift_taint_wire = 1")
-  //     })
-  // }
+  dut.tainted.foreach {
+    case (key, io) =>
+      io := 0.U
+      // annotate.apply(new ChiselAnnotation {
+      //   override def toFirrtl = firrtl.AttributeAnnotation(
+      //     io.toTarget, "pift_taint_wire = 1")
+      // })
+  }
 
   val tsrc = Module(new TaintSource())
   tsrc.io.mem_axi4_0_ar_ready := ldut.mem_axi4(0).ar.ready
