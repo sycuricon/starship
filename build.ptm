@@ -1,0 +1,101 @@
+# Starship Project
+# Copyright (C) 2020-2025 by phantom
+# Email: phantom@zju.edu.cn
+# This project is under MIT License
+
+
+STARSHIP_HOME       = $>"pwd"
+STARSHIP_DEPEND     = STARSHIP_HOME / "repo"
+STARSHIP_BUILD      = STARSHIP_HOME / "build"
+STARSHIP_CONFIG     = STARSHIP_HOME / "conf"
+STARSHIP_ASIC       = STARSHIP_HOME / "asic"
+STARSHIP_SCRIPT     = STARSHIP_HOME / "scripts"
+
+assert int($>"gcc -dumpversion") >= 9, "GCC version is too low"
+
+config = include(STARSHIP_CONFIG / "config.ptm")
+
+@task()
+def clean(target, depends):
+    $"rm -rf {STARSHIP_BUILD}"
+
+#######################################
+#                                      
+#         Verilog Generation
+#                                      
+#######################################
+ROCKET_HOME         = STARSHIP_DEPEND / "rocket-chip"
+ROCKET_BUILD        = STARSHIP_BUILD / "rocket-chip"
+ROCKET_PREFIX       = ".".join([config.STARSHIP_CORE,
+                                config.STARSHIP_DUT.split(".")[-1],
+                                config.STARSHIP_CONFIG.split(".")[-1]])
+ROCKET_TOP          = config.STARSHIP_TB
+ROCKET_CONF         = ",".join([f"starship.With{config.STARSHIP_CORE}Core", 
+                                f"{config.STARSHIP_CONFIG}",
+                                f"starship.With{config.STARSHIP_FREQ}MHz"])
+
+# FIRRTL stage
+ROCKET_SCALA        = $>'find {STARSHIP_HOME} -type d -name target -prune -o   \
+                            -type f -name "*.scala" -print'.splitlines()
+ROCKET_FIRRTL       = ROCKET_BUILD / f"{ROCKET_PREFIX}.fir"
+ROCKET_DTS          = ROCKET_BUILD / f"{ROCKET_PREFIX}.dts"
+ROCKET_ANNO         = ROCKET_BUILD / f"{ROCKET_PREFIX}.anno.json"
+ROCKET_ANNO_FINAL   = ROCKET_BUILD / f"{ROCKET_PREFIX}.final.anno.json"
+ROCKET_DUT_HRCY     = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.hierarchy.json"
+ROCKET_TB_HRCY      = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.hierarchy.json"
+ROCKET_MEM_CONFIG   = ROCKET_BUILD / f"{ROCKET_PREFIX}.mem.conf"
+
+
+
+@targets([ROCKET_FIRRTL, ROCKET_DTS, ROCKET_ANNO], [*ROCKET_SCALA], True)
+def gen_firrtl(target, depends, jobs):
+    $"mkdir -p {ROCKET_BUILD}"
+    $"""sbt "runMain starship.utils.stage.FIRRTLGenerator
+            --name {ROCKET_PREFIX} --dir {ROCKET_BUILD}
+            --top {ROCKET_TOP} --config {ROCKET_CONF}"
+    """
+
+@target(ROCKET_ANNO_FINAL, [ROCKET_ANNO])
+def append_anno(target, depends):
+    import json
+
+    result = []
+    with open(depends[0], "r", encoding="utf-8") as f:
+        result.extend(json.load(f))
+
+    result.extend([
+        {
+            "class":"sifive.enterprise.firrtl.MarkDUTAnnotation",
+            "target":f'~{config.STARSHIP_TB.split(".")[-1]}|{config.STARSHIP_DUT.split(".")[-1]}'
+        },
+        {
+            "class": "sifive.enterprise.firrtl.TestHarnessHierarchyAnnotation",
+            "filename": ROCKET_TB_HRCY
+        },
+        {
+            "class": "sifive.enterprise.firrtl.ModuleHierarchyAnnotation",
+            "filename": ROCKET_DUT_HRCY
+        }
+    ])
+
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(result, f)
+
+
+# Verilog stage
+ROCKET_VERILOG_DIR  = ROCKET_BUILD / ROCKET_PREFIX
+ROCKET_VERILOG_F    = ROCKET_VERILOG_DIR / "filelist.f"
+ROCKET_BLACKBOX_F   = ROCKET_VERILOG_DIR / "firrtl_black_box_resource_files.f"
+
+@targets([ROCKET_VERILOG_F, ROCKET_BLACKBOX_F], [ROCKET_FIRRTL, ROCKET_ANNO_FINAL], True)
+def gen_verilog(target, depends, jobs):
+    $"""firtool --format=fir --export-module-hierarchy --verify-each=true --warn-on-unprocessed-annotations \
+    --disable-annotation-classless --disable-annotation-unknown --mlir-timing --split-verilog \
+    --lowering-options=emittedLineLength=2048,noAlwaysComb,disallowLocalVariables,verifLabels,disallowPortDeclSharing,locationInfoStyle=wrapInAtSquareBracket \
+    --repl-seq-mem --repl-seq-mem-file={ROCKET_MEM_CONFIG} \
+    --annotation-file={depends[1]} -o {ROCKET_VERILOG_DIR} {depends[0]}
+    """
+
+@task([ROCKET_VERILOG_F])
+def all(target, depends):
+    print("done")

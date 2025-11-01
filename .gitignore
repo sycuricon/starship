@@ -13,6 +13,7 @@ target/
 build/.../*.v
 build/.../*.fir
 build/.../*.json
+.*.ptm.py
 
 # Log
 log*
