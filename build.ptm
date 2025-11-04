@@ -3,7 +3,6 @@
 # Email: phantom@zju.edu.cn
 # This project is under MIT License
 
-
 STARSHIP_HOME       = $>"pwd"
 STARSHIP_DEPEND     = STARSHIP_HOME / "repo"
 STARSHIP_BUILD      = STARSHIP_HOME / "build"
@@ -20,9 +19,9 @@ def clean(target, depends):
     $"rm -rf {STARSHIP_BUILD}"
 
 #######################################
-#                                      
+#
 #         Verilog Generation
-#                                      
+#
 #######################################
 ROCKET_HOME         = STARSHIP_DEPEND / "rocket-chip"
 ROCKET_BUILD        = STARSHIP_BUILD / "rocket-chip"
@@ -41,13 +40,10 @@ ROCKET_FIRRTL       = ROCKET_BUILD / f"{ROCKET_PREFIX}.fir"
 ROCKET_DTS          = ROCKET_BUILD / f"{ROCKET_PREFIX}.dts"
 ROCKET_ANNO         = ROCKET_BUILD / f"{ROCKET_PREFIX}.anno.json"
 ROCKET_ANNO_FINAL   = ROCKET_BUILD / f"{ROCKET_PREFIX}.final.anno.json"
-ROCKET_DUT_HRCY     = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.hierarchy.json"
-ROCKET_TB_HRCY      = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.hierarchy.json"
+ROCKET_HIER         = ROCKET_BUILD / f"{ROCKET_PREFIX}.hierarchy.json"
 ROCKET_MEM_CONFIG   = ROCKET_BUILD / f"{ROCKET_PREFIX}.mem.conf"
 
-
-
-@targets([ROCKET_FIRRTL, ROCKET_DTS, ROCKET_ANNO], [*ROCKET_SCALA], True)
+@target([ROCKET_FIRRTL, ROCKET_DTS, ROCKET_ANNO], [*ROCKET_SCALA], True)
 def gen_firrtl(target, depends, jobs):
     $"mkdir -p {ROCKET_BUILD}"
     $"""sbt "runMain starship.utils.stage.FIRRTLGenerator
@@ -65,16 +61,8 @@ def append_anno(target, depends):
 
     result.extend([
         {
-            "class":"sifive.enterprise.firrtl.MarkDUTAnnotation",
-            "target":f'~{config.STARSHIP_TB.split(".")[-1]}|{config.STARSHIP_DUT.split(".")[-1]}'
-        },
-        {
             "class": "sifive.enterprise.firrtl.TestHarnessHierarchyAnnotation",
-            "filename": ROCKET_TB_HRCY
-        },
-        {
-            "class": "sifive.enterprise.firrtl.ModuleHierarchyAnnotation",
-            "filename": ROCKET_DUT_HRCY
+            "filename": ROCKET_HIER
         }
     ])
 
@@ -86,16 +74,36 @@ def append_anno(target, depends):
 ROCKET_VERILOG_DIR  = ROCKET_BUILD / ROCKET_PREFIX
 ROCKET_VERILOG_F    = ROCKET_VERILOG_DIR / "filelist.f"
 ROCKET_BLACKBOX_F   = ROCKET_VERILOG_DIR / "firrtl_black_box_resource_files.f"
+ROCKET_TB_F         = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.f"
+ROCKET_DUT_F        = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.f"
+ROCKET_TB_MEMCONF   = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.mem.conf"
+ROCKET_DUT_MEMCONF  = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.mem.conf"
 
-@targets([ROCKET_VERILOG_F, ROCKET_BLACKBOX_F], [ROCKET_FIRRTL, ROCKET_ANNO_FINAL], True)
+
+@target([ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG], [ROCKET_FIRRTL, ROCKET_ANNO_FINAL], True)
 def gen_verilog(target, depends, jobs):
     $"""firtool --format=fir --export-module-hierarchy --verify-each=true --warn-on-unprocessed-annotations \
     --disable-annotation-classless --disable-annotation-unknown --mlir-timing --split-verilog \
     --lowering-options=emittedLineLength=2048,noAlwaysComb,disallowLocalVariables,verifLabels,disallowPortDeclSharing,locationInfoStyle=wrapInAtSquareBracket \
     --repl-seq-mem --repl-seq-mem-file={ROCKET_MEM_CONFIG} \
     --annotation-file={depends[1]} -o {ROCKET_VERILOG_DIR} {depends[0]}
+    """   
+
+@target([ROCKET_TB_F, ROCKET_DUT_F, ROCKET_TB_MEMCONF, ROCKET_DUT_MEMCONF], [ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG])
+def split_design(target, depends):
+    $"""python3 {STARSHIP_SCRIPT}/split_design.py \
+        --tb {config.STARSHIP_TB.split('.')[-1]} \
+        --dut {config.STARSHIP_DUT.split('.')[-1]} \
+        --hierarchy {ROCKET_HIER} \
+        --filelist {ROCKET_VERILOG_F},{ROCKET_BLACKBOX_F} \
+        --memconf {ROCKET_MEM_CONFIG} \
+        --include {ROCKET_VERILOG_DIR} \
+        --tb-filelist {ROCKET_TB_F} \
+        --dut-filelist {ROCKET_DUT_F} \
+        --tb-memconf {ROCKET_TB_MEMCONF} \
+        --dut-memconf {ROCKET_DUT_MEMCONF}
     """
 
-@task([ROCKET_VERILOG_F])
+@task([ROCKET_TB_F])
 def all(target, depends):
     print("done")
