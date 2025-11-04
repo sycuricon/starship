@@ -78,7 +78,8 @@ ROCKET_TB_F         = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.f"
 ROCKET_DUT_F        = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.f"
 ROCKET_TB_MEMCONF   = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.mem.conf"
 ROCKET_DUT_MEMCONF  = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.mem.conf"
-
+ROCKET_TB_MEM_V     = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.mem.v"
+ROCKET_DUT_MEM_V    = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.mem.v"
 
 @target([ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG], [ROCKET_FIRRTL, ROCKET_ANNO_FINAL], True)
 def gen_verilog(target, depends, jobs):
@@ -104,6 +105,15 @@ def split_design(target, depends):
         --dut-memconf {ROCKET_DUT_MEMCONF}
     """
 
-@task([ROCKET_TB_F])
+@target(ROCKET_TB_MEM_V, [ROCKET_TB_MEMCONF])
+def gen_tb_mem(target, depends):
+    $"{STARSHIP_SCRIPT}/tb_mem_gen.py {depends[0]} --swap > {target}"
+
+@target(ROCKET_DUT_MEM_V, [ROCKET_DUT_MEMCONF])
+def gen_tb_mem(target, depends):
+
+    $"{ROCKET_HOME}/scripts/vlsi_mem_gen {depends[0]} > {target}"
+
+@task([ROCKET_DUT_MEM_V , ROCKET_TB_MEM_V])
 def all(target, depends):
     print("done")
