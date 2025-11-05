@@ -3,6 +3,8 @@
 # Email: phantom@zju.edu.cn
 # This file is under MIT License, see https://www.phvntom.tech/LICENSE.txt
 
+$(error This Makefile is deprecated. Please use build.ptm with ptm build system instead.)
+
 TOP			:= $(CURDIR)
 SRC			:= $(TOP)/repo
 BUILD		:= $(TOP)/build

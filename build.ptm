@@ -28,7 +28,7 @@ ROCKET_BUILD        = STARSHIP_BUILD / "rocket-chip"
 ROCKET_PREFIX       = ".".join([config.STARSHIP_CORE,
                                 config.STARSHIP_DUT.split(".")[-1],
                                 config.STARSHIP_CONFIG.split(".")[-1]])
-ROCKET_TOP          = config.STARSHIP_TB
+ROCKET_TOP          = config.STARSHIP_TH
 ROCKET_CONF         = ",".join([f"starship.With{config.STARSHIP_CORE}Core", 
                                 f"{config.STARSHIP_CONFIG}",
                                 f"starship.With{config.STARSHIP_FREQ}MHz"])
@@ -46,8 +46,8 @@ ROCKET_MEM_CONFIG   = ROCKET_BUILD / f"{ROCKET_PREFIX}.mem.conf"
 @target([ROCKET_FIRRTL, ROCKET_DTS, ROCKET_ANNO], [*ROCKET_SCALA], True)
 def gen_firrtl(target, depends, jobs):
     $"mkdir -p {ROCKET_BUILD}"
-    $"""sbt "runMain starship.utils.stage.FIRRTLGenerator
-            --name {ROCKET_PREFIX} --dir {ROCKET_BUILD}
+    $"""sbt "runMain starship.utils.stage.FIRRTLGenerator \
+            --name {ROCKET_PREFIX} --dir {ROCKET_BUILD} \
             --top {ROCKET_TOP} --config {ROCKET_CONF}"
     """
 
@@ -69,16 +69,15 @@ def append_anno(target, depends):
     with open(target, "w", encoding="utf-8") as f:
         json.dump(result, f)
 
-
 # Verilog stage
-ROCKET_VERILOG_DIR  = ROCKET_BUILD / ROCKET_PREFIX
+ROCKET_VERILOG_DIR  = ROCKET_BUILD / ROCKET_PREFIX.replace('.', '_')
 ROCKET_VERILOG_F    = ROCKET_VERILOG_DIR / "filelist.f"
 ROCKET_BLACKBOX_F   = ROCKET_VERILOG_DIR / "firrtl_black_box_resource_files.f"
-ROCKET_TB_F         = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.f"
+ROCKET_TH_F         = ROCKET_BUILD / f"{ROCKET_PREFIX}.th.f"
 ROCKET_DUT_F        = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.f"
-ROCKET_TB_MEMCONF   = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.mem.conf"
+ROCKET_TH_MEMCONF   = ROCKET_BUILD / f"{ROCKET_PREFIX}.th.mem.conf"
 ROCKET_DUT_MEMCONF  = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.mem.conf"
-ROCKET_TB_MEM_V     = ROCKET_BUILD / f"{ROCKET_PREFIX}.tb.mem.v"
+ROCKET_TH_MEM_V     = ROCKET_BUILD / f"{ROCKET_PREFIX}.th.mem.v"
 ROCKET_DUT_MEM_V    = ROCKET_BUILD / f"{ROCKET_PREFIX}.dut.mem.v"
 
 @target([ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG], [ROCKET_FIRRTL, ROCKET_ANNO_FINAL], True)
@@ -88,32 +87,114 @@ def gen_verilog(target, depends, jobs):
     --lowering-options=emittedLineLength=2048,noAlwaysComb,disallowLocalVariables,verifLabels,disallowPortDeclSharing,locationInfoStyle=wrapInAtSquareBracket \
     --repl-seq-mem --repl-seq-mem-file={ROCKET_MEM_CONFIG} \
     --annotation-file={depends[1]} -o {ROCKET_VERILOG_DIR} {depends[0]}
-    """   
+    """
 
-@target([ROCKET_TB_F, ROCKET_DUT_F, ROCKET_TB_MEMCONF, ROCKET_DUT_MEMCONF], [ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG])
+@target([ROCKET_TH_F, ROCKET_DUT_F, ROCKET_TH_MEMCONF, ROCKET_DUT_MEMCONF], [ROCKET_VERILOG_F, ROCKET_BLACKBOX_F, ROCKET_HIER, ROCKET_MEM_CONFIG])
 def split_design(target, depends):
     $"""python3 {STARSHIP_SCRIPT}/split_design.py \
-        --tb {config.STARSHIP_TB.split('.')[-1]} \
+        --th {config.STARSHIP_TH.split('.')[-1]} \
         --dut {config.STARSHIP_DUT.split('.')[-1]} \
         --hierarchy {ROCKET_HIER} \
         --filelist {ROCKET_VERILOG_F},{ROCKET_BLACKBOX_F} \
         --memconf {ROCKET_MEM_CONFIG} \
         --include {ROCKET_VERILOG_DIR} \
-        --tb-filelist {ROCKET_TB_F} \
+        --th-filelist {ROCKET_TH_F} \
         --dut-filelist {ROCKET_DUT_F} \
-        --tb-memconf {ROCKET_TB_MEMCONF} \
+        --th-memconf {ROCKET_TH_MEMCONF} \
         --dut-memconf {ROCKET_DUT_MEMCONF}
     """
 
-@target(ROCKET_TB_MEM_V, [ROCKET_TB_MEMCONF])
-def gen_tb_mem(target, depends):
-    $"{STARSHIP_SCRIPT}/tb_mem_gen.py {depends[0]} --swap > {target}"
+@targets([ROCKET_TH_MEM_V, ROCKET_DUT_MEM_V], lambda target: [ROCKET_TH_MEMCONF] if ".th." in target else [ROCKET_DUT_MEMCONF])
+def gen_mem_model(target, depends):
+    if "th" in target:
+        $"{STARSHIP_SCRIPT}/th_mem_gen.py {depends[0]} --swap > {target}"
+    else:
+        $"{ROCKET_HOME}/scripts/vlsi_mem_gen {depends[0]} > {target}"
 
-@target(ROCKET_DUT_MEM_V, [ROCKET_DUT_MEMCONF])
-def gen_tb_mem(target, depends):
 
-    $"{ROCKET_HOME}/scripts/vlsi_mem_gen {depends[0]} > {target}"
+#######################################
+#
+#            RTL Simulation
+#
+#######################################
+SIM_HOME            = STARSHIP_ASIC / "sim"
+SIM_OUTPUT_DIR      = STARSHIP_BUILD / config.SIMULATION_TOOL / ROCKET_PREFIX.replace('.', '_') + f"_{config.SIMULATION_MODE}"
+SIM_BUILD           = SIM_OUTPUT_DIR / "build"
+SIM_LOG             = SIM_OUTPUT_DIR / "log"
+SIM_WAVE            = SIM_OUTPUT_DIR / "wave"
+SIM_BIN             = SIM_BUILD / config.STARSHIP_TB
+SIM_SRC_V           = [SIM_HOME / v for v in ["tty.v", "probebuffer.v", "archstep.v"]]
+SIM_SRC_C           = [SIM_HOME / c for c in ["th_mem.cc", "probebuffer.cc", "mem_swap.cc"]]
+SIM_DEFINES         = [f"+define+PRINTF_COND={config.STARSHIP_TB}.printf_cond",
+                       f"+define+STOP_COND=!{config.STARSHIP_TB}.reset",
+                       f"+define+TESTHARNESS={config.STARSHIP_TH.split('.')[-1]}", 
+                       "+define+CLOCK_PERIOD=1.0", 
+                       f"+define+TARGET_{config.STARSHIP_CORE}",
+                       f'+define+TOP_DIR=\\"{SIM_OUTPUT_DIR}\\"']
+SIM_CXX_FLAGS       = ["-std=c++17"]
+SIM_LD_FLAGS        = ["-ldl", "-lconfig++"]
+SIM_CMP_FLAGS       = ["+systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+"] + \
+                     [f"+incdir+{inc}" for inc in [ROCKET_BUILD, ROCKET_VERILOG_DIR, SIM_HOME]]
+SIM_RUN_FLAGS       = [f"+testcase={config.SIMULATION_INPUT}", f"+label={config.SIMULATION_LABEL}"]
 
-@task([ROCKET_DUT_MEM_V , ROCKET_TB_MEM_V])
+if config.SIMULATION_MODE == "robprofile":
+    SIM_SRC_V.extend([SIM_HOME / "robprofile.v", SIM_HOME / "Testbench.v"])
+    SIM_DEFINES.append("+define+ROBPROFILE")
+else:
+    SIM_SRC_V.append(SIM_HOME / "Testbench.v")
+
+if config.SIMULATION_TOOL == "vcs":
+    SIM_DEFINES.append("+define+DEBUG_FSDB")
+    SIM_CMP_FLAGS.extend([
+        "-quiet", "-notice", "-line", "+rad", "-full64", "+vcs+lic+wait",
+        "-timescale=1ns/10ps", "-sverilog", "+v2k", "-debug_acc+all",
+        "+nospecify", "+notimingcheck", "-deraceclockdata", "-assert svaext",
+        "+vcs+initreg+random", f"-top {config.STARSHIP_TB}"
+    ])
+    SIM_RUN_FLAGS.extend(["-quiet", "+ntb_random_seed_automatic", "-no_save", "+vcs+initreg+0"])
+    
+else:
+    SIM_DEFINES.append("+define+DEBUG_VCD")
+    SIM_CMP_FLAGS.extend([
+        "-Wno-fatal", "-Wno-WIDTH", "-Wno-STMTDLY", "-Werror-IMPLICIT",
+        "--timescale 1ns/10ps", "--trace", "--timing", "-O3", "--main",
+        "--cc", "--exe", f"--Mdir {SIM_BUILD}", f"--top-module {config.STARSHIP_TB}"
+    ])
+
+
+@target(SIM_BIN, [ROCKET_TH_F, ROCKET_DUT_F, ROCKET_TH_MEM_V, ROCKET_DUT_MEM_V] + SIM_SRC_V + SIM_SRC_C, True)
+def build_sim(target, depends, jobs):
+    $"mkdir -p {SIM_OUTPUT_DIR} {SIM_BUILD} {SIM_LOG} {SIM_WAVE}"
+    if config.SIMULATION_TOOL == "vcs":
+        $"""cd {SIM_BUILD} &&vcs {" ".join(SIM_CMP_FLAGS)} -CFLAGS "{" ".join(SIM_CXX_FLAGS)}" \
+                {" ".join(SIM_LD_FLAGS)} {" ".join(SIM_DEFINES)} -f {ROCKET_TH_F} -f {ROCKET_DUT_F} \
+                {" ".join(SIM_SRC_V)} {" ".join(SIM_SRC_C)} {ROCKET_TH_MEM_V} {ROCKET_DUT_MEM_V} \
+                -o {target} -j{jobs}
+        """
+
+if param.get("debug", False):
+    SIM_RUN_FLAGS.extend([f"+verbose", "+uart_tx=0"])
+
+if param.get("wave", False):
+    SIM_RUN_FLAGS.extend([f"+dump", "+uart_tx=0"])
+
+@task([SIM_BIN, config.SIMULATION_INPUT])
+def sim(target, depends):
+    $'cd {SIM_BUILD} && {SIM_BIN} {" ".join(SIM_RUN_FLAGS)}'
+
+WAVEVIEW_HOME       = SIM_OUTPUT_DIR / config.WAVEVIEW_TOOL
+
+@task([ROCKET_TH_F, ROCKET_DUT_F, ROCKET_TH_MEM_V, ROCKET_DUT_MEM_V] + SIM_SRC_V + SIM_SRC_C)
+def view(target, depends):
+    $"mkdir -p {WAVEVIEW_HOME}"
+    if config.WAVEVIEW_TOOL == "verdi":
+       $"""cd {WAVEVIEW_HOME};
+       verdi -q -ssy -ssv -ssz -autoalias {" ".join(SIM_DEFINES)} {" ".join(SIM_CMP_FLAGS)} \
+       -ssf {SIM_WAVE}/{config.SIMULATION_LABEL}.fsdb -sswr {WAVEVIEW_HOME}/signal.rc \
+       -f {ROCKET_TH_F} -f {ROCKET_DUT_F} {" ".join(SIM_SRC_V)} \
+       {ROCKET_TH_MEM_V} {ROCKET_DUT_MEM_V} -top {config.STARSHIP_TB}
+       """
+
+@task([sim])
 def all(target, depends):
     print("done")

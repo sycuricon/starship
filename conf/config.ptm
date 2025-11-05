@@ -1,11 +1,13 @@
 # SoC configuration
 
 import os.path as path
+
 from ptm import environ as env
 
 STARSHIP_CORE   = param.get("core", "Rocket")
 STARSHIP_FREQ   = param.get("freq", "100")
-STARSHIP_TB     = param.get("tb", "starship.asic.TestHarness")
+STARSHIP_TB     = param.get("tb", "Testbench")
+STARSHIP_TH     = param.get("th", "starship.asic.TestHarness")
 STARSHIP_DUT    = param.get("dut", "starship.asic.StarshipSimTop")
 STARSHIP_CONFIG = param.get("config", "starship.asic.StarshipSimMiniConfig")
 
@@ -14,8 +16,20 @@ if STARSHIP_CORE == "CVA6":
 elif STARSHIP_CORE == "XiangShan":
     assert ${XS_HOME} is not None, "$XS_HOME must point to XiangShan repository"
 
-SIMULATION_MODE = param.get("sim", "normal")
-SIMULATION_INPUT  = param.get("input", STARSHIP_BUILD / "dummytest.hex")
-SIMULATION_LABEL  = param.get("label", path.splitext(path.basename(SIMULATION_INPUT))[0])
+SIMULATION_TOOL = param.get("sim_tool", "vcs")
+SIMULATION_MODE = param.get("mode", "normal")
+SIMULATION_INPUT = param.get("input", STARSHIP_BUILD / "rv64ui-p-simple.bin")
+SIMULATION_LABEL = param.get("label", path.splitext(path.basename(SIMULATION_INPUT))[0])
 
-env["JAVA_TOOL_OPTIONS"] = "-Xmx10G -Xss8M"
+WAVEVIEW_TOOL   = param.get("view_tool", "verdi")
+
+env["JAVA_TOOL_OPTIONS"] = "-Xmx16G -Xss8M"
+
+@target(STARSHIP_BUILD / "rv64ui-p-simple.hex")
+def get_dummy_input(target, depends):
+    $"mkdir -p {STARSHIP_BUILD}"
+    $'wget https://github.com/sycuricon/riscv-tests/releases/download/dummy/rv64ui-p-simple -O {target}'
+
+@target(STARSHIP_BUILD / "rv64ui-p-simple.bin", [STARSHIP_BUILD / "rv64ui-p-simple.hex"])
+def get_dummy_input(target, depends):
+    $"riscv64-unknown-elf-objcopy --gap-fill 0 --set-section-flags .bss=alloc,load,contents --set-section-flags .sbss=alloc,load,contents --set-section-flags .tbss=alloc,load,contents -O binary {depends[0]} {target}"

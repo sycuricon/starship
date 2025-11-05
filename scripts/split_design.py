@@ -1,19 +1,18 @@
-import json
-import argparse
-import shutil
 import os
-import sys
 import re
-from typing import List, Dict, Set, Iterable, Tuple, Any, Optional
+import json
+import shutil
+import argparse
+from typing import List
 
-TB_SFX = "_tb"
+TH_SFX = "_th"
 
 module_search_path = []
 in_filelists = []
 module_path_map = {}
 memconfig_map = {}
 
-tb_hier_map = {}
+th_hier_map = {}
 dut_hier_map = {}
 
 def handle_multiple_arguments(arg_value: str, separator: str) -> list[str]:
@@ -32,11 +31,11 @@ def get_file_abs_path(file: str) -> str:
     else:
         return os.path.abspath(file)
 
-def write_filelist(tb_out_filelist, dut_out_filelist):
-    tb_extern_modules = [m for m in tb_hier_map.keys() if m not in module_path_map.keys()]
-    with open(tb_out_filelist, 'w', encoding='utf-8') as f:
-        for module in tb_hier_map.keys():
-            if module in tb_extern_modules:
+def write_filelist(th_out_filelist, dut_out_filelist):
+    th_extern_modules = [m for m in th_hier_map.keys() if m not in module_path_map.keys()]
+    with open(th_out_filelist, 'w', encoding='utf-8') as f:
+        for module in th_hier_map.keys():
+            if module in th_extern_modules:
                 continue
             path = module_path_map[module]
             f.write(f"{path}\n")
@@ -49,10 +48,10 @@ def write_filelist(tb_out_filelist, dut_out_filelist):
             path = module_path_map[module]
             f.write(f"{path}\n")
 
-def write_memconf(tb_memconf, dut_memconf):
-    tb_mems = [m for m in memconfig_map.keys() if m in tb_hier_map.keys()]
-    with open(tb_memconf, 'w', encoding='utf-8') as f:
-        for mem in tb_mems:
+def write_memconf(th_memconf, dut_memconf):
+    th_mems = [m for m in memconfig_map.keys() if m in th_hier_map.keys()]
+    with open(th_memconf, 'w', encoding='utf-8') as f:
+        for mem in th_mems:
             line = memconfig_map[mem]
             f.write(f"{line}\n")
     
@@ -62,21 +61,21 @@ def write_memconf(tb_memconf, dut_memconf):
             line = memconfig_map[mem]
             f.write(f"{line}\n")
 
-def rename_testbench_modules(tb, dut):
-    global module_path_map, tb_hier_map
+def rename_testharness_modules(th, dut):
+    global module_path_map, th_hier_map
 
-    shared_modules = [m for m in tb_hier_map.keys() if m in dut_hier_map.keys()]
-    extern_modules = [m for m in tb_hier_map.keys() if m not in module_path_map.keys()] + [dut]
+    shared_modules = [m for m in th_hier_map.keys() if m in dut_hier_map.keys()]
+    extern_modules = [m for m in th_hier_map.keys() if m not in module_path_map.keys()] + [dut]
 
-    for old_module, instances in list(tb_hier_map.items()):
+    for old_module, instances in list(th_hier_map.items()):
         if old_module in extern_modules:
             continue
 
         old_path = module_path_map[old_module]
         dir_name, file_name = os.path.split(old_path)
         base_name = file_name.rsplit('.', 1)
-        new_path = os.path.join(dir_name, f"{base_name[0]}{TB_SFX}.{base_name[1]}")
-        new_module = old_module + TB_SFX
+        new_path = os.path.join(dir_name, f"{base_name[0]}{TH_SFX}.{base_name[1]}")
+        new_module = old_module + TH_SFX
         
         print(f"[*] 1/3 Copy file {old_path} to {new_path}.")
         shutil.copyfile(old_path, new_path)
@@ -85,7 +84,7 @@ def rename_testbench_modules(tb, dut):
         with open(new_path, 'r', encoding='utf-8') as f:
             src = f.read()
 
-        if old_module != tb:
+        if old_module != th:
             print(f"[*] 2/3 Rename module {old_module}.")
             lr_module = re.compile(
                 rf'''^
@@ -110,15 +109,15 @@ def rename_testbench_modules(tb, dut):
                 ({re.escape(instance_name)})
                 ''', re.MULTILINE | re.DOTALL | re.VERBOSE)
 
-            src, n = lr_instance.subn(rf'\1{sub_module + TB_SFX}\3\4', src, count=1)
+            src, n = lr_instance.subn(rf'\1{sub_module + TH_SFX}\3\4', src, count=1)
             if n == 0:
                 raise Exception(f"Failed to rename instance {instance_name}@{sub_module} in module {old_module}.")
 
         with open(new_path, 'w', encoding='utf-8') as f:
             f.write(src)
 
-        tb_hier_map[new_module] = [(m + TB_SFX, inst) for (m, inst) in tb_hier_map[old_module]]
-        tb_hier_map.pop(old_module)
+        th_hier_map[new_module] = [(m + TH_SFX, inst) for (m, inst) in th_hier_map[old_module]]
+        th_hier_map.pop(old_module)
         module_path_map[new_module] = new_path
 
         if old_module not in shared_modules:
@@ -155,7 +154,7 @@ def get_hierarchy(file: str, ignores: List[str] | None = None):
 def split_hierarchy(file: str, dut: str):
     file = get_file_abs_path(file)
     
-    tb_hier_map = {}
+    th_hier_map = {}
     dut_hier_map = {}
 
     with open(file, encoding='utf-8') as f:
@@ -166,7 +165,7 @@ def split_hierarchy(file: str, dut: str):
         sub_nodes = node.get("instances", [])
         sub_modules = [(s["module_name"], s["instance_name"]) for s in sub_nodes]
 
-        selected_map = dut_hier_map if in_dut else tb_hier_map
+        selected_map = dut_hier_map if in_dut else th_hier_map
         if module not in selected_map:
             selected_map[module] = sub_modules
             for child in sub_nodes:
@@ -181,7 +180,7 @@ def split_hierarchy(file: str, dut: str):
     
     walk_hierarchy(hier, False)
 
-    return tb_hier_map, dut_hier_map
+    return th_hier_map, dut_hier_map
 
 
 def load_modules(file: str):
@@ -240,24 +239,24 @@ def load_memconf(conf: str):
 
     return mems
 
-def main(tb, dut, tb_out_filelist, dut_out_filelist, tb_memconf, dut_memconf):
-    rename_testbench_modules(tb, dut)
-    write_filelist(tb_out_filelist, dut_out_filelist)
-    write_memconf(tb_memconf, dut_memconf)
+def main(th, dut, th_out_filelist, dut_out_filelist, th_memconf, dut_memconf):
+    rename_testharness_modules(th, dut)
+    write_filelist(th_out_filelist, dut_out_filelist)
+    write_memconf(th_memconf, dut_memconf)
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description="Split DUT from testbench for instrumentation purposes.")
+    parser = argparse.ArgumentParser(description="Split DUT from testharness for instrumentation purposes.")
     # inputs
-    parser.add_argument("--tb", type=str, required=True, help="testbench name")
+    parser.add_argument("--th", type=str, required=True, help="testharness name")
     parser.add_argument("--dut", type=str, required=True, help="DUT name")
     parser.add_argument("--hierarchy", type=str, required=True, help="design hierarchy json")
     parser.add_argument('--filelist', type=str, required=True, help='whole design filelist, split by `,`')
     parser.add_argument('--include', type=str, required=True, help='path where to find source files, split by `,`')
     parser.add_argument('--memconf', type=str, required=True, help='path where to find memory configuration')
     # outputs
-    parser.add_argument('--tb-filelist', type=str, required=True, help='testbench filelist')
+    parser.add_argument('--th-filelist', type=str, required=True, help='testharness filelist')
     parser.add_argument('--dut-filelist', type=str, required=True, help='DUT filelist')
-    parser.add_argument("--tb-memconf", type=str, required=True, help="testbench memory configuration")
+    parser.add_argument("--th-memconf", type=str, required=True, help="testharness memory configuration")
     parser.add_argument("--dut-memconf", type=str, required=True, help="DUT memory configuration")
     
     args = parser.parse_args()
@@ -266,7 +265,7 @@ if __name__=="__main__":
     in_filelists.extend(handle_multiple_arguments(args.filelist, ','))
     for filelist in in_filelists:
         module_path_map |= load_filelist(filelist)
-    tb_hier_map, dut_hier_map = split_hierarchy(args.hierarchy, args.dut)
+    th_hier_map, dut_hier_map = split_hierarchy(args.hierarchy, args.dut)
     memconfig_map = load_memconf(args.memconf)
 
-    main(args.tb, args.dut, args.tb_filelist, args.dut_filelist, args.tb_memconf, args.dut_memconf)
+    main(args.th, args.dut, args.th_filelist, args.dut_filelist, args.th_memconf, args.dut_memconf)
