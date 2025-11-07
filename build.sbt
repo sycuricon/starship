@@ -50,7 +50,11 @@ lazy val ucb_hardfloat = (project in file("repo/rocket-chip/hardfloat/hardfloat"
 
 lazy val rocket_chip = (project in file("repo/rocket-chip"))
   .dependsOn(cde, diplomacy, ucb_hardfloat)
-  .settings(commonSettings)
+  .settings(commonSettings,
+    Compile / excludeFilter := (Compile / excludeFilter).value ||
+      new SimpleFileFilter(_.getCanonicalPath contains "repo/rocket-chip/src/main/scala/rocket/CSR.scala"),
+    Compile / unmanagedSourceDirectories += baseDirectory.value / "../patch/rocket-chip"
+  )
 
 lazy val peripheral_blocks = (project in file("repo/rocket-chip-blocks"))
   .dependsOn(rocket_chip, cde)
