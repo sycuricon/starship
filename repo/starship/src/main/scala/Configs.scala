@@ -12,11 +12,6 @@ import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.util.SystemFileName
 
-import sifive.fpgashells.shell._
-import sifive.fpgashells.clocks._
-import sifive.fpgashells.ip.xilinx._
-import sifive.fpgashells.shell.xilinx._
-import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
 
 import sifive.blocks.devices.uart._
 import sifive.blocks.devices.spi._

@@ -34,8 +34,8 @@ ROCKET_CONF         = ",".join([f"starship.With{config.STARSHIP_CORE}Core",
                                 f"starship.With{config.STARSHIP_FREQ}MHz"])
 
 # FIRRTL stage
-ROCKET_SCALA        = $>'find {STARSHIP_HOME} -type d -name target -prune -o   \
-                            -type f -name "*.scala" -print'.splitlines()
+ROCKET_SCALA        = $>'find {STARSHIP_HOME} -type d -name target -prune -o \
+                        -type f -name "*.scala" -o -type f -name "*.sbt" -print'.splitlines()
 ROCKET_FIRRTL       = ROCKET_BUILD / f"{ROCKET_PREFIX}.fir"
 ROCKET_DTS          = ROCKET_BUILD / f"{ROCKET_PREFIX}.dts"
 ROCKET_ANNO         = ROCKET_BUILD / f"{ROCKET_PREFIX}.anno.json"

@@ -14,9 +14,8 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.13.16",
   scalacOptions ++= Seq(
     "-deprecation",
-    "-feature",
     "-unchecked",
-    "-language:reflectiveCalls",
+    "-Ytasty-reader",
     "-Ymacro-annotations"
   ),
   addCompilerPlugin("org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full),
@@ -85,7 +84,7 @@ lazy val ucb_boom = (project in file("repo/riscv-boom/src"))
   )
 
 lazy val starship = (project in file("repo/starship"))
-  .dependsOn(diplomacy, rocket_chip, cde, peripheral_blocks, fpga_shells, ucb_boom)
+  .dependsOn(diplomacy, rocket_chip, cde, peripheral_blocks, ucb_boom)
   .settings(commonSettings)
 
 lazy val root = (project in file("."))

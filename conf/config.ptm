@@ -23,7 +23,7 @@ SIMULATION_LABEL = param.get("label", path.splitext(path.basename(SIMULATION_INP
 
 WAVEVIEW_TOOL   = param.get("view_tool", "verdi")
 
-env["JAVA_TOOL_OPTIONS"] = "-Xmx16G -Xss8M -XX:+UseG1GC"
+env["JAVA_TOOL_OPTIONS"] = "-Xmx16G -Xss8M"
 
 @target(STARSHIP_BUILD / "rv64ui-p-simple.elf")
 def get_dummy_input(target, depends):

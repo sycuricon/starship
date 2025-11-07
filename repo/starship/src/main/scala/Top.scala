@@ -11,10 +11,7 @@ import freechips.rocketchip.subsystem._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.devices.tilelink._
-import sifive.fpgashells.devices.xilinx.xilinxvc707mig._
 
-import sifive.blocks.devices.spi._
-import sifive.blocks.devices.uart._
 
 class StarshipSystem(implicit p: Parameters) extends RocketSubsystem
   with HasAsyncExtInterrupts
