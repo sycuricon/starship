@@ -61,5 +61,15 @@
 //     case MemoryXilinxDDRKey => XilinxVC707MIGParams(address = Seq(AddressSet(0x80000000L,site(VCU707DDRSizeKey)-1)))
 //     case ExtMem => up(ExtMem, site).map(x => 
 //       x.copy(master = x.master.copy(size = site(VCU707DDRSizeKey))))
+//     case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
+//       // invoke makefile for zero stage boot
+//       val freqMHz = site(FPGAFrequencyKey).toInt * 1000000
+//       val path = System.getProperty("user.dir")
+//       val make = s"make -C firmware/zsbl ROOT_DIR=${path} img"
+//       println("[Leaving rocketchip] " + make)
+//       require (make.! == 0, "Failed to build bootrom")
+//       println("[rocketchip Continue]")
+//       p.copy(hang = 0x10000, contentFileName = SystemFileName("./build/firmware/zsbl/bootrom.img"))
+//     }
 //   })
 // )

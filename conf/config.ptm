@@ -23,13 +23,13 @@ SIMULATION_LABEL = param.get("label", path.splitext(path.basename(SIMULATION_INP
 
 WAVEVIEW_TOOL   = param.get("view_tool", "verdi")
 
-env["JAVA_TOOL_OPTIONS"] = "-Xmx16G -Xss8M"
+env["JAVA_TOOL_OPTIONS"] = "-Xmx16G -Xss8M -XX:+UseG1GC"
 
-@target(STARSHIP_BUILD / "rv64ui-p-simple.hex")
+@target(STARSHIP_BUILD / "rv64ui-p-simple.elf")
 def get_dummy_input(target, depends):
     $"mkdir -p {STARSHIP_BUILD}"
     $'wget https://github.com/sycuricon/riscv-tests/releases/download/dummy/rv64ui-p-simple -O {target}'
 
-@target(STARSHIP_BUILD / "rv64ui-p-simple.bin", [STARSHIP_BUILD / "rv64ui-p-simple.hex"])
+@target(STARSHIP_BUILD / "rv64ui-p-simple.bin", [STARSHIP_BUILD / "rv64ui-p-simple.elf"])
 def get_dummy_input(target, depends):
     $"riscv64-unknown-elf-objcopy --gap-fill 0 --set-section-flags .bss=alloc,load,contents --set-section-flags .sbss=alloc,load,contents --set-section-flags .tbss=alloc,load,contents -O binary {depends[0]} {target}"

@@ -138,7 +138,7 @@ SIM_CMP_FLAGS       = ["+systemverilogext+.sva+.pkg+.sv+.SV+.vh+.svh+.svi+"] + \
 SIM_RUN_FLAGS       = [f"+testcase={config.SIMULATION_INPUT}", f"+label={config.SIMULATION_LABEL}"]
 
 if config.SIMULATION_MODE == "robprofile":
-    SIM_SRC_V.extend([SIM_HOME / "robprofile.v", SIM_HOME / "Testbench.v"])
+    SIM_SRC_V.extend([SIM_HOME / "Testbench.v", SIM_HOME / "robprofile.v"])
     SIM_DEFINES.append("+define+ROBPROFILE")
 else:
     SIM_SRC_V.append(SIM_HOME / "Testbench.v")
@@ -166,7 +166,7 @@ else:
 def build_sim(target, depends, jobs):
     $"mkdir -p {SIM_OUTPUT_DIR} {SIM_BUILD} {SIM_LOG} {SIM_WAVE}"
     if config.SIMULATION_TOOL == "vcs":
-        $"""cd {SIM_BUILD} &&vcs {" ".join(SIM_CMP_FLAGS)} -CFLAGS "{" ".join(SIM_CXX_FLAGS)}" \
+        $"""cd {SIM_BUILD} && vcs {" ".join(SIM_CMP_FLAGS)} -CFLAGS "{" ".join(SIM_CXX_FLAGS)}" \
                 {" ".join(SIM_LD_FLAGS)} {" ".join(SIM_DEFINES)} -f {ROCKET_TH_F} -f {ROCKET_DUT_F} \
                 {" ".join(SIM_SRC_V)} {" ".join(SIM_SRC_C)} {ROCKET_TH_MEM_V} {ROCKET_DUT_MEM_V} \
                 -o {target} -j{jobs}

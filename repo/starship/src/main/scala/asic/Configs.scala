@@ -55,6 +55,13 @@ class StarshipSimMiniConfig extends Config(
     case PeripheryBusKey => up(PeripheryBusKey, site).copy(dtsFrequency = Some(site(FrequencyKey).toInt * 1000000))
     /* timebase-frequency = 1 MHz */
     case DTSTimebase => BigInt(1000000L)
-    case BootROMLocated(x) => up(BootROMLocated(x), site).map { p => p.copy(hang = 0x80000000L) }
+    case BootROMLocated(x) => Nil
+    case HasTilesExternalResetVectorKey => true
+    case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site) map {
+      case tp: boom.v3.common.BoomTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(core = tp.tileParams.core.copy(
+          enableCommitLogPrintf = true
+      )))
+      case other => other
+    }
   })
 )

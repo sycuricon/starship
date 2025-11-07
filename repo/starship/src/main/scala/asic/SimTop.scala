@@ -193,5 +193,9 @@ class TestHarness()(implicit p: Parameters) extends Module {
     }
   )
 
+  dut.reset_vector.foreach { boot_addr =>
+    boot_addr := BigInt(0x80000000L).U
+  }
+
   Debug.connectDebug(ldut.debug, ldut.resetctrl, ldut.psd, clock, reset.asBool, WireInit(false.B))
 }

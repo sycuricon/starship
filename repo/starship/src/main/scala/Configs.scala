@@ -35,7 +35,7 @@ class With100MHz extends WithFrequency(100)
 class With150MHz extends WithFrequency(150)
 
 class WithRocketCore extends Config(new freechips.rocketchip.rocket.WithNBigCores(1))
-class WithBOOMCore extends Config(new boom.v3.common.WithNSmallBooms(1))
+class WithBOOMCore extends Config(new boom.v3.common.WithBoomCommitLogPrintf ++ new boom.v3.common.WithNSmallBooms(1))
 class WithCVA6Core extends Config(new starship.cva6.WithNCVA6Cores(1))
 class WithXiangShanCore extends Config(new starship.xiangshan.WithNXSCores(1))
 
@@ -46,17 +46,6 @@ class StarshipBaseConfig extends Config(
   new WithDTS("zjv,starship", Nil) ++
   new WithEdgeDataBits(64) ++
   new WithCoherentBusTopology ++
-  new WithoutTLMonitors ++
-  new BaseConfig().alter((site,here,up) => {
-    case BootROMLocated(x) => up(BootROMLocated(x), site).map { p =>
-      // invoke makefile for zero stage boot
-      val freqMHz = site(FPGAFrequencyKey).toInt * 1000000
-      val path = System.getProperty("user.dir")
-      val make = s"make -C firmware/zsbl ROOT_DIR=${path} img"
-      println("[Leaving rocketchip] " + make)
-      require (make.! == 0, "Failed to build bootrom")
-      println("[rocketchip Continue]")
-      p.copy(hang = 0x10000, contentFileName = SystemFileName("./build/firmware/zsbl/bootrom.img"))
-    }
-  })
+  new WithoutTLMonitors++
+  new BaseConfig()
 )
