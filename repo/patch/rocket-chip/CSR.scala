@@ -15,6 +15,17 @@ import scala.collection.mutable.LinkedHashMap
 import Instructions._
 import CustomInstructions._
 
+// PATCHED
+class ProbeBufferBB(width: Int) extends BlackBox {
+  val io = IO(new Bundle{
+    val clock = Input(Clock())
+    val reset = Input(Reset())
+    val write = Input(UInt(width.W))
+    val wen = Input(Bool())
+    val read = Output(UInt(width.W))
+  })
+}
+
 class MStatus extends Bundle {
   // not truly part of mstatus, but convenient
   val debug = Bool()
@@ -590,8 +601,8 @@ class CSRFile(
   val reg_mcountinhibit = RegInit(0.U((CSR.firstHPM + nPerfCounters).W))
   io.inhibit_cycle := reg_mcountinhibit(0)
   val reg_instret = WideCounter(64, io.retire, inhibit = reg_mcountinhibit(2))
-  val reg_cycle = if (enableCommitLog) WideCounter(64, io.retire,     inhibit = reg_mcountinhibit(0))
-    else withClock(io.ungated_clock) { WideCounter(64, !io.csr_stall, inhibit = reg_mcountinhibit(0)) }
+  // PATCHED
+  val reg_cycle = withClock(io.ungated_clock) { WideCounter(64, !io.csr_stall, inhibit = reg_mcountinhibit(0)) }
   val reg_hpmevent = io.counters.map(c => RegInit(0.U(xLen.W)))
     (io.counters zip reg_hpmevent) foreach { case (c, e) => c.eventSel := e }
   val reg_hpmcounter = io.counters.zipWithIndex.map { case (c, i) =>
@@ -846,6 +857,17 @@ class CSRFile(
 
   // mimpid, marchid, mvendorid, and mconfigptr are 0 unless overridden by customCSRs
   Seq(CSRs.mimpid, CSRs.marchid, CSRs.mvendorid, CSRs.mconfigptr).foreach(id => read_mapping.getOrElseUpdate(id, 0.U))
+
+  // PATCHED
+  val (reg_probebuf, read_probebuf) = {
+    val bb = Module(new ProbeBufferBB(xLen))
+    bb.io.wen := false.B
+    bb.io.write := 0.U
+    bb.io.clock := clock
+    bb.io.reset := reset
+    (bb, bb.io.read)
+  }
+  read_mapping += 0x800 -> read_probebuf
 
   val decoded_addr = {
     val addr = Cat(io.status.v, io.rw.addr)
@@ -1523,6 +1545,12 @@ class CSRFile(
         reg_vxsat.get := wdata
         reg_vxrm.get := wdata >> 1
       }
+    }
+
+    // PATCHED
+    when (decoded_addr(0x800)) {
+      reg_probebuf.io.write := wdata
+      reg_probebuf.io.wen := true.B
     }
   }
 
