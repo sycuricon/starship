@@ -44,7 +44,7 @@ lazy val diplomacy  = (project in file("repo/rocket-chip/dependencies/diplomacy/
   .settings(commonSettings)
   .settings(Compile / scalaSource := baseDirectory.value / "src/diplomacy")
 
-lazy val ucb_hardfloat = (project in file("repo/rocket-chip/hardfloat/hardfloat"))
+lazy val ucb_hardfloat = (project in file("repo/rocket-chip/dependencies/hardfloat/hardfloat"))
   .settings(commonSettings)
 
 lazy val rocket_chip = (project in file("repo/rocket-chip"))
